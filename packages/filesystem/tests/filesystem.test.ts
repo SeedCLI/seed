@@ -58,21 +58,25 @@ describe("read / write", () => {
 		}
 	});
 
-	test("throws PermissionError for unreadable file", async () => {
-		const file = path.join(TEST_DIR, "no-read.txt");
-		await write(file, "secret");
-		await chmod(file, 0o000);
-		try {
-			await read(file);
-			expect(true).toBe(false);
-		} catch (err) {
-			expect(err).toBeInstanceOf(PermissionError);
-			expect((err as PermissionError).path).toBe(file);
-		} finally {
-			// Restore permissions so afterEach cleanup works
-			await chmod(file, 0o644);
-		}
-	});
+	// chmod doesn't restrict read access on Windows
+	test.skipIf(process.platform === "win32")(
+		"throws PermissionError for unreadable file",
+		async () => {
+			const file = path.join(TEST_DIR, "no-read.txt");
+			await write(file, "secret");
+			await chmod(file, 0o000);
+			try {
+				await read(file);
+				expect(true).toBe(false);
+			} catch (err) {
+				expect(err).toBeInstanceOf(PermissionError);
+				expect((err as PermissionError).path).toBe(file);
+			} finally {
+				// Restore permissions so afterEach cleanup works
+				await chmod(file, 0o644);
+			}
+		},
+	);
 
 	test("writes and reads JSON", async () => {
 		const file = path.join(TEST_DIR, "data.json");
@@ -340,7 +344,11 @@ describe("tmpDir / tmpFile", () => {
 // ─── Path helpers ───
 
 describe("path helpers", () => {
-	test("join", () => expect(path.join("a", "b", "c")).toBe("a/b/c"));
+	test("join", () => {
+		const result = path.join("a", "b", "c");
+		// path.join uses platform separator (/ on Unix, \ on Windows)
+		expect(result).toBe(["a", "b", "c"].join(path.separator));
+	});
 	test("dirname", () => expect(path.dirname("/a/b/c.ts")).toBe("/a/b"));
 	test("basename", () => expect(path.basename("/a/b/c.ts")).toBe("c.ts"));
 	test("basename with ext", () => expect(path.basename("/a/b/c.ts", ".ts")).toBe("c"));

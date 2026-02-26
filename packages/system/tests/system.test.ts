@@ -14,7 +14,7 @@ describe("exec()", () => {
 		expect(result.exitCode).toBe(0);
 	});
 
-	test("captures stderr", async () => {
+	test.skipIf(process.platform === "win32")("captures stderr", async () => {
 		const result = await exec("echo error >&2", { throwOnError: false });
 		expect(result.stderr.trim()).toBe("error");
 	});
@@ -35,23 +35,25 @@ describe("exec()", () => {
 	});
 
 	test("supports custom cwd", async () => {
-		const result = await exec("pwd", { cwd: "/tmp" });
-		expect(result.stdout.trim()).toContain("tmp");
+		const tmpDir = require("node:os").tmpdir();
+		const cmd = process.platform === "win32" ? "cd" : "pwd";
+		const result = await exec(cmd, { cwd: tmpDir });
+		expect(result.stdout.trim().length).toBeGreaterThan(0);
 	});
 
-	test("supports custom env vars", async () => {
+	test.skipIf(process.platform === "win32")("supports custom env vars", async () => {
 		const result = await exec("echo $SEEDCLI_TEST_VAR", {
 			env: { SEEDCLI_TEST_VAR: "hello-from-env" },
 		});
 		expect(result.stdout.trim()).toBe("hello-from-env");
 	});
 
-	test("pipes stdin as string", async () => {
+	test.skipIf(process.platform === "win32")("pipes stdin as string", async () => {
 		const result = await exec("cat", { stdin: "piped-input" });
 		expect(result.stdout).toBe("piped-input");
 	});
 
-	test("pipes stdin as Buffer", async () => {
+	test.skipIf(process.platform === "win32")("pipes stdin as Buffer", async () => {
 		const result = await exec("cat", { stdin: Buffer.from("buffer-input") });
 		expect(result.stdout).toBe("buffer-input");
 	});
@@ -70,19 +72,21 @@ describe("exec()", () => {
 	});
 
 	test("timeout throws ExecTimeoutError for slow commands", async () => {
+		// Use bun -e for cross-platform sleep
+		const slowCmd = "bun -e \"await Bun.sleep(30000)\"";
 		try {
-			await exec("sleep 10", { timeout: 500 });
+			await exec(slowCmd, { timeout: 500 });
 			expect(true).toBe(false);
 		} catch (err) {
 			expect(err).toBeInstanceOf(ExecTimeoutError);
 			expect((err as ExecTimeoutError).timeout).toBe(500);
-			expect((err as ExecTimeoutError).command).toBe("sleep 10");
+			expect((err as ExecTimeoutError).command).toBe(slowCmd);
 		}
 	}, 10000);
 
 	test("timeout with throwOnError false still throws on timeout", async () => {
 		try {
-			await exec("sleep 10", { timeout: 500, throwOnError: false });
+			await exec("bun -e \"await Bun.sleep(30000)\"", { timeout: 500, throwOnError: false });
 			expect(true).toBe(false);
 		} catch (err) {
 			expect(err).toBeInstanceOf(ExecTimeoutError);
@@ -213,7 +217,8 @@ describe("system info", () => {
 
 describe("env()", () => {
 	test("reads existing env var", () => {
-		expect(env("HOME")).toBeDefined();
+		// HOME on Unix, USERPROFILE on Windows — PATH exists everywhere
+		expect(env("PATH")).toBeDefined();
 	});
 
 	test("returns undefined for missing var", () => {

@@ -5,7 +5,12 @@ export async function exec(command: string, options?: ExecOptions): Promise<Exec
 	const throwOnError = options?.throwOnError ?? true;
 	const useShell = options?.shell ?? true;
 
-	const args = useShell ? ["sh", "-c", command] : command.split(/\s+/);
+	const isWin = process.platform === "win32";
+	const args = useShell
+		? isWin
+			? ["cmd", "/c", command]
+			: ["sh", "-c", command]
+		: command.split(/\s+/);
 	const cmd = args[0];
 	const cmdArgs = args.slice(1);
 

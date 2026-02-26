@@ -59,9 +59,11 @@ export async function discoverCommands(baseDir: string): Promise<Command[]> {
 	const files: string[] = [];
 
 	for await (const match of glob.scan({ cwd: commandsDir, onlyFiles: true })) {
-		const parts = match.split("/");
+		// Normalize to forward slashes (glob may return backslashes on Windows)
+		const normalized = match.replaceAll("\\", "/");
+		const parts = normalized.split("/");
 		if (parts.some(shouldSkip)) continue;
-		files.push(match);
+		files.push(normalized);
 	}
 
 	files.sort();
