@@ -1,0 +1,18 @@
+{
+	"name": "<%= name %>",
+	"version": "0.1.0",
+	"description": "A Seed CLI plugin",
+	"type": "module",
+	"main": "src/index.ts",
+	"types": "src/index.ts",
+	"exports": {
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"keywords": ["seedcli", "seedcli-plugin"],
+	"peerDependencies": {
+		"@seedcli/core": ">=0.1.0"
+	}
+}

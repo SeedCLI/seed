@@ -1,0 +1,259 @@
+import { parseArgs } from "node:util";
+// ─── Error Types ───
+export class ParseError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "ParseError";
+    }
+}
+// ─── Parser ───
+/**
+ * Parse raw argv against a command's arg/flag definitions.
+ *
+ * Flow:
+ * 1. Separate positional args from flags using node:util parseArgs
+ * 2. Coerce types (string → number where needed)
+ * 3. Apply defaults for missing optional values
+ * 4. Validate required, choices, custom validators
+ * 5. Return typed { args, flags } object
+ */
+export function parse(argv, cmd) {
+    const argDefs = cmd.args ?? {};
+    const flagDefs = cmd.flags ?? {};
+    // Build parseArgs options from flag definitions
+    const options = {};
+    for (const [name, def] of Object.entries(flagDefs)) {
+        const flagType = def.type;
+        if (flagType === "boolean") {
+            options[name] = { type: "boolean" };
+        }
+        else if (flagType === "string[]" || flagType === "number[]") {
+            // Arrays are "string" with multiple: true (we coerce number[] later)
+            options[name] = { type: "string", multiple: true };
+        }
+        else {
+            // string, number — parseArgs treats both as "string" (we coerce number later)
+            options[name] = { type: "string" };
+        }
+        if (def.alias) {
+            options[name].short = def.alias;
+        }
+    }
+    // Parse with node:util parseArgs
+    let parsed;
+    try {
+        parsed = parseArgs({
+            args: argv,
+            options,
+            strict: true,
+            allowPositionals: true,
+        });
+    }
+    catch (err) {
+        if (err instanceof Error) {
+            throw new ParseError(err.message);
+        }
+        throw err;
+    }
+    // ─── Process positional args ───
+    const argEntries = Object.entries(argDefs);
+    const args = {};
+    for (let i = 0; i < argEntries.length; i++) {
+        const [name, def] = argEntries[i];
+        const raw = parsed.positionals[i];
+        if (raw === undefined) {
+            if (def.default !== undefined) {
+                args[name] = def.default;
+            }
+            else if (def.required) {
+                throw new ParseError(formatMissingArg(name, def, cmd));
+            }
+            else {
+                args[name] = undefined;
+            }
+            continue;
+        }
+        args[name] = coerceArgValue(name, raw, def);
+        validateArg(name, args[name], def);
+    }
+    // ─── Process flags ───
+    const flags = {};
+    for (const [name, def] of Object.entries(flagDefs)) {
+        const raw = parsed.values[name];
+        if (raw === undefined) {
+            if (def.default !== undefined) {
+                flags[name] = def.default;
+            }
+            else if (def.required) {
+                throw new ParseError(formatMissingFlag(name, def));
+            }
+            else {
+                flags[name] = undefined;
+            }
+            continue;
+        }
+        flags[name] = coerceFlagValue(name, raw, def);
+        validateFlag(name, flags[name], def);
+    }
+    return {
+        args,
+        flags,
+        command: cmd.name,
+        argv: parsed.positionals,
+        raw: argv,
+    };
+}
+// ─── Type Coercion ───
+function coerceArgValue(name, raw, def) {
+    if (def.type === "number") {
+        const num = Number(raw);
+        if (Number.isNaN(num)) {
+            throw new ParseError(`Invalid value for argument "${name}"\n\n  Expected: number\n  Received: "${raw}"`);
+        }
+        return num;
+    }
+    return raw;
+}
+function coerceFlagValue(name, raw, def) {
+    switch (def.type) {
+        case "boolean":
+            return raw;
+        case "number": {
+            const num = Number(raw);
+            if (Number.isNaN(num)) {
+                throw new ParseError(`Invalid value for flag "--${name}"\n\n  Expected: number\n  Received: "${raw}"`);
+            }
+            return num;
+        }
+        case "string":
+            return raw;
+        case "string[]":
+            if (Array.isArray(raw)) {
+                return raw.map(String);
+            }
+            return [String(raw)];
+        case "number[]": {
+            const items = Array.isArray(raw) ? raw : [raw];
+            return items.map((item) => {
+                const num = Number(item);
+                if (Number.isNaN(num)) {
+                    throw new ParseError(`Invalid value for flag "--${name}"\n\n  Expected: number[]\n  Received item: "${item}"`);
+                }
+                return num;
+            });
+        }
+        default:
+            return raw;
+    }
+}
+// ─── Validation ───
+function validateArg(name, value, def) {
+    // Choices validation
+    const argChoices = def.choices;
+    if (argChoices && argChoices.length > 0) {
+        if (!argChoices.includes(String(value))) {
+            const choicesStr = argChoices.map((c) => `"${c}"`).join(", ");
+            const suggestion = findClosest(String(value), argChoices);
+            let msg = `Invalid value for argument "${name}"\n\n  Expected one of: ${choicesStr}\n  Received: "${value}"`;
+            if (suggestion) {
+                msg += `\n\n  Did you mean "${suggestion}"?`;
+            }
+            throw new ParseError(msg);
+        }
+    }
+    // Custom validator
+    if (def.validate) {
+        const result = def.validate(value);
+        if (result === false) {
+            throw new ParseError(`Validation failed for argument "${name}"`);
+        }
+        if (typeof result === "string") {
+            throw new ParseError(`Validation failed for argument "${name}": ${result}`);
+        }
+    }
+}
+function validateFlag(name, value, def) {
+    // Choices validation (only for string flags)
+    const flagChoices = def.choices;
+    if (flagChoices && flagChoices.length > 0) {
+        if (!flagChoices.includes(String(value))) {
+            const choicesStr = flagChoices.map((c) => `"${c}"`).join(", ");
+            const suggestion = findClosest(String(value), flagChoices);
+            let msg = `Invalid value for flag "--${name}"\n\n  Expected one of: ${choicesStr}\n  Received: "${value}"`;
+            if (suggestion) {
+                msg += `\n\n  Did you mean "${suggestion}"?`;
+            }
+            throw new ParseError(msg);
+        }
+    }
+    // Custom validator
+    if (def.validate) {
+        const result = def.validate(value);
+        if (result === false) {
+            throw new ParseError(`Validation failed for flag "--${name}"`);
+        }
+        if (typeof result === "string") {
+            throw new ParseError(`Validation failed for flag "--${name}": ${result}`);
+        }
+    }
+}
+// ─── Error Formatting ───
+function formatMissingArg(name, def, cmd) {
+    let msg = `Missing required argument "${name}"`;
+    if (def.description) {
+        msg += `\n\n  ${def.description}`;
+    }
+    const missingArgChoices = def.choices;
+    if (missingArgChoices && missingArgChoices.length > 0) {
+        msg += `\n  Expected one of: ${missingArgChoices.join(", ")}`;
+    }
+    msg += `\n\n  Usage: ${cmd.name} <${name}>`;
+    return msg;
+}
+function formatMissingFlag(name, def) {
+    let msg = `Missing required flag "--${name}"`;
+    if (def.description) {
+        msg += `\n\n  ${def.description}`;
+    }
+    return msg;
+}
+// ─── Utilities ───
+/**
+ * Find the closest match to `input` from `candidates` using Levenshtein distance.
+ * Returns null if no candidate is close enough (distance > 3).
+ */
+function findClosest(input, candidates) {
+    let bestMatch = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const candidate of candidates) {
+        const dist = levenshtein(input.toLowerCase(), candidate.toLowerCase());
+        if (dist < bestDistance) {
+            bestDistance = dist;
+            bestMatch = candidate;
+        }
+    }
+    return bestDistance <= 3 ? bestMatch : null;
+}
+/**
+ * Levenshtein distance between two strings.
+ */
+export function levenshtein(a, b) {
+    const m = a.length;
+    const n = b.length;
+    // Use a single-row DP approach for space efficiency
+    const row = Array.from({ length: n + 1 }, (_, i) => i);
+    for (let i = 1; i <= m; i++) {
+        let prev = i;
+        for (let j = 1; j <= n; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            const val = Math.min(row[j] + 1, // deletion
+            prev + 1, // insertion
+            row[j - 1] + cost);
+            row[j - 1] = prev;
+            prev = val;
+        }
+        row[n] = prev;
+    }
+    return row[n];
+}
+//# sourceMappingURL=parser.js.map

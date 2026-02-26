@@ -1,0 +1,19 @@
+# <%= name %>
+
+A [Seed CLI](https://seedcli.dev) plugin.
+
+## Installation
+
+```bash
+bun add <%= name %>
+```
+
+## Usage
+
+```ts
+import { build } from "@seedcli/core";
+
+const cli = build("mycli")
+	.plugin("<%= name %>")
+	.create();
+```

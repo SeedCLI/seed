@@ -1,0 +1,56 @@
+{
+	"name": "@seedcli/toolbox",
+	"version": "0.1.0",
+	"description": "Umbrella re-export of all Seed CLI toolbox modules",
+	"type": "module",
+	"license": "MIT",
+	"author": "Rully Ardiansyah <rully@dreamshive.io>",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/SeedCLI/seed",
+		"directory": "packages/toolbox"
+	},
+	"homepage": "https://seedcli.dev",
+	"keywords": [
+		"cli",
+		"toolbox",
+		"utilities",
+		"framework",
+		"seed"
+	],
+	"engines": {
+		"bun": ">=1.3.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"files": [
+		"dist",
+		"LICENSE"
+	],
+	"dependencies": {
+		"@seedcli/completions": "workspace:*",
+		"@seedcli/config": "workspace:*",
+		"@seedcli/core": "workspace:*",
+		"@seedcli/filesystem": "workspace:*",
+		"@seedcli/http": "workspace:*",
+		"@seedcli/package-manager": "workspace:*",
+		"@seedcli/patching": "workspace:*",
+		"@seedcli/print": "workspace:*",
+		"@seedcli/prompt": "workspace:*",
+		"@seedcli/semver": "workspace:*",
+		"@seedcli/strings": "workspace:*",
+		"@seedcli/system": "workspace:*",
+		"@seedcli/template": "workspace:*",
+		"@seedcli/testing": "workspace:*",
+		"@seedcli/ui": "workspace:*"
+	}
+}

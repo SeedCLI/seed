@@ -1,0 +1,29 @@
+{
+	"name": "projx",
+	"version": "0.1.0",
+	"description": "Developer project manager — Seed CLI dogfood example",
+	"type": "module",
+	"private": true,
+	"main": "src/index.ts",
+	"scripts": {
+		"dev": "bun src/index.ts",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@seedcli/core": "workspace:*",
+		"@seedcli/print": "workspace:*",
+		"@seedcli/prompt": "workspace:*",
+		"@seedcli/filesystem": "workspace:*",
+		"@seedcli/system": "workspace:*",
+		"@seedcli/template": "workspace:*",
+		"@seedcli/strings": "workspace:*",
+		"@seedcli/semver": "workspace:*",
+		"@seedcli/package-manager": "workspace:*",
+		"@seedcli/patching": "workspace:*",
+		"@seedcli/config": "workspace:*",
+		"@seedcli/ui": "workspace:*",
+		"@seedcli/toolbox": "workspace:*",
+		"@seedcli/testing": "workspace:*"
+	}
+}

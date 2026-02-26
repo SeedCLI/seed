@@ -1,0 +1,24 @@
+{
+	"name": "<%= it.name %>",
+	"version": "0.0.1",
+	"description": "A CLI built with Seed CLI",
+	"type": "module",
+	"main": "src/index.ts",
+	"bin": {
+		"<%= it.name %>": "src/index.ts"
+	},
+	"scripts": {
+		"dev": "bun src/index.ts",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@seedcli/core": "latest",
+		"@seedcli/toolbox": "latest"
+	},
+	"devDependencies": {
+		"@seedcli/testing": "latest",
+		"bun-types": "latest",
+		"typescript": "^5.0.0"
+	}
+}

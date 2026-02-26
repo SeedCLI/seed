@@ -1,0 +1,1 @@
+{"version":3,"file":"interceptor.d.ts","sourceRoot":"","sources":["interceptor.ts"],"names":[],"mappings":"AAAA;;;GAGG;AACH,MAAM,WAAW,WAAW;IAC3B,MAAM,EAAE,MAAM,CAAC;IACf,MAAM,EAAE,MAAM,CAAC;IACf,QAAQ,EAAE,MAAM,CAAC;IACjB,KAAK,IAAI,IAAI,CAAC;IACd,IAAI,IAAI,IAAI,CAAC;CACb;AAED,wBAAgB,iBAAiB,IAAI,WAAW,CAwD/C"}

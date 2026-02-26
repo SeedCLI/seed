@@ -1,0 +1,60 @@
+{
+	"name": "@seedcli/core",
+	"version": "0.1.0",
+	"description": "Core runtime, builder API, command system, and arg parser for Seed CLI",
+	"type": "module",
+	"license": "MIT",
+	"author": "Rully Ardiansyah <rully@dreamshive.io>",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/SeedCLI/seed",
+		"directory": "packages/core"
+	},
+	"homepage": "https://seedcli.dev",
+	"keywords": [
+		"cli",
+		"framework",
+		"command",
+		"args",
+		"parser",
+		"bun",
+		"typescript"
+	],
+	"engines": {
+		"bun": ">=1.3.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"files": [
+		"dist",
+		"LICENSE"
+	],
+	"scripts": {
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@seedcli/completions": "workspace:*",
+		"@seedcli/config": "workspace:*",
+		"@seedcli/filesystem": "workspace:*",
+		"@seedcli/http": "workspace:*",
+		"@seedcli/package-manager": "workspace:*",
+		"@seedcli/patching": "workspace:*",
+		"@seedcli/print": "workspace:*",
+		"@seedcli/prompt": "workspace:*",
+		"@seedcli/semver": "workspace:*",
+		"@seedcli/strings": "workspace:*",
+		"@seedcli/system": "workspace:*",
+		"@seedcli/template": "workspace:*"
+	},
+	"devDependencies": {}
+}

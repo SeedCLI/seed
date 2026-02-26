@@ -1,0 +1,11 @@
+#!/usr/bin/env bun
+
+import { build } from "@seedcli/core";
+
+const cli = build("<%= name %>")
+	.src(import.meta.dir)
+	.help()
+	.version("<%= version %>")
+	.create();
+
+await cli.run();

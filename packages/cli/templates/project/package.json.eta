@@ -1,0 +1,21 @@
+{
+	"name": "<%= name %>",
+	"version": "<%= version %>",
+	"description": "<%= description %>",
+	"type": "module",
+	"bin": {
+		"<%= name %>": "./src/index.ts"
+	},
+	"scripts": {
+		"dev": "seed dev",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@seedcli/core": "^0.1.0"
+	},
+	"devDependencies": {
+		"@seedcli/cli": "^0.1.0",
+		"typescript": "^5.9.0"
+	}
+}

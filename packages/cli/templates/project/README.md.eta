@@ -1,0 +1,18 @@
+# <%= name %>
+
+<%= description %>
+
+## Getting Started
+
+```bash
+bun install
+bun run src/index.ts hello
+```
+
+## Development
+
+```bash
+seed dev
+```
+
+Built with [Seed CLI](https://seedcli.dev).

@@ -1,0 +1,9 @@
+import { command, arg, flag } from "@seedcli/core";
+
+export default command({
+	name: "<%= name %>",
+	description: "TODO: describe the <%= name %> command",
+	run: async ({ print }) => {
+		print.info("Running <%= name %> command");
+	},
+});

@@ -1,0 +1,61 @@
+/**
+ * Seed CLI framework configuration — used in `seed.config.ts`.
+ */
+export interface SeedConfig {
+    build?: {
+        /** JS bundle options (Tier 2) */
+        bundle?: {
+            /** Output directory (default: "dist") */
+            outdir?: string;
+            /** Use Bun shebang instead of Node.js */
+            bun?: boolean;
+            /** Minify the output */
+            minify?: boolean;
+        };
+        /** Binary compilation options (Tier 3) */
+        compile?: {
+            /** Target platforms */
+            targets?: string[];
+            /** Glob patterns to embed into binary */
+            embed?: string[];
+            /** Explicit asset mappings */
+            assets?: Array<{
+                src: string;
+                dest: string;
+            }>;
+        };
+    };
+    dev?: {
+        /** Entry point (default: auto-detect from package.json bin) */
+        entry?: string;
+        /** Files to watch (default: "src/**") */
+        watch?: string[];
+        /** Files to ignore */
+        ignore?: string[];
+        /** Clear terminal on restart */
+        clearScreen?: boolean;
+        /** Default args for dev mode */
+        args?: string[];
+    };
+    plugins?: {
+        /** Timeout for plugin setup in milliseconds (default: 10000) */
+        setupTimeout?: number;
+        /** Plugin-specific config overrides */
+        [pluginName: string]: unknown;
+    };
+}
+/**
+ * Identity function for type-safe framework config files.
+ *
+ * ```ts
+ * // seed.config.ts
+ * import { defineConfig } from "@seedcli/core";
+ *
+ * export default defineConfig({
+ *   build: { compile: { targets: ["bun-darwin-arm64"] } },
+ *   dev: { entry: "src/index.ts" },
+ * });
+ * ```
+ */
+export declare function defineConfig(config: SeedConfig): SeedConfig;
+//# sourceMappingURL=config.d.ts.map

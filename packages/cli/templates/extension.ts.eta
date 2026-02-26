@@ -1,0 +1,9 @@
+import { defineExtension } from "@seedcli/core";
+
+export default defineExtension({
+	name: "<%= name %>",
+	description: "TODO: describe the <%= name %> extension",
+	setup: async (toolbox) => {
+		// Extend the toolbox with your custom functionality
+	},
+});

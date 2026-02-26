@@ -1,0 +1,11 @@
+import { describe, expect, test } from "bun:test";
+
+describe("<%= name %> CLI", () => {
+	test("hello command runs", async () => {
+		const proc = Bun.spawn(["bun", "run", "src/index.ts", "hello"], {
+			stdout: "pipe",
+		});
+		const output = await new Response(proc.stdout).text();
+		expect(output).toContain("Hello, World!");
+	});
+});

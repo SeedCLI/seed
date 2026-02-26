@@ -1,0 +1,14 @@
+import { arg, command } from "@seedcli/core";
+
+export const helloCommand = command({
+	name: "hello",
+	description: "Say hello",
+
+	args: {
+		name: arg({ type: "string", required: false, default: "world" }),
+	},
+
+	run: async ({ args, print }) => {
+		print!.success(`Hello, ${args.name}!`);
+	},
+});

@@ -1,0 +1,9 @@
+import { definePlugin } from "@seedcli/core";
+
+export default definePlugin({
+	name: "<%= name %>",
+	version: "0.1.0",
+	description: "TODO: describe the <%= name %> plugin",
+	commands: [],
+	extensions: [],
+});

@@ -1,0 +1,56 @@
+{
+	"name": "@seedcli/cli",
+	"version": "0.1.0",
+	"description": "Scaffolding CLI for creating and managing Seed CLI projects",
+	"type": "module",
+	"license": "MIT",
+	"author": "Rully Ardiansyah <rully@dreamshive.io>",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/SeedCLI/seed",
+		"directory": "packages/cli"
+	},
+	"homepage": "https://seedcli.dev",
+	"keywords": [
+		"cli",
+		"scaffold",
+		"create",
+		"generate",
+		"seed",
+		"bun"
+	],
+	"engines": {
+		"bun": ">=1.3.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"bin": {
+		"seed": "./src/index.ts"
+	},
+	"files": [
+		"dist",
+		"LICENSE",
+		"templates"
+	],
+	"dependencies": {
+		"@seedcli/config": "workspace:*",
+		"@seedcli/core": "workspace:*",
+		"@seedcli/filesystem": "workspace:*",
+		"@seedcli/package-manager": "workspace:*",
+		"@seedcli/print": "workspace:*",
+		"@seedcli/prompt": "workspace:*",
+		"@seedcli/strings": "workspace:*",
+		"@seedcli/system": "workspace:*",
+		"@seedcli/template": "workspace:*"
+	},
+	"devDependencies": {}
+}

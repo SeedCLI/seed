@@ -1,0 +1,19 @@
+{
+	"name": "<%= it.name %>",
+	"version": "<%= it.version %>",
+	"description": "<%= it.description %>",
+	"type": "module",
+	"bin": {
+		"<%= it.name %>": "./src/index.ts"
+	},
+	"scripts": {
+		"dev": "bun --watch src/index.ts",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@seedcli/core": "^0.1.0"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.0"
+	}
+}

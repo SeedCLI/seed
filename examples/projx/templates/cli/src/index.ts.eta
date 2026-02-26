@@ -1,0 +1,10 @@
+import { build } from "@seedcli/core";
+import { helloCommand } from "./commands/hello.js";
+
+const cli = build("<%= it.name %>")
+	.command(helloCommand)
+	.help()
+	.version("0.0.1")
+	.create();
+
+await cli.run();
