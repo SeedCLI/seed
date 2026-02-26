@@ -1,16 +1,16 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
+import { createInterceptor } from "@seedcli/testing";
 import {
-	ExtensionSetupError,
-	PluginValidationError,
 	arg,
 	build,
 	command,
 	defineExtension,
+	ExtensionSetupError,
 	flag,
+	PluginValidationError,
 	registerModule,
 } from "../src/index.js";
 import { PluginRegistry } from "../src/plugin/registry.js";
-import { createInterceptor } from "@seedcli/testing";
 
 // ─── 1. Extension lifecycle (setup + teardown) ───
 
@@ -182,7 +182,7 @@ describe("Middleware error propagation", () => {
 		}
 
 		expect(caughtError).not.toBeNull();
-		expect(caughtError!.message).toBe("middleware exploded");
+		expect(caughtError?.message).toBe("middleware exploded");
 	});
 
 	test("middleware that throws without onError sets exitCode", async () => {
@@ -224,7 +224,12 @@ describe("Per-command --help and -h", () => {
 						name: arg({ type: "string", required: true, description: "Name to greet" }),
 					},
 					flags: {
-						loud: flag({ type: "boolean", default: false, alias: "l", description: "Shout the greeting" }),
+						loud: flag({
+							type: "boolean",
+							default: false,
+							alias: "l",
+							description: "Shout the greeting",
+						}),
 						times: flag({ type: "number", alias: "t", description: "Number of times to repeat" }),
 					},
 				}),
@@ -298,16 +303,13 @@ describe("Per-command --help and -h", () => {
 describe("Graceful --debug flag", () => {
 	test("--debug does not cause a parse error and command still runs", async () => {
 		let executed = false;
-		let capturedMeta: { debug: boolean } | null = null;
-
 		const runtime = build("testcli")
 			.debug()
 			.command(
 				command({
 					name: "hello",
-					run: async (toolbox) => {
+					run: async () => {
 						executed = true;
-						capturedMeta = toolbox.meta;
 					},
 				}),
 			)
@@ -395,8 +397,8 @@ describe("Extension timeout", () => {
 
 		expect(caughtError).not.toBeNull();
 		expect(caughtError).toBeInstanceOf(ExtensionSetupError);
-		expect(caughtError!.message).toContain("hanging-ext");
-		expect(caughtError!.message).toContain("timed out");
+		expect(caughtError?.message).toContain("hanging-ext");
+		expect(caughtError?.message).toContain("timed out");
 	}, 15_000); // Allow extra time for the default 10s timeout
 });
 
@@ -498,18 +500,14 @@ describe("Alias conflict detection", () => {
 		registry.register({
 			name: "plugin-a",
 			version: "1.0.0",
-			commands: [
-				command({ name: "generate", alias: ["g", "gen"] }),
-			],
+			commands: [command({ name: "generate", alias: ["g", "gen"] })],
 		});
 
 		expect(() =>
 			registry.register({
 				name: "plugin-b",
 				version: "1.0.0",
-				commands: [
-					command({ name: "scaffold", alias: ["g"] }),
-				],
+				commands: [command({ name: "scaffold", alias: ["g"] })],
 			}),
 		).toThrow(PluginValidationError);
 	});
@@ -520,18 +518,14 @@ describe("Alias conflict detection", () => {
 		registry.register({
 			name: "plugin-a",
 			version: "1.0.0",
-			commands: [
-				command({ name: "deploy" }),
-			],
+			commands: [command({ name: "deploy" })],
 		});
 
 		expect(() =>
 			registry.register({
 				name: "plugin-b",
 				version: "1.0.0",
-				commands: [
-					command({ name: "ship", alias: ["deploy"] }),
-				],
+				commands: [command({ name: "ship", alias: ["deploy"] })],
 			}),
 		).toThrow(PluginValidationError);
 	});
@@ -542,18 +536,14 @@ describe("Alias conflict detection", () => {
 		registry.register({
 			name: "plugin-alpha",
 			version: "1.0.0",
-			commands: [
-				command({ name: "build", alias: ["b"] }),
-			],
+			commands: [command({ name: "build", alias: ["b"] })],
 		});
 
 		try {
 			registry.register({
 				name: "plugin-beta",
 				version: "1.0.0",
-				commands: [
-					command({ name: "bundle", alias: ["b"] }),
-				],
+				commands: [command({ name: "bundle", alias: ["b"] })],
 			});
 			// Should not reach here
 			expect(true).toBe(false);
@@ -570,18 +560,14 @@ describe("Alias conflict detection", () => {
 		registry.register({
 			name: "plugin-one",
 			version: "1.0.0",
-			commands: [
-				command({ name: "deploy", alias: ["d"] }),
-			],
+			commands: [command({ name: "deploy", alias: ["d"] })],
 		});
 
 		expect(() =>
 			registry.register({
 				name: "plugin-two",
 				version: "1.0.0",
-				commands: [
-					command({ name: "test", alias: ["t"] }),
-				],
+				commands: [command({ name: "test", alias: ["t"] })],
 			}),
 		).not.toThrow();
 	});

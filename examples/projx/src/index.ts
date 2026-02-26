@@ -29,7 +29,9 @@ const cli = build("projx")
 	.help()
 	.completions()
 	.onError(async (error, toolbox) => {
-		const print = (toolbox as Record<string, any>).print;
+		const print = (toolbox as unknown as Record<string, unknown>).print as
+			| { error: (msg: string) => void; muted: (msg: string) => void }
+			| undefined;
 		if (print) {
 			print.error(error.message);
 			print.muted("Run projx --help for usage information.");

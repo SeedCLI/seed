@@ -1,3 +1,4 @@
+import type { ToolboxExtensions } from "@seedcli/core";
 import { arg, command } from "@seedcli/core";
 
 export const infoCommand = command({
@@ -9,7 +10,7 @@ export const infoCommand = command({
 	},
 
 	run: async ({ args, print, system, semver, ...toolbox }) => {
-		const { workspace } = toolbox as Record<string, any>;
+		const { workspace } = toolbox as unknown as ToolboxExtensions;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");
@@ -17,7 +18,7 @@ export const infoCommand = command({
 			return;
 		}
 
-		const project = await workspace.getProject(args.name);
+		const project = await workspace.getProject(args.name as string);
 		if (!project) {
 			print.error(`Project "${args.name}" not found.`);
 			process.exitCode = 1;

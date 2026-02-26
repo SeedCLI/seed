@@ -1,3 +1,4 @@
+import type { ToolboxExtensions } from "@seedcli/core";
 import { arg, command, flag } from "@seedcli/core";
 
 const envListCommand = command({
@@ -9,8 +10,8 @@ const envListCommand = command({
 	},
 
 	run: async ({ args, print, filesystem, ...toolbox }) => {
-		const { workspace } = toolbox as Record<string, any>;
-		const project = await workspace.getProject(args.name);
+		const { workspace } = toolbox as unknown as ToolboxExtensions;
+		const project = await workspace.getProject(args.name as string);
 		if (!project) {
 			print.error(`Project "${args.name}" not found.`);
 			process.exitCode = 1;
@@ -53,8 +54,8 @@ const envGetCommand = command({
 	},
 
 	run: async ({ args, print, filesystem, ...toolbox }) => {
-		const { workspace } = toolbox as Record<string, any>;
-		const project = await workspace.getProject(args.name);
+		const { workspace } = toolbox as unknown as ToolboxExtensions;
+		const project = await workspace.getProject(args.name as string);
 		if (!project) {
 			print.error(`Project "${args.name}" not found.`);
 			process.exitCode = 1;
@@ -75,7 +76,7 @@ const envGetCommand = command({
 			return;
 		}
 
-		const key = args.key!;
+		const key = args.key as string;
 		for (const line of content.split("\n")) {
 			const trimmed = line.trim();
 			if (trimmed.startsWith(`${key}=`)) {
@@ -107,8 +108,8 @@ const envSetCommand = command({
 	},
 
 	run: async ({ args, flags, print, prompt, filesystem, patching, ...toolbox }) => {
-		const { workspace } = toolbox as Record<string, any>;
-		const project = await workspace.getProject(args.name);
+		const { workspace } = toolbox as unknown as ToolboxExtensions;
+		const project = await workspace.getProject(args.name as string);
 		if (!project) {
 			print.error(`Project "${args.name}" not found.`);
 			process.exitCode = 1;
@@ -117,7 +118,7 @@ const envSetCommand = command({
 
 		const envPath = filesystem.path.join(project.path, ".env");
 
-		const key = args.key!;
+		const key = args.key as string;
 
 		let value: string;
 		if (flags.secret) {
@@ -135,7 +136,7 @@ const envSetCommand = command({
 		}
 
 		const content = await filesystem.read(envPath);
-		if (content && content.includes(`${key}=`)) {
+		if (content?.includes(`${key}=`)) {
 			// Replace existing
 			await patching.patch(envPath, {
 				replace: new RegExp(`^${key}=.*$`, "m"),
@@ -160,10 +161,10 @@ const envCopyCommand = command({
 	},
 
 	run: async ({ args, print, filesystem, ...toolbox }) => {
-		const { workspace } = toolbox as Record<string, any>;
+		const { workspace } = toolbox as unknown as ToolboxExtensions;
 
-		const source = await workspace.getProject(args.source);
-		const target = await workspace.getProject(args.target);
+		const source = await workspace.getProject(args.source as string);
+		const target = await workspace.getProject(args.target as string);
 
 		if (!source) {
 			print.error(`Source project "${args.source}" not found.`);

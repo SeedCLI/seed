@@ -1,3 +1,4 @@
+import type { ToolboxExtensions } from "@seedcli/core";
 import { arg, command, flag } from "@seedcli/core";
 
 export const searchCommand = command({
@@ -22,7 +23,7 @@ export const searchCommand = command({
 	},
 
 	run: async ({ args, flags, print, system, strings, ...toolbox }) => {
-		const { workspace } = toolbox as Record<string, any>;
+		const { workspace } = toolbox as unknown as ToolboxExtensions;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");
@@ -74,12 +75,14 @@ export const searchCommand = command({
 			if (lines.length > maxResults) {
 				print.muted(`\n... and ${lines.length - maxResults} more results`);
 			}
-		} catch (err: any) {
+		} catch (err: unknown) {
 			// grep returns exit code 1 when no matches
-			if (err?.exitCode === 1) {
+			const error = err as Record<string, unknown>;
+			if (error?.exitCode === 1) {
 				print.muted("No results found.");
 			} else {
-				print.error(`Search failed: ${err?.message ?? err}`);
+				const message = error?.message ?? String(err);
+				print.error(`Search failed: ${message}`);
 				process.exitCode = 1;
 			}
 		}

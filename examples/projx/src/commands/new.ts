@@ -1,3 +1,4 @@
+import type { ToolboxExtensions } from "@seedcli/core";
 import { arg, command, flag } from "@seedcli/core";
 
 export const newCommand = command({
@@ -34,7 +35,7 @@ export const newCommand = command({
 		packageManager,
 		...toolbox
 	}) => {
-		const { workspace } = toolbox as Record<string, any>;
+		const { workspace } = toolbox as unknown as ToolboxExtensions;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");
@@ -43,7 +44,7 @@ export const newCommand = command({
 		}
 
 		const projectName = strings.kebabCase(args.name as string);
-		const targetDir = filesystem.path.join(workspace.projectsDir, projectName);
+		const targetDir = filesystem.path.join(workspace.projectsDir as string, projectName);
 
 		if (await filesystem.exists(targetDir)) {
 			print.error(`Directory already exists: ${targetDir}`);

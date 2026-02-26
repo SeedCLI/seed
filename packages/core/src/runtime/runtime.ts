@@ -158,7 +158,10 @@ export class Runtime {
 			}
 
 			// ─── Handle per-command --help ───
-			if (this.config.helpEnabled && (result.argv.includes("--help") || result.argv.includes("-h"))) {
+			if (
+				this.config.helpEnabled &&
+				(result.argv.includes("--help") || result.argv.includes("-h"))
+			) {
 				const helpText = renderCommandHelp(result.command, {
 					brand: this.config.brand,
 					...this.config.helpOptions,
@@ -314,7 +317,7 @@ export class Runtime {
 		const timeout = DEFAULT_SETUP_TIMEOUT;
 
 		const setupPromise = Promise.resolve(ext.setup(toolbox));
-		let timer: ReturnType<typeof setTimeout>;
+		let timer: ReturnType<typeof setTimeout> | undefined;
 		const timeoutPromise = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => {
 				reject(
@@ -329,7 +332,7 @@ export class Runtime {
 		try {
 			await Promise.race([setupPromise, timeoutPromise]);
 		} finally {
-			clearTimeout(timer!);
+			if (timer) clearTimeout(timer);
 		}
 	}
 
@@ -360,7 +363,8 @@ export class Runtime {
 		const excluded = new Set(this.config.excludeModules ?? []);
 
 		const rawArgv = process.argv.slice(2);
-		const isDebug = this.config.debugEnabled &&
+		const isDebug =
+			this.config.debugEnabled &&
 			(rawArgv.includes("--debug") || rawArgv.includes("--verbose") || process.env.DEBUG === "1");
 
 		const toolbox = {

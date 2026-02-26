@@ -41,7 +41,6 @@ const packages = [
 
 const args = process.argv.slice(2);
 const cleanOnly = args.includes("--clean");
-const verbose = args.includes("--verbose");
 
 // Clean dist/ folders
 console.log("Cleaning dist/ folders...");

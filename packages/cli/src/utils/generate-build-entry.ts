@@ -134,14 +134,15 @@ function detectPluginsDirCalls(
 	// Match .plugins("./plugins", { matching: "pattern" }) or .plugins("./plugins")
 	const regex =
 		/\.plugins\s*\(\s*["'`]([^"'`]+)["'`](?:\s*,\s*\{[^}]*matching\s*:\s*["'`]([^"'`]+)["'`][^}]*\})?\s*\)/g;
-	let match: RegExpExecArray | null;
+	let match = regex.exec(source);
 
-	while ((match = regex.exec(source)) !== null) {
+	while (match !== null) {
 		results.push({
 			fullMatch: match[0],
 			dir: match[1],
 			matching: match[2],
 		});
+		match = regex.exec(source);
 	}
 
 	return results;
@@ -159,25 +160,6 @@ export interface GenerateBuildEntryResult {
 	/** Number of plugins discovered from directories */
 	pluginCount: number;
 }
-
-/**
- * The runtime modules that assembleToolbox() loads dynamically.
- * These must be statically imported for compiled binaries to work.
- */
-const RUNTIME_MODULES = [
-	"@seedcli/print",
-	"@seedcli/prompt",
-	"@seedcli/filesystem",
-	"@seedcli/system",
-	"@seedcli/http",
-	"@seedcli/template",
-	"@seedcli/strings",
-	"@seedcli/semver",
-	"@seedcli/package-manager",
-	"@seedcli/config",
-	"@seedcli/patching",
-	"@seedcli/completions",
-];
 
 /**
  * Find which @seedcli/* runtime modules are used by the project's commands

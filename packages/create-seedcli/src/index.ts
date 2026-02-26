@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { exists } from "@seedcli/filesystem";
 import { create, detect } from "@seedcli/package-manager";
 import { error, info, muted, newline, spin, success, warning } from "@seedcli/print";
-import { confirm, input, select } from "@seedcli/prompt";
+import { input, select } from "@seedcli/prompt";
 import { kebabCase } from "@seedcli/strings";
 import { exec } from "@seedcli/system";
 import { directory } from "@seedcli/template";

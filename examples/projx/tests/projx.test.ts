@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { build, command } from "@seedcli/core";
+import { build } from "@seedcli/core";
 import { createTestCli } from "@seedcli/testing";
 import { checkCommand } from "../src/commands/check.js";
 import { infoCommand } from "../src/commands/info.js";

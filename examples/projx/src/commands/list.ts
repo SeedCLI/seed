@@ -1,4 +1,6 @@
+import type { ToolboxExtensions } from "@seedcli/core";
 import { command, flag } from "@seedcli/core";
+import type { ProjectInfo } from "../types.js";
 
 export const listCommand = command({
 	name: "list",
@@ -23,7 +25,7 @@ export const listCommand = command({
 	},
 
 	run: async ({ flags, print, strings, ...toolbox }) => {
-		const { workspace } = toolbox as Record<string, any>;
+		const { workspace } = toolbox as unknown as ToolboxExtensions;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");
@@ -40,9 +42,11 @@ export const listCommand = command({
 
 		// Sort
 		if (flags.sort === "modified") {
-			projects.sort((a: any, b: any) => b.lastModified.getTime() - a.lastModified.getTime());
+			projects.sort(
+				(a: ProjectInfo, b: ProjectInfo) => b.lastModified.getTime() - a.lastModified.getTime(),
+			);
 		} else {
-			projects.sort((a: any, b: any) => a.name.localeCompare(b.name));
+			projects.sort((a: ProjectInfo, b: ProjectInfo) => a.name.localeCompare(b.name));
 		}
 
 		if (flags.format === "json") {
@@ -52,8 +56,8 @@ export const listCommand = command({
 
 		if (flags.format === "tree") {
 			print.tree({
-				label: workspace.projectsDir,
-				children: projects.map((p: any) => ({
+				label: workspace.projectsDir ?? "workspace",
+				children: projects.map((p: ProjectInfo) => ({
 					label: `${p.name}${p.version ? ` (v${p.version})` : ""}`,
 				})),
 			});
@@ -61,7 +65,7 @@ export const listCommand = command({
 		}
 
 		// Default: table
-		const rows = projects.map((p: any) => [
+		const rows = projects.map((p: ProjectInfo) => [
 			p.name,
 			p.version ?? "-",
 			strings.truncate(p.description ?? "-", 40),

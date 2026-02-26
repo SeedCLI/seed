@@ -92,12 +92,14 @@ describe("print module", () => {
 		const lines = output
 			.split("\n")
 			.filter((l: string) => l.includes("Short") || l.includes("longer"));
-		const shortLine = lines.find((l: string) => l.includes("Short"))!;
-		const longLine = lines.find((l: string) => l.includes("longer"))!;
+		const shortLine = lines.find((l: string) => l.includes("Short"));
+		const longLine = lines.find((l: string) => l.includes("longer"));
+		expect(shortLine).toBeDefined();
+		expect(longLine).toBeDefined();
 		// In left-aligned text, "Short" should be followed by trailing spaces
 		// and "A longer line here" should not have leading spaces before the text
-		const shortIndent = shortLine.indexOf("S");
-		const longIndent = longLine.indexOf("A");
+		const shortIndent = shortLine?.indexOf("S") ?? -1;
+		const longIndent = longLine?.indexOf("A") ?? -1;
 		expect(shortIndent).toBe(longIndent);
 	});
 });

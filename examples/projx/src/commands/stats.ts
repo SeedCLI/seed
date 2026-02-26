@@ -1,11 +1,13 @@
+import type { ToolboxExtensions } from "@seedcli/core";
 import { command } from "@seedcli/core";
+import type { ProjectInfo } from "../types.js";
 
 export const statsCommand = command({
 	name: "stats",
 	description: "Show workspace statistics",
 
 	run: async ({ print, filesystem, ...toolbox }) => {
-		const { workspace } = toolbox as Record<string, any>;
+		const { workspace } = toolbox as unknown as ToolboxExtensions;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");
@@ -23,7 +25,7 @@ export const statsCommand = command({
 		print.divider();
 
 		// Project count
-		const gitProjects = projects.filter((p: any) => p.hasGit).length;
+		const gitProjects = projects.filter((p: ProjectInfo) => p.hasGit).length;
 
 		print.keyValue({
 			"Total Projects": String(projects.length),
@@ -88,14 +90,14 @@ export const statsCommand = command({
 
 		// Most recent projects
 		const sorted = [...projects].sort(
-			(a: any, b: any) => b.lastModified.getTime() - a.lastModified.getTime(),
+			(a: ProjectInfo, b: ProjectInfo) => b.lastModified.getTime() - a.lastModified.getTime(),
 		);
 		const recent = sorted.slice(0, 5);
 
 		print.divider({ title: "Recently Modified" });
 		const recentRows: string[][] = [["Project", "Last Modified"]];
 		for (const p of recent) {
-			recentRows.push([p.name, (p as any).lastModified.toLocaleString()]);
+			recentRows.push([p.name, p.lastModified.toLocaleString()]);
 		}
 		print.table(recentRows);
 	},
