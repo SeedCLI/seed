@@ -370,7 +370,9 @@ export class Runtime {
 			} else {
 				try {
 					const mod = await import(pkg);
-					(toolbox as unknown as Record<string, unknown>)[name] = namedExport ? mod[namedExport] : mod;
+					(toolbox as unknown as Record<string, unknown>)[name] = namedExport
+						? mod[namedExport]
+						: mod;
 				} catch {
 					// Module not installed — skip silently
 				}
