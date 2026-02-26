@@ -83,6 +83,6 @@ export const newCommand = command({
 		success(`\nProject "${name}" created!`);
 		info(`\n  cd ${name}`);
 		info("  bun run src/index.ts hello");
-		info("  seed dev\n");
+		info("  bun run dev\n");
 	},
 });

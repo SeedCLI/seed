@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { load } from "@seedcli/config";
 import type { SeedConfig } from "@seedcli/core";
 import { command, flag } from "@seedcli/core";
-import { exists } from "@seedcli/filesystem";
+import { exists, readJson } from "@seedcli/filesystem";
 import { colors, info, warning } from "@seedcli/print";
 import { resolveEntry } from "../utils/resolve-entry.js";
 
@@ -23,6 +23,15 @@ export const devCommand = command({
 			// No config file is fine
 		}
 
+		// Read project name from package.json
+		let projectName = "seed";
+		try {
+			const pkg = await readJson<{ name?: string }>(join(cwd, "package.json"));
+			if (pkg.name) projectName = pkg.name;
+		} catch {
+			// Fallback to "seed"
+		}
+
 		const devConfig = config.dev ?? {};
 		const entry = flags.entry ?? devConfig.entry ?? (await resolveEntry(cwd));
 
@@ -41,7 +50,7 @@ export const devCommand = command({
 
 		const devArgs = devConfig.args ?? [];
 
-		info(`${colors.cyan("seed dev")} watching ${colors.dim(entry)}`);
+		info(`${colors.cyan(projectName)} dev watching ${colors.dim(entry)}`);
 
 		const proc = Bun.spawn(["bun", "--watch", entryPath, ...devArgs], {
 			cwd,

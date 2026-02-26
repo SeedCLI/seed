@@ -157,7 +157,7 @@ async function main() {
 	muted("  Next steps:\n");
 	info(`  cd ${options.name}`);
 	info("  bun run src/index.ts --help");
-	info("  seed dev");
+	info("  bun run dev");
 	newline();
 }
 
