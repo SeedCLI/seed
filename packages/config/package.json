@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/config",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"description": "Configuration loading with c12 (supports .ts, .js, .json, .yaml)",
 	"type": "module",
 	"license": "MIT",
