@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { arg, command, flag } from "@seedcli/core";
-import { exists } from "@seedcli/filesystem";
+import { exists, readJson } from "@seedcli/filesystem";
 import { create, detect } from "@seedcli/package-manager";
 import { error, info, muted, spin, success, warning } from "@seedcli/print";
 import { confirm, input } from "@seedcli/prompt";
@@ -8,6 +8,7 @@ import { kebabCase } from "@seedcli/strings";
 import { directory } from "@seedcli/template";
 
 const TEMPLATES_DIR = join(import.meta.dir, "..", "..", "templates");
+const PKG_PATH = join(import.meta.dir, "..", "..", "package.json");
 
 export const newCommand = command({
 	name: "new",
@@ -54,6 +55,9 @@ export const newCommand = command({
 
 		const spinner = spin("Scaffolding project...");
 
+		const pkg = await readJson<{ version: string }>(PKG_PATH);
+		const seedcliVersion = pkg.version;
+
 		await directory({
 			source: join(TEMPLATES_DIR, "project"),
 			target: targetDir,
@@ -62,6 +66,7 @@ export const newCommand = command({
 				description,
 				includeExamples,
 				version: "0.1.0",
+				seedcliVersion,
 			},
 		});
 

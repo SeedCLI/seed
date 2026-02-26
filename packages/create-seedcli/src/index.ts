@@ -10,8 +10,15 @@ import { exec } from "@seedcli/system";
 import { directory } from "@seedcli/template";
 
 const TEMPLATES_DIR = join(import.meta.dir, "..", "templates");
+const PKG_PATH = join(import.meta.dir, "..", "package.json");
 
-const VERSION = "0.1.0";
+async function getVersion(): Promise<string> {
+	const { readJson } = await import("@seedcli/filesystem");
+	const pkg = await readJson<{ version: string }>(PKG_PATH);
+	return pkg.version;
+}
+
+const VERSION = await getVersion();
 
 interface CreateOptions {
 	name: string;
@@ -118,6 +125,7 @@ async function main() {
 			name: options.name,
 			description: options.description,
 			version: "0.1.0",
+			seedcliVersion: VERSION,
 			includeExamples: options.template === "full",
 		},
 	});

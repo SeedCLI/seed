@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { directory } from "@seedcli/template";
 
 const TEMPLATES_DIR = join(import.meta.dir, "..", "templates");
+const PKG_VERSION = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf-8"))
+	.version as string;
 
 let tempDir: string;
 
@@ -28,6 +30,7 @@ describe("create-seedcli templates", () => {
 				name: "my-cli",
 				description: "Test CLI",
 				version: "0.0.1",
+				seedcliVersion: PKG_VERSION,
 				includeExamples: true,
 			},
 		});
@@ -69,6 +72,7 @@ describe("create-seedcli templates", () => {
 				name: "mini-cli",
 				description: "Minimal CLI",
 				version: "0.0.1",
+				seedcliVersion: PKG_VERSION,
 			},
 		});
 
@@ -105,6 +109,7 @@ describe("create-seedcli templates", () => {
 				name: "ts-check-cli",
 				description: "TypeScript check",
 				version: "1.0.0",
+				seedcliVersion: PKG_VERSION,
 				includeExamples: true,
 			},
 		});
@@ -148,6 +153,6 @@ describe("create-seedcli templates", () => {
 		const stdout = await new Response(proc.stdout).text();
 		await proc.exited;
 
-		expect(stdout.trim()).toBe("0.1.0");
+		expect(stdout.trim()).toBe(PKG_VERSION);
 	});
 });

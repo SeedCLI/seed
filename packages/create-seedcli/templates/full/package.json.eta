@@ -12,12 +12,11 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@seedcli/core": "^0.1.2",
-		"@seedcli/print": "^0.1.2"
+		"@seedcli/core": "^<%= it.seedcliVersion %>"
 	},
 	"devDependencies": {
-		"@seedcli/cli": "^0.1.2",
-		"@seedcli/testing": "^0.1.2",
+		"@seedcli/cli": "^<%= it.seedcliVersion %>",
+		"@seedcli/testing": "^<%= it.seedcliVersion %>",
 		"@types/bun": "latest",
 		"typescript": "^5.9.0"
 	}
