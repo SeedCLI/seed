@@ -16,14 +16,14 @@ export const checkCommand = command({
 		const { workspace } = toolbox as Record<string, any>;
 
 		if (!workspace?.config) {
-			print!.error("Workspace not initialized. Run `projx init` first.");
+			print.error("Workspace not initialized. Run `projx init` first.");
 			process.exitCode = 1;
 			return;
 		}
 
 		const projects = await workspace.getProjects();
 		if (projects.length === 0) {
-			print!.muted("No projects found.");
+			print.muted("No projects found.");
 			return;
 		}
 
@@ -73,7 +73,7 @@ export const checkCommand = command({
 				checks.push({ issue: "Missing node_modules", status: "fail" });
 
 				if (flags.fix) {
-					const spinner = print!.spin(`Installing deps for ${project.name}...`);
+					const spinner = print.spin(`Installing deps for ${project.name}...`);
 					try {
 						await system!.exec("bun install", { cwd: project.path });
 						spinner.succeed(`Installed deps for ${project.name}`);
@@ -98,6 +98,6 @@ export const checkCommand = command({
 			}
 		}
 
-		print!.table(rows);
+		print.table(rows);
 	},
 });

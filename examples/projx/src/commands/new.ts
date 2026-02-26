@@ -37,7 +37,7 @@ export const newCommand = command({
 		const { workspace } = toolbox as Record<string, any>;
 
 		if (!workspace?.config) {
-			print!.error("Workspace not initialized. Run `projx init` first.");
+			print.error("Workspace not initialized. Run `projx init` first.");
 			process.exitCode = 1;
 			return;
 		}
@@ -46,7 +46,7 @@ export const newCommand = command({
 		const targetDir = filesystem!.path.join(workspace.projectsDir, projectName);
 
 		if (await filesystem!.exists(targetDir)) {
-			print!.error(`Directory already exists: ${targetDir}`);
+			print.error(`Directory already exists: ${targetDir}`);
 			process.exitCode = 1;
 			return;
 		}
@@ -64,7 +64,7 @@ export const newCommand = command({
 			});
 		}
 
-		const spinner = print!.spin(`Scaffolding ${projectName}...`);
+		const spinner = print.spin(`Scaffolding ${projectName}...`);
 
 		// Resolve template directory relative to this file
 		const templatesRoot = filesystem!.path.resolve(import.meta.dir, "../../templates");
@@ -88,14 +88,14 @@ export const newCommand = command({
 		// Init git
 		try {
 			await system!.exec("git init", { cwd: targetDir });
-			print!.muted("  Initialized git repository");
+			print.muted("  Initialized git repository");
 		} catch {
-			print!.muted("  Skipped git init (git not available)");
+			print.muted("  Skipped git init (git not available)");
 		}
 
 		// Install dependencies
 		if (!flags["no-install"]) {
-			const installSpinner = print!.spin("Installing dependencies...");
+			const installSpinner = print.spin("Installing dependencies...");
 			try {
 				const pm = await packageManager!.detect(targetDir);
 				const manager = await packageManager!.create(pm, targetDir);
@@ -106,7 +106,7 @@ export const newCommand = command({
 			}
 		}
 
-		print!.success(`\nProject created: ${targetDir}`);
-		print!.muted(`  cd ${targetDir} && bun dev`);
+		print.success(`\nProject created: ${targetDir}`);
+		print.muted(`  cd ${targetDir} && bun dev`);
 	},
 });

@@ -8,29 +8,29 @@ export const statsCommand = command({
 		const { workspace } = toolbox as Record<string, any>;
 
 		if (!workspace?.config) {
-			print!.error("Workspace not initialized. Run `projx init` first.");
+			print.error("Workspace not initialized. Run `projx init` first.");
 			process.exitCode = 1;
 			return;
 		}
 
 		const projects = await workspace.getProjects();
 		if (projects.length === 0) {
-			print!.muted("No projects found.");
+			print.muted("No projects found.");
 			return;
 		}
 
-		print!.ascii("projx stats");
-		print!.divider();
+		print.ascii("projx stats");
+		print.divider();
 
 		// Project count
 		const gitProjects = projects.filter((p: any) => p.hasGit).length;
 
-		print!.keyValue({
+		print.keyValue({
 			"Total Projects": String(projects.length),
 			"With Git": `${gitProjects} / ${projects.length}`,
 		});
 
-		print!.divider({ title: "Projects" });
+		print.divider({ title: "Projects" });
 
 		// Language detection by looking for common config files
 		const languages: Record<string, number> = {};
@@ -73,12 +73,12 @@ export const statsCommand = command({
 				rows.push([lang, String(count), `${pct}%`]);
 			}
 
-			print!.table(rows);
+			print.table(rows);
 		}
 
-		print!.divider({ title: "Dependencies" });
+		print.divider({ title: "Dependencies" });
 
-		print!.keyValue({
+		print.keyValue({
 			"Total Dependencies": String(totalDeps),
 			"Avg per Project": (totalDeps / projects.length).toFixed(1),
 			"Largest Project": biggestProject.name
@@ -92,11 +92,11 @@ export const statsCommand = command({
 		);
 		const recent = sorted.slice(0, 5);
 
-		print!.divider({ title: "Recently Modified" });
+		print.divider({ title: "Recently Modified" });
 		const recentRows: string[][] = [["Project", "Last Modified"]];
 		for (const p of recent) {
 			recentRows.push([p.name, (p as any).lastModified.toLocaleString()]);
 		}
-		print!.table(recentRows);
+		print.table(recentRows);
 	},
 });

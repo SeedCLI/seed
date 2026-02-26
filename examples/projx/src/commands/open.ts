@@ -27,14 +27,14 @@ export const openCommand = command({
 		const { workspace } = toolbox as Record<string, any>;
 
 		if (!workspace?.config) {
-			print!.error("Workspace not initialized. Run `projx init` first.");
+			print.error("Workspace not initialized. Run `projx init` first.");
 			process.exitCode = 1;
 			return;
 		}
 
 		const project = await workspace.getProject(args.name);
 		if (!project) {
-			print!.error(`Project "${args.name}" not found.`);
+			print.error(`Project "${args.name}" not found.`);
 			process.exitCode = 1;
 			return;
 		}
@@ -53,9 +53,9 @@ export const openCommand = command({
 						.replace(/\.git$/, "");
 				}
 				await system!.open(url);
-				print!.success(`Opened ${url}`);
+				print.success(`Opened ${url}`);
 			} catch {
-				print!.error("No git remote found.");
+				print.error("No git remote found.");
 				process.exitCode = 1;
 			}
 			return;
@@ -66,12 +66,12 @@ export const openCommand = command({
 		// Check editor exists
 		const editorPath = await system!.which(editor);
 		if (!editorPath) {
-			print!.error(`Editor "${editor}" not found in PATH.`);
+			print.error(`Editor "${editor}" not found in PATH.`);
 			process.exitCode = 1;
 			return;
 		}
 
 		await system!.exec(`${editor} ${project.path}`);
-		print!.success(`Opened ${project.name} in ${editor}`);
+		print.success(`Opened ${project.name} in ${editor}`);
 	},
 });

@@ -12,20 +12,20 @@ const envListCommand = command({
 		const { workspace } = toolbox as Record<string, any>;
 		const project = await workspace.getProject(args.name);
 		if (!project) {
-			print!.error(`Project "${args.name}" not found.`);
+			print.error(`Project "${args.name}" not found.`);
 			process.exitCode = 1;
 			return;
 		}
 
 		const envPath = filesystem!.path.join(project.path, ".env");
 		if (!(await filesystem!.exists(envPath))) {
-			print!.muted("No .env file found.");
+			print.muted("No .env file found.");
 			return;
 		}
 
 		const content = await filesystem!.read(envPath);
 		if (!content || content.trim().length === 0) {
-			print!.muted(".env file is empty.");
+			print.muted(".env file is empty.");
 			return;
 		}
 
@@ -39,7 +39,7 @@ const envListCommand = command({
 			}
 		}
 
-		print!.keyValue(pairs);
+		print.keyValue(pairs);
 	},
 });
 
@@ -56,21 +56,21 @@ const envGetCommand = command({
 		const { workspace } = toolbox as Record<string, any>;
 		const project = await workspace.getProject(args.name);
 		if (!project) {
-			print!.error(`Project "${args.name}" not found.`);
+			print.error(`Project "${args.name}" not found.`);
 			process.exitCode = 1;
 			return;
 		}
 
 		const envPath = filesystem!.path.join(project.path, ".env");
 		if (!(await filesystem!.exists(envPath))) {
-			print!.error("No .env file found.");
+			print.error("No .env file found.");
 			process.exitCode = 1;
 			return;
 		}
 
 		const content = await filesystem!.read(envPath);
 		if (!content) {
-			print!.error("Empty .env file.");
+			print.error("Empty .env file.");
 			process.exitCode = 1;
 			return;
 		}
@@ -84,7 +84,7 @@ const envGetCommand = command({
 			}
 		}
 
-		print!.error(`Variable "${key}" not found.`);
+		print.error(`Variable "${key}" not found.`);
 		process.exitCode = 1;
 	},
 });
@@ -110,7 +110,7 @@ const envSetCommand = command({
 		const { workspace } = toolbox as Record<string, any>;
 		const project = await workspace.getProject(args.name);
 		if (!project) {
-			print!.error(`Project "${args.name}" not found.`);
+			print.error(`Project "${args.name}" not found.`);
 			process.exitCode = 1;
 			return;
 		}
@@ -130,7 +130,7 @@ const envSetCommand = command({
 
 		if (!(await filesystem!.exists(envPath))) {
 			await filesystem!.write(envPath, `${line}\n`);
-			print!.success(`Created .env with ${key}`);
+			print.success(`Created .env with ${key}`);
 			return;
 		}
 
@@ -141,11 +141,11 @@ const envSetCommand = command({
 				replace: new RegExp(`^${key}=.*$`, "m"),
 				insert: line,
 			});
-			print!.success(`Updated ${key}`);
+			print.success(`Updated ${key}`);
 		} else {
 			// Append new
 			await patching!.append(envPath, `${line}\n`);
-			print!.success(`Added ${key}`);
+			print.success(`Added ${key}`);
 		}
 	},
 });
@@ -166,26 +166,26 @@ const envCopyCommand = command({
 		const target = await workspace.getProject(args.target);
 
 		if (!source) {
-			print!.error(`Source project "${args.source}" not found.`);
+			print.error(`Source project "${args.source}" not found.`);
 			process.exitCode = 1;
 			return;
 		}
 		if (!target) {
-			print!.error(`Target project "${args.target}" not found.`);
+			print.error(`Target project "${args.target}" not found.`);
 			process.exitCode = 1;
 			return;
 		}
 
 		const sourcePath = filesystem!.path.join(source.path, ".env");
 		if (!(await filesystem!.exists(sourcePath))) {
-			print!.error(`No .env file in ${source.name}.`);
+			print.error(`No .env file in ${source.name}.`);
 			process.exitCode = 1;
 			return;
 		}
 
 		const targetPath = filesystem!.path.join(target.path, ".env");
 		await filesystem!.copy(sourcePath, targetPath);
-		print!.success(`Copied .env from ${source.name} to ${target.name}`);
+		print.success(`Copied .env from ${source.name} to ${target.name}`);
 	},
 });
 
@@ -196,7 +196,7 @@ export const envCommand = command({
 	subcommands: [envListCommand, envGetCommand, envSetCommand, envCopyCommand],
 
 	run: async ({ print }) => {
-		print!.info("Usage: projx env <list|get|set|copy> <project>");
-		print!.muted("Run projx env --help for details.");
+		print.info("Usage: projx env <list|get|set|copy> <project>");
+		print.muted("Run projx env --help for details.");
 	},
 });

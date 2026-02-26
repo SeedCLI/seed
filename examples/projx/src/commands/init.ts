@@ -14,7 +14,7 @@ export const initCommand = command({
 				default: false,
 			});
 			if (!overwrite) {
-				print!.muted("Aborted.");
+				print.muted("Aborted.");
 				return;
 			}
 		}
@@ -49,8 +49,8 @@ export const initCommand = command({
 			defaultTemplate,
 		});
 
-		print!.success("Workspace initialized!");
-		print!.box(
+		print.success("Workspace initialized!");
+		print.box(
 			[
 				`Workspace:  ${workspace}`,
 				`Editor:     ${defaultEditor}`,

@@ -228,12 +228,12 @@ describe("Runtime.run()", () => {
 				command({
 					name: "test",
 					run: async ({ print }) => {
-						print!.table([
+						print.table([
 							["Name", "Value"],
 							["foo", "bar"],
 						]);
-						print!.divider();
-						print!.keyValue({ key: "val" });
+						print.divider();
+						print.keyValue({ key: "val" });
 					},
 				}),
 			)

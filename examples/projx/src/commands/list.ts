@@ -26,7 +26,7 @@ export const listCommand = command({
 		const { workspace } = toolbox as Record<string, any>;
 
 		if (!workspace?.config) {
-			print!.error("Workspace not initialized. Run `projx init` first.");
+			print.error("Workspace not initialized. Run `projx init` first.");
 			process.exitCode = 1;
 			return;
 		}
@@ -34,7 +34,7 @@ export const listCommand = command({
 		const projects = await workspace.getProjects();
 
 		if (projects.length === 0) {
-			print!.muted("No projects found in workspace.");
+			print.muted("No projects found in workspace.");
 			return;
 		}
 
@@ -51,7 +51,7 @@ export const listCommand = command({
 		}
 
 		if (flags.format === "tree") {
-			print!.tree({
+			print.tree({
 				label: workspace.projectsDir,
 				children: projects.map((p: any) => ({
 					label: `${p.name}${p.version ? ` (v${p.version})` : ""}`,
@@ -69,6 +69,6 @@ export const listCommand = command({
 			p.lastModified.toLocaleDateString(),
 		]);
 
-		print!.table([["Name", "Version", "Description", "Git", "Modified"], ...rows]);
+		print.table([["Name", "Version", "Description", "Git", "Modified"], ...rows]);
 	},
 });
