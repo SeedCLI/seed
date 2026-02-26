@@ -230,7 +230,7 @@ export class Runtime {
 		const parsed = parse(argv, cmd);
 
 		// Assemble toolbox
-		const toolbox = this.assembleToolbox(parsed.args, parsed.flags, cmd.name);
+		const toolbox = await this.assembleToolbox(parsed.args, parsed.flags, cmd.name);
 
 		// Run onReady
 		if (this.config.onReady) {
@@ -314,12 +314,11 @@ export class Runtime {
 		await next();
 	}
 
-	private assembleToolbox(
+	private async assembleToolbox(
 		args: Record<string, unknown>,
 		flags: Record<string, unknown>,
 		commandName: string,
-	): Toolbox<Record<string, unknown>, Record<string, unknown>> {
-		const cache: Record<string, unknown> = {};
+	): Promise<Toolbox<Record<string, unknown>, Record<string, unknown>>> {
 		const excluded = new Set(this.config.excludeModules ?? []);
 
 		const toolbox = {
@@ -369,17 +368,14 @@ export class Runtime {
 					configurable: true,
 				});
 			} else {
-				Object.defineProperty(toolbox, name, {
-					get: () => {
-						if (!cache[name]) {
-							const mod = require(pkg);
-							cache[name] = namedExport ? mod[namedExport] : mod;
-						}
-						return cache[name];
-					},
-					enumerable: true,
-					configurable: true,
-				});
+				try {
+					const mod = await import(pkg);
+					(toolbox as Record<string, unknown>)[name] = namedExport
+						? mod[namedExport]
+						: mod;
+				} catch {
+					// Module not installed — skip silently
+				}
 			}
 		}
 
@@ -498,7 +494,7 @@ export class Runtime {
 		const error = err instanceof Error ? err : new Error(String(err));
 
 		if (this.config.onError) {
-			const toolbox = this.assembleToolbox({}, {}, "");
+			const toolbox = await this.assembleToolbox({}, {}, "");
 			await this.config.onError(error, toolbox);
 		} else {
 			console.error(`ERROR: ${error.message}`);

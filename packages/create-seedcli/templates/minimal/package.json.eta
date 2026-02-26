@@ -11,8 +11,8 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@seedcli/core": "latest",
-		"@seedcli/print": "latest"
+		"@seedcli/core": "^0.1.2",
+		"@seedcli/print": "^0.1.2"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
