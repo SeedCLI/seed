@@ -14,6 +14,7 @@
 		"@seedcli/core": "^0.1.0"
 	},
 	"devDependencies": {
+		"@types/bun": "latest",
 		"typescript": "^5.9.0"
 	}
 }

@@ -44,7 +44,7 @@ export interface Toolbox<TArgs = Record<string, never>, TFlags = Record<string, 
 	};
 
 	// Core modules (lazy-loaded, optional if excluded)
-	print?: PrintModule;
+	print: PrintModule;
 	prompt?: PromptModule;
 	filesystem?: typeof import("@seedcli/filesystem");
 	system?: typeof import("@seedcli/system");

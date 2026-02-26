@@ -7,7 +7,7 @@
 		"<%= it.name %>": "./src/index.ts"
 	},
 	"scripts": {
-		"dev": "seed dev",
+		"dev": "bun --watch src/index.ts",
 		"test": "bun test",
 		"typecheck": "tsc --noEmit"
 	},
@@ -17,6 +17,7 @@
 	"devDependencies": {
 		"@seedcli/cli": "^0.1.0",
 		"@seedcli/testing": "^0.1.0",
+		"@types/bun": "latest",
 		"typescript": "^5.9.0"
 	}
 }

@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { arg, command, flag } from "@seedcli/core";
 import { exists } from "@seedcli/filesystem";
 import { create, detect } from "@seedcli/package-manager";
-import { error, info, spin, success, warning } from "@seedcli/print";
+import { error, info, muted, spin, success, warning } from "@seedcli/print";
 import { confirm, input } from "@seedcli/prompt";
 import { kebabCase } from "@seedcli/strings";
 import { directory } from "@seedcli/template";
@@ -82,7 +82,9 @@ export const newCommand = command({
 
 		success(`\nProject "${name}" created!`);
 		info(`\n  cd ${name}`);
+		info("  bun run dev");
 		info("  bun run src/index.ts hello");
-		info("  bun run dev\n");
+		muted(`\n  To use "${name}" as a global command:`);
+		info("  bun link\n");
 	},
 });

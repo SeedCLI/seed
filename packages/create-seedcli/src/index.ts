@@ -156,8 +156,10 @@ async function main() {
 	newline();
 	muted("  Next steps:\n");
 	info(`  cd ${options.name}`);
-	info("  bun run src/index.ts --help");
 	info("  bun run dev");
+	info(`  bun run src/index.ts --help`);
+	muted(`\n  To use "${options.name}" as a global command:\n`);
+	info("  bun link");
 	newline();
 }
 
