@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/strings",
-	"version": "0.1.3",
+	"version": "0.1.4",
 	"description": "String utilities: case conversion, truncate, pluralize, pad, template literals",
 	"type": "module",
 	"license": "MIT",
