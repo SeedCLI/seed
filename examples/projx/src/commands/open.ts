@@ -47,7 +47,10 @@ export const openCommand = command({
 				let url = result.stdout.trim();
 				// Convert SSH URL to HTTPS
 				if (url.startsWith("git@")) {
-					url = url.replace(":", "/").replace("git@", "https://").replace(/\.git$/, "");
+					url = url
+						.replace(":", "/")
+						.replace("git@", "https://")
+						.replace(/\.git$/, "");
 				}
 				await system!.open(url);
 				print!.success(`Opened ${url}`);

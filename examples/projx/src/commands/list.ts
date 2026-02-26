@@ -40,9 +40,7 @@ export const listCommand = command({
 
 		// Sort
 		if (flags.sort === "modified") {
-			projects.sort(
-				(a: any, b: any) => b.lastModified.getTime() - a.lastModified.getTime(),
-			);
+			projects.sort((a: any, b: any) => b.lastModified.getTime() - a.lastModified.getTime());
 		} else {
 			projects.sort((a: any, b: any) => a.name.localeCompare(b.name));
 		}
@@ -71,8 +69,6 @@ export const listCommand = command({
 			p.lastModified.toLocaleDateString(),
 		]);
 
-		print!.table(
-			[["Name", "Version", "Description", "Git", "Modified"], ...rows],
-		);
+		print!.table([["Name", "Version", "Description", "Git", "Modified"], ...rows]);
 	},
 });

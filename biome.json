@@ -42,6 +42,14 @@
 		}
 	},
 	"files": {
-		"includes": ["packages/**/*.ts", "*.json"]
+		"includes": [
+			"packages/**/*.ts",
+			"scripts/**/*.ts",
+			"examples/**/*.ts",
+			"*.json",
+			"!**/*.d.ts",
+			"!**/*.d.ts.map",
+			"!**/dist"
+		]
 	}
 }

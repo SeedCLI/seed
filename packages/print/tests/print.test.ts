@@ -89,7 +89,9 @@ describe("print module", () => {
 		expect(logSpy).toHaveBeenCalledTimes(1);
 		const output = logSpy.mock.calls[0][0] as string;
 		// Each line should start at the same position (left-aligned)
-		const lines = output.split("\n").filter((l: string) => l.includes("Short") || l.includes("longer"));
+		const lines = output
+			.split("\n")
+			.filter((l: string) => l.includes("Short") || l.includes("longer"));
 		const shortLine = lines.find((l: string) => l.includes("Short"))!;
 		const longLine = lines.find((l: string) => l.includes("longer"))!;
 		// In left-aligned text, "Short" should be followed by trailing spaces

@@ -127,10 +127,10 @@ describe("create-seedcli templates", () => {
 	});
 
 	test("--help flag prints usage", async () => {
-		const proc = Bun.spawn(
-			["bun", join(import.meta.dir, "..", "src", "index.ts"), "--help"],
-			{ stdout: "pipe", stderr: "pipe" },
-		);
+		const proc = Bun.spawn(["bun", join(import.meta.dir, "..", "src", "index.ts"), "--help"], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
 		const stdout = await new Response(proc.stdout).text();
 		await proc.exited;
 
@@ -141,10 +141,10 @@ describe("create-seedcli templates", () => {
 	});
 
 	test("--version flag prints version", async () => {
-		const proc = Bun.spawn(
-			["bun", join(import.meta.dir, "..", "src", "index.ts"), "--version"],
-			{ stdout: "pipe", stderr: "pipe" },
-		);
+		const proc = Bun.spawn(["bun", join(import.meta.dir, "..", "src", "index.ts"), "--version"], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
 		const stdout = await new Response(proc.stdout).text();
 		await proc.exited;
 

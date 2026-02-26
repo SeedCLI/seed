@@ -71,23 +71,23 @@ describe("exec()", () => {
 
 	test("timeout throws ExecTimeoutError for slow commands", async () => {
 		try {
-			await exec("sleep 10", { timeout: 100 });
+			await exec("sleep 10", { timeout: 500 });
 			expect(true).toBe(false);
 		} catch (err) {
 			expect(err).toBeInstanceOf(ExecTimeoutError);
-			expect((err as ExecTimeoutError).timeout).toBe(100);
+			expect((err as ExecTimeoutError).timeout).toBe(500);
 			expect((err as ExecTimeoutError).command).toBe("sleep 10");
 		}
-	});
+	}, 10000);
 
 	test("timeout with throwOnError false still throws on timeout", async () => {
 		try {
-			await exec("sleep 10", { timeout: 100, throwOnError: false });
+			await exec("sleep 10", { timeout: 500, throwOnError: false });
 			expect(true).toBe(false);
 		} catch (err) {
 			expect(err).toBeInstanceOf(ExecTimeoutError);
 		}
-	});
+	}, 10000);
 
 	test("timeout path throws ExecError on non-zero exit", async () => {
 		try {

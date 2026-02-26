@@ -127,10 +127,27 @@ for (const dir of dirs) {
 	// Write back
 	const ordered: Record<string, unknown> = {};
 	const keyOrder = [
-		"name", "version", "description", "type", "license", "author",
-		"repository", "homepage", "keywords", "engines", "publishConfig",
-		"main", "types", "exports", "bin", "files", "scripts",
-		"dependencies", "devDependencies", "peerDependencies", "peerDependenciesMeta",
+		"name",
+		"version",
+		"description",
+		"type",
+		"license",
+		"author",
+		"repository",
+		"homepage",
+		"keywords",
+		"engines",
+		"publishConfig",
+		"main",
+		"types",
+		"exports",
+		"bin",
+		"files",
+		"scripts",
+		"dependencies",
+		"devDependencies",
+		"peerDependencies",
+		"peerDependenciesMeta",
 	];
 
 	for (const key of keyOrder) {

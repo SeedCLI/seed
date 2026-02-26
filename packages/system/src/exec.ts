@@ -30,20 +30,19 @@ export async function exec(command: string, options?: ExecOptions): Promise<Exec
 		let timedOut = false;
 		const timer = setTimeout(() => {
 			timedOut = true;
-			proc.kill();
+			proc.kill("SIGKILL");
 		}, options.timeout);
 
 		try {
 			const exitCode = await proc.exited;
-
-			const stdout = options?.stream ? "" : await new Response(proc.stdout).text();
-			const stderr = options?.stream ? "" : await new Response(proc.stderr).text();
-
 			clearTimeout(timer);
 
 			if (timedOut) {
 				throw new ExecTimeoutError(command, options.timeout);
 			}
+
+			const stdout = options?.stream ? "" : await new Response(proc.stdout).text();
+			const stderr = options?.stream ? "" : await new Response(proc.stderr).text();
 
 			if (throwOnError && exitCode !== 0) {
 				throw new ExecError(command, exitCode, stdout, stderr);

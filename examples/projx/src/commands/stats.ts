@@ -68,9 +68,7 @@ export const statsCommand = command({
 			const total = Object.values(languages).reduce((a, b) => a + b, 0);
 			const rows: string[][] = [["Language", "Projects", "Share"]];
 
-			for (const [lang, count] of Object.entries(languages).sort(
-				(a, b) => b[1] - a[1],
-			)) {
+			for (const [lang, count] of Object.entries(languages).sort((a, b) => b[1] - a[1])) {
 				const pct = ((count / total) * 100).toFixed(0);
 				rows.push([lang, String(count), `${pct}%`]);
 			}

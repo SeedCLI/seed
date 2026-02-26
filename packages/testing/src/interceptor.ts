@@ -33,6 +33,9 @@ export function createInterceptor(): Interceptor {
 			originalErrWrite = process.stderr.write;
 			originalExitCode = process.exitCode;
 
+			// Reset to 0 so we detect only changes made during the intercepted run
+			process.exitCode = 0;
+
 			console.log = (...args: unknown[]) => {
 				state.stdout += `${args.map(String).join(" ")}\n`;
 			};
@@ -50,8 +53,6 @@ export function createInterceptor(): Interceptor {
 				state.stderr += typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk);
 				return true;
 			}) as typeof process.stderr.write;
-
-			process.exitCode = undefined;
 		},
 
 		stop() {
@@ -61,7 +62,8 @@ export function createInterceptor(): Interceptor {
 			console.error = originalError;
 			process.stdout.write = originalWrite;
 			process.stderr.write = originalErrWrite;
-			process.exitCode = originalExitCode;
+			// Bun ignores `process.exitCode = undefined`, so use 0 as fallback
+			process.exitCode = Number(originalExitCode ?? 0);
 		},
 	};
 

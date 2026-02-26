@@ -75,6 +75,7 @@ export function createTestCli(runtime: Runtime): TestCliBuilder {
 		async run(argv: string): Promise<TestResult> {
 			const interceptor = createInterceptor();
 			let restoreEnv: (() => void) | undefined;
+			let exitCode = 0;
 
 			try {
 				interceptor.start();
@@ -86,9 +87,12 @@ export function createTestCli(runtime: Runtime): TestCliBuilder {
 
 				const args = parseArgv(argv);
 				await runtime.run(args);
+
+				// Read exitCode before stop() to avoid race conditions
+				exitCode = Number(process.exitCode ?? 0);
 			} catch (err) {
 				interceptor.stderr += err instanceof Error ? err.message : String(err);
-				interceptor.exitCode = 1;
+				exitCode = 1;
 			} finally {
 				interceptor.stop();
 				restoreEnv?.();
@@ -97,7 +101,7 @@ export function createTestCli(runtime: Runtime): TestCliBuilder {
 			return {
 				stdout: interceptor.stdout,
 				stderr: interceptor.stderr,
-				exitCode: interceptor.exitCode,
+				exitCode,
 			};
 		},
 	};

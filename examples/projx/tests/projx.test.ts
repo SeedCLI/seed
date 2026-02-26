@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { build, command } from "@seedcli/core";
 import { createTestCli } from "@seedcli/testing";
 import { checkCommand } from "../src/commands/check.js";
@@ -8,9 +11,6 @@ import { searchCommand } from "../src/commands/search.js";
 import { statsCommand } from "../src/commands/stats.js";
 import { workspaceExtension } from "../src/extensions/workspace.js";
 import { timingMiddleware } from "../src/middleware/timing.js";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 
 // Create a temporary workspace for tests
 const testDir = join(tmpdir(), `projx-test-${Date.now()}`);
@@ -96,9 +96,7 @@ describe("projx", () => {
 		test("lists projects in workspace", async () => {
 			const runtime = createRuntime();
 			const cli = createTestCli(runtime);
-			const result = await cli
-				.env({ HOME: testDir })
-				.run("list");
+			const result = await cli.env({ HOME: testDir }).run("list");
 
 			expect(result.stdout).toContain("alpha-app");
 			expect(result.stdout).toContain("beta-lib");
@@ -107,9 +105,7 @@ describe("projx", () => {
 		test("list --format json outputs JSON", async () => {
 			const runtime = createRuntime();
 			const cli = createTestCli(runtime);
-			const result = await cli
-				.env({ HOME: testDir })
-				.run("list --format json");
+			const result = await cli.env({ HOME: testDir }).run("list --format json");
 
 			expect(result.stdout).toContain('"name"');
 			expect(result.stdout).toContain("alpha-app");
@@ -120,9 +116,7 @@ describe("projx", () => {
 		test("shows project info", async () => {
 			const runtime = createRuntime();
 			const cli = createTestCli(runtime);
-			const result = await cli
-				.env({ HOME: testDir })
-				.run("info alpha-app");
+			const result = await cli.env({ HOME: testDir }).run("info alpha-app");
 
 			expect(result.stdout).toContain("alpha-app");
 			expect(result.stdout).toContain("1.2.3");
@@ -131,9 +125,7 @@ describe("projx", () => {
 		test("errors for unknown project", async () => {
 			const runtime = createRuntime();
 			const cli = createTestCli(runtime);
-			const result = await cli
-				.env({ HOME: testDir })
-				.run("info nonexistent");
+			const result = await cli.env({ HOME: testDir }).run("info nonexistent");
 
 			expect(result.stdout + result.stderr).toContain("not found");
 		});
@@ -143,9 +135,7 @@ describe("projx", () => {
 		test("searches across workspace", async () => {
 			const runtime = createRuntime();
 			const cli = createTestCli(runtime);
-			const result = await cli
-				.env({ HOME: testDir })
-				.run("search hello");
+			const result = await cli.env({ HOME: testDir }).run("search hello");
 
 			// Should find results in the workspace
 			expect(result.stdout).toContain("Found 1 result");
@@ -157,9 +147,7 @@ describe("projx", () => {
 		test("runs health checks", async () => {
 			const runtime = createRuntime();
 			const cli = createTestCli(runtime);
-			const result = await cli
-				.env({ HOME: testDir })
-				.run("check");
+			const result = await cli.env({ HOME: testDir }).run("check");
 
 			expect(result.stdout).toContain("alpha-app");
 			expect(result.stdout).toContain("beta-lib");
@@ -170,9 +158,7 @@ describe("projx", () => {
 		test("timing middleware shows duration", async () => {
 			const runtime = createRuntime();
 			const cli = createTestCli(runtime);
-			const result = await cli
-				.env({ HOME: testDir })
-				.run("list");
+			const result = await cli.env({ HOME: testDir }).run("list");
 
 			expect(result.stdout).toContain("Completed in");
 			expect(result.stdout).toMatch(/Completed in \d+ms/);

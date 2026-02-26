@@ -52,8 +52,7 @@ export const newCommand = command({
 		}
 
 		// Determine template
-		let templateChoice =
-			flags.template ?? workspace.config.defaultTemplate ?? null;
+		let templateChoice = flags.template ?? workspace.config.defaultTemplate ?? null;
 
 		if (!templateChoice) {
 			templateChoice = await prompt!.select({
@@ -68,10 +67,7 @@ export const newCommand = command({
 		const spinner = print!.spin(`Scaffolding ${projectName}...`);
 
 		// Resolve template directory relative to this file
-		const templatesRoot = filesystem!.path.resolve(
-			import.meta.dir,
-			"../../templates",
-		);
+		const templatesRoot = filesystem!.path.resolve(import.meta.dir, "../../templates");
 		const templateDir = filesystem!.path.join(templatesRoot, templateChoice);
 
 		if (!(await filesystem!.exists(templateDir))) {

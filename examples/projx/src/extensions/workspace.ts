@@ -1,5 +1,5 @@
 import { defineExtension } from "@seedcli/core";
-import type { ProjxConfig, ProjectInfo } from "../types.js";
+import type { ProjectInfo, ProjxConfig } from "../types.js";
 
 declare module "@seedcli/core" {
 	interface ToolboxExtensions {

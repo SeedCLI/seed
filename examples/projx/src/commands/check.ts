@@ -47,7 +47,13 @@ export const checkCommand = command({
 			}
 
 			// Check: no lockfile
-			const lockfiles = ["bun.lockb", "bun.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"];
+			const lockfiles = [
+				"bun.lockb",
+				"bun.lock",
+				"package-lock.json",
+				"yarn.lock",
+				"pnpm-lock.yaml",
+			];
 			let hasLockfile = false;
 			for (const lf of lockfiles) {
 				if (await filesystem!.exists(filesystem!.path.join(project.path, lf))) {
