@@ -57,7 +57,7 @@ export const statsCommand = command({
 			];
 
 			for (const [file, lang] of checks) {
-				if (await filesystem!.exists(filesystem!.path.join(project.path, file))) {
+				if (await filesystem.exists(filesystem.path.join(project.path, file))) {
 					languages[lang] = (languages[lang] ?? 0) + 1;
 				}
 			}

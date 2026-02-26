@@ -38,11 +38,11 @@ export const runCommand = command({
 			return;
 		}
 
-		const pm = await packageManager!.detect(project.path);
+		const pm = await packageManager.detect(project.path);
 		print.muted(`Running "${script}" in ${project.name} with ${pm}...`);
 		print.newline();
 
-		const manager = await packageManager!.create(pm, project.path);
+		const manager = await packageManager.create(pm, project.path);
 		await manager.run(script);
 	},
 });

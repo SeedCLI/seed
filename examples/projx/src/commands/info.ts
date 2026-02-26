@@ -30,7 +30,7 @@ export const infoCommand = command({
 
 		// Basic info
 		const versionLabel = project.version
-			? semver!.valid(project.version)
+			? semver.valid(project.version)
 				? `${project.version} (valid semver)`
 				: `${project.version} (invalid semver)`
 			: "n/a";
@@ -47,10 +47,10 @@ export const infoCommand = command({
 		if (project.hasGit) {
 			print.divider({ title: "Git" });
 			try {
-				const branch = await system!.exec("git rev-parse --abbrev-ref HEAD", {
+				const branch = await system.exec("git rev-parse --abbrev-ref HEAD", {
 					cwd: project.path,
 				});
-				const status = await system!.exec("git status --porcelain", {
+				const status = await system.exec("git status --porcelain", {
 					cwd: project.path,
 				});
 				const dirty = status.stdout.trim().length > 0;

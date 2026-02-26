@@ -35,7 +35,7 @@ export const checkCommand = command({
 			// Check: git dirty
 			if (project.hasGit) {
 				try {
-					const result = await system!.exec("git status --porcelain", {
+					const result = await system.exec("git status --porcelain", {
 						cwd: project.path,
 					});
 					if (result.stdout.trim().length > 0) {
@@ -56,7 +56,7 @@ export const checkCommand = command({
 			];
 			let hasLockfile = false;
 			for (const lf of lockfiles) {
-				if (await filesystem!.exists(filesystem!.path.join(project.path, lf))) {
+				if (await filesystem.exists(filesystem.path.join(project.path, lf))) {
 					hasLockfile = true;
 					break;
 				}
@@ -66,8 +66,8 @@ export const checkCommand = command({
 			}
 
 			// Check: missing node_modules
-			const hasNodeModules = await filesystem!.exists(
-				filesystem!.path.join(project.path, "node_modules"),
+			const hasNodeModules = await filesystem.exists(
+				filesystem.path.join(project.path, "node_modules"),
 			);
 			if (!hasNodeModules) {
 				checks.push({ issue: "Missing node_modules", status: "fail" });
@@ -75,7 +75,7 @@ export const checkCommand = command({
 				if (flags.fix) {
 					const spinner = print.spin(`Installing deps for ${project.name}...`);
 					try {
-						await system!.exec("bun install", { cwd: project.path });
+						await system.exec("bun install", { cwd: project.path });
 						spinner.succeed(`Installed deps for ${project.name}`);
 						checks[checks.length - 1].status = "fixed";
 					} catch {
@@ -85,7 +85,7 @@ export const checkCommand = command({
 			}
 
 			// Check: engine version
-			if (project.version && !semver!.valid(project.version)) {
+			if (project.version && !semver.valid(project.version)) {
 				checks.push({ issue: "Invalid semver version", status: "warn" });
 			}
 

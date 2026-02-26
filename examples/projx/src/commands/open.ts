@@ -41,7 +41,7 @@ export const openCommand = command({
 
 		if (flags.github) {
 			try {
-				const result = await system!.exec("git remote get-url origin", {
+				const result = await system.exec("git remote get-url origin", {
 					cwd: project.path,
 				});
 				let url = result.stdout.trim();
@@ -52,7 +52,7 @@ export const openCommand = command({
 						.replace("git@", "https://")
 						.replace(/\.git$/, "");
 				}
-				await system!.open(url);
+				await system.open(url);
 				print.success(`Opened ${url}`);
 			} catch {
 				print.error("No git remote found.");
@@ -64,14 +64,14 @@ export const openCommand = command({
 		const editor = flags.editor ?? workspace.config.defaultEditor ?? "code";
 
 		// Check editor exists
-		const editorPath = await system!.which(editor);
+		const editorPath = await system.which(editor);
 		if (!editorPath) {
 			print.error(`Editor "${editor}" not found in PATH.`);
 			process.exitCode = 1;
 			return;
 		}
 
-		await system!.exec(`${editor} ${project.path}`);
+		await system.exec(`${editor} ${project.path}`);
 		print.success(`Opened ${project.name} in ${editor}`);
 	},
 });

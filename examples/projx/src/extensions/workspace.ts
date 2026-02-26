@@ -19,12 +19,12 @@ export const workspaceExtension = defineExtension({
 	setup: async (toolbox) => {
 		const { filesystem } = toolbox;
 		const homedir = process.env.HOME || process.env.USERPROFILE || "~";
-		const configPath = filesystem!.path.join(homedir, ".projxrc.json");
+		const configPath = filesystem.path.join(homedir, ".projxrc.json");
 
 		let config: ProjxConfig | null = null;
 		try {
-			if (await filesystem!.exists(configPath)) {
-				config = (await filesystem!.readJson(configPath)) as ProjxConfig;
+			if (await filesystem.exists(configPath)) {
+				config = (await filesystem.readJson(configPath)) as ProjxConfig;
 			}
 		} catch {
 			// Config doesn't exist yet — that's fine, `init` creates it
@@ -33,20 +33,20 @@ export const workspaceExtension = defineExtension({
 		const projectsDir = config?.workspace ?? null;
 
 		const getProjects = async (): Promise<ProjectInfo[]> => {
-			if (!projectsDir || !(await filesystem!.exists(projectsDir))) return [];
+			if (!projectsDir || !(await filesystem.exists(projectsDir))) return [];
 
-			const dirs = await filesystem!.subdirectories(projectsDir);
+			const dirs = await filesystem.subdirectories(projectsDir);
 			const projects: ProjectInfo[] = [];
 
 			for (const dir of dirs) {
-				const fullPath = filesystem!.path.join(projectsDir, dir);
-				const pkgPath = filesystem!.path.join(fullPath, "package.json");
+				const fullPath = filesystem.path.join(projectsDir, dir);
+				const pkgPath = filesystem.path.join(fullPath, "package.json");
 
-				if (await filesystem!.exists(pkgPath)) {
+				if (await filesystem.exists(pkgPath)) {
 					try {
-						const pkg = (await filesystem!.readJson(pkgPath)) as Record<string, unknown>;
-						const info = await filesystem!.stat(fullPath);
-						const gitDir = filesystem!.path.join(fullPath, ".git");
+						const pkg = (await filesystem.readJson(pkgPath)) as Record<string, unknown>;
+						const info = await filesystem.stat(fullPath);
+						const gitDir = filesystem.path.join(fullPath, ".git");
 
 						projects.push({
 							name: dir,
@@ -57,7 +57,7 @@ export const workspaceExtension = defineExtension({
 							dependencies: pkg.dependencies as Record<string, string> | undefined,
 							devDependencies: pkg.devDependencies as Record<string, string> | undefined,
 							lastModified: info.modified,
-							hasGit: await filesystem!.exists(gitDir),
+							hasGit: await filesystem.exists(gitDir),
 							packageManager: pkg.packageManager as string | undefined,
 						});
 					} catch {

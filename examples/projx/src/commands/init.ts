@@ -6,10 +6,10 @@ export const initCommand = command({
 
 	run: async ({ print, prompt, filesystem }) => {
 		const homedir = process.env.HOME || process.env.USERPROFILE || "~";
-		const configPath = filesystem!.path.join(homedir, ".projxrc.json");
+		const configPath = filesystem.path.join(homedir, ".projxrc.json");
 
-		if (await filesystem!.exists(configPath)) {
-			const overwrite = await prompt!.confirm({
+		if (await filesystem.exists(configPath)) {
+			const overwrite = await prompt.confirm({
 				message: "~/.projxrc.json already exists. Overwrite?",
 				default: false,
 			});
@@ -19,12 +19,12 @@ export const initCommand = command({
 			}
 		}
 
-		const workspace = await prompt!.input({
+		const workspace = await prompt.input({
 			message: "Where do you keep your projects?",
-			default: filesystem!.path.join(homedir, "Projects"),
+			default: filesystem.path.join(homedir, "Projects"),
 		});
 
-		const defaultEditor = await prompt!.select({
+		const defaultEditor = await prompt.select({
 			message: "Default editor:",
 			choices: [
 				{ name: "VS Code", value: "code" },
@@ -34,7 +34,7 @@ export const initCommand = command({
 			],
 		});
 
-		const defaultTemplate = await prompt!.select({
+		const defaultTemplate = await prompt.select({
 			message: "Default project template:",
 			choices: [
 				{ name: "Minimal (TypeScript)", value: "minimal" },
@@ -42,8 +42,8 @@ export const initCommand = command({
 			],
 		});
 
-		await filesystem!.ensureDir(workspace);
-		await filesystem!.writeJson(configPath, {
+		await filesystem.ensureDir(workspace);
+		await filesystem.writeJson(configPath, {
 			workspace,
 			defaultEditor,
 			defaultTemplate,

@@ -42,10 +42,10 @@ export const newCommand = command({
 			return;
 		}
 
-		const projectName = strings!.kebabCase(args.name as string);
-		const targetDir = filesystem!.path.join(workspace.projectsDir, projectName);
+		const projectName = strings.kebabCase(args.name as string);
+		const targetDir = filesystem.path.join(workspace.projectsDir, projectName);
 
-		if (await filesystem!.exists(targetDir)) {
+		if (await filesystem.exists(targetDir)) {
 			print.error(`Directory already exists: ${targetDir}`);
 			process.exitCode = 1;
 			return;
@@ -55,7 +55,7 @@ export const newCommand = command({
 		let templateChoice = flags.template ?? workspace.config.defaultTemplate ?? null;
 
 		if (!templateChoice) {
-			templateChoice = await prompt!.select({
+			templateChoice = await prompt.select({
 				message: "Choose a template:",
 				choices: [
 					{ name: "Minimal (TypeScript)", value: "minimal" },
@@ -67,17 +67,17 @@ export const newCommand = command({
 		const spinner = print.spin(`Scaffolding ${projectName}...`);
 
 		// Resolve template directory relative to this file
-		const templatesRoot = filesystem!.path.resolve(import.meta.dir, "../../templates");
-		const templateDir = filesystem!.path.join(templatesRoot, templateChoice);
+		const templatesRoot = filesystem.path.resolve(import.meta.dir, "../../templates");
+		const templateDir = filesystem.path.join(templatesRoot, templateChoice);
 
-		if (!(await filesystem!.exists(templateDir))) {
+		if (!(await filesystem.exists(templateDir))) {
 			spinner.fail(`Template "${templateChoice}" not found at ${templateDir}`);
 			process.exitCode = 1;
 			return;
 		}
 
 		// Scaffold from template
-		await template!.directory({
+		await template.directory({
 			source: templateDir,
 			target: targetDir,
 			props: { name: projectName },
@@ -87,7 +87,7 @@ export const newCommand = command({
 
 		// Init git
 		try {
-			await system!.exec("git init", { cwd: targetDir });
+			await system.exec("git init", { cwd: targetDir });
 			print.muted("  Initialized git repository");
 		} catch {
 			print.muted("  Skipped git init (git not available)");
@@ -97,8 +97,8 @@ export const newCommand = command({
 		if (!flags["no-install"]) {
 			const installSpinner = print.spin("Installing dependencies...");
 			try {
-				const pm = await packageManager!.detect(targetDir);
-				const manager = await packageManager!.create(pm, targetDir);
+				const pm = await packageManager.detect(targetDir);
+				const manager = await packageManager.create(pm, targetDir);
 				await manager.install();
 				installSpinner.succeed(`Dependencies installed with ${pm}`);
 			} catch {

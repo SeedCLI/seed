@@ -43,18 +43,18 @@ export interface Toolbox<TArgs = Record<string, never>, TFlags = Record<string, 
 		command: string | undefined;
 	};
 
-	// Core modules (lazy-loaded, optional if excluded)
+	// Core modules (always loaded; throws at runtime if explicitly excluded)
 	print: PrintModule;
-	prompt?: PromptModule;
-	filesystem?: typeof import("@seedcli/filesystem");
-	system?: typeof import("@seedcli/system");
-	http?: HttpModule;
-	template?: TemplateModule;
-	strings?: StringsModule;
-	semver?: typeof import("@seedcli/semver");
-	packageManager?: PackageManagerModule;
-	config?: ConfigModule;
-	patching?: PatchingModule;
+	prompt: PromptModule;
+	filesystem: typeof import("@seedcli/filesystem");
+	system: typeof import("@seedcli/system");
+	http: HttpModule;
+	template: TemplateModule;
+	strings: StringsModule;
+	semver: typeof import("@seedcli/semver");
+	packageManager: PackageManagerModule;
+	config: ConfigModule;
+	patching: PatchingModule;
 
 	// Runtime info
 	meta: {

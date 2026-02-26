@@ -39,7 +39,7 @@ export const searchCommand = command({
 		const maxResults = flags.max ?? 20;
 
 		// Check if grep/rg is available
-		const rg = await system!.which("rg");
+		const rg = await system.which("rg");
 		const grepTool = rg ? "rg" : "grep";
 
 		let cmd: string;
@@ -56,7 +56,7 @@ export const searchCommand = command({
 		print.muted(`Searching with ${grepTool}...`);
 
 		try {
-			const result = await system!.exec(cmd);
+			const result = await system.exec(cmd);
 			const lines = result.stdout.trim().split("\n").filter(Boolean);
 
 			if (lines.length === 0) {
@@ -68,7 +68,7 @@ export const searchCommand = command({
 
 			for (const line of lines.slice(0, maxResults)) {
 				// Trim long lines for readability
-				print.highlight(strings!.truncate(line, 120));
+				print.highlight(strings.truncate(line, 120));
 			}
 
 			if (lines.length > maxResults) {

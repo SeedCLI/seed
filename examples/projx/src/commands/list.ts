@@ -64,7 +64,7 @@ export const listCommand = command({
 		const rows = projects.map((p: any) => [
 			p.name,
 			p.version ?? "-",
-			strings!.truncate(p.description ?? "-", 40),
+			strings.truncate(p.description ?? "-", 40),
 			p.hasGit ? "yes" : "no",
 			p.lastModified.toLocaleDateString(),
 		]);

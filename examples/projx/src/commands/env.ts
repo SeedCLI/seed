@@ -17,13 +17,13 @@ const envListCommand = command({
 			return;
 		}
 
-		const envPath = filesystem!.path.join(project.path, ".env");
-		if (!(await filesystem!.exists(envPath))) {
+		const envPath = filesystem.path.join(project.path, ".env");
+		if (!(await filesystem.exists(envPath))) {
 			print.muted("No .env file found.");
 			return;
 		}
 
-		const content = await filesystem!.read(envPath);
+		const content = await filesystem.read(envPath);
 		if (!content || content.trim().length === 0) {
 			print.muted(".env file is empty.");
 			return;
@@ -61,14 +61,14 @@ const envGetCommand = command({
 			return;
 		}
 
-		const envPath = filesystem!.path.join(project.path, ".env");
-		if (!(await filesystem!.exists(envPath))) {
+		const envPath = filesystem.path.join(project.path, ".env");
+		if (!(await filesystem.exists(envPath))) {
 			print.error("No .env file found.");
 			process.exitCode = 1;
 			return;
 		}
 
-		const content = await filesystem!.read(envPath);
+		const content = await filesystem.read(envPath);
 		if (!content) {
 			print.error("Empty .env file.");
 			process.exitCode = 1;
@@ -115,36 +115,36 @@ const envSetCommand = command({
 			return;
 		}
 
-		const envPath = filesystem!.path.join(project.path, ".env");
+		const envPath = filesystem.path.join(project.path, ".env");
 
 		const key = args.key!;
 
 		let value: string;
 		if (flags.secret) {
-			value = await prompt!.password({ message: `Value for ${key}:` });
+			value = await prompt.password({ message: `Value for ${key}:` });
 		} else {
-			value = await prompt!.input({ message: `Value for ${key}:` });
+			value = await prompt.input({ message: `Value for ${key}:` });
 		}
 
 		const line = `${key}=${value}`;
 
-		if (!(await filesystem!.exists(envPath))) {
-			await filesystem!.write(envPath, `${line}\n`);
+		if (!(await filesystem.exists(envPath))) {
+			await filesystem.write(envPath, `${line}\n`);
 			print.success(`Created .env with ${key}`);
 			return;
 		}
 
-		const content = await filesystem!.read(envPath);
+		const content = await filesystem.read(envPath);
 		if (content && content.includes(`${key}=`)) {
 			// Replace existing
-			await patching!.patch(envPath, {
+			await patching.patch(envPath, {
 				replace: new RegExp(`^${key}=.*$`, "m"),
 				insert: line,
 			});
 			print.success(`Updated ${key}`);
 		} else {
 			// Append new
-			await patching!.append(envPath, `${line}\n`);
+			await patching.append(envPath, `${line}\n`);
 			print.success(`Added ${key}`);
 		}
 	},
@@ -176,15 +176,15 @@ const envCopyCommand = command({
 			return;
 		}
 
-		const sourcePath = filesystem!.path.join(source.path, ".env");
-		if (!(await filesystem!.exists(sourcePath))) {
+		const sourcePath = filesystem.path.join(source.path, ".env");
+		if (!(await filesystem.exists(sourcePath))) {
 			print.error(`No .env file in ${source.name}.`);
 			process.exitCode = 1;
 			return;
 		}
 
-		const targetPath = filesystem!.path.join(target.path, ".env");
-		await filesystem!.copy(sourcePath, targetPath);
+		const targetPath = filesystem.path.join(target.path, ".env");
+		await filesystem.copy(sourcePath, targetPath);
 		print.success(`Copied .env from ${source.name} to ${target.name}`);
 	},
 });
