@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/prompt",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"description": "Interactive prompts: input, select, multiselect, confirm, password, form",
 	"type": "module",
 	"license": "MIT",

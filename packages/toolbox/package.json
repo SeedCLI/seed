@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/toolbox",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"description": "Umbrella re-export of all Seed CLI toolbox modules",
 	"type": "module",
 	"license": "MIT",
