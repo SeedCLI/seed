@@ -73,7 +73,7 @@ describe("exec()", () => {
 
 	test("timeout throws ExecTimeoutError for slow commands", async () => {
 		// Use bun -e for cross-platform sleep
-		const slowCmd = "bun -e \"await Bun.sleep(30000)\"";
+		const slowCmd = 'bun -e "await Bun.sleep(30000)"';
 		try {
 			await exec(slowCmd, { timeout: 500 });
 			expect(true).toBe(false);
@@ -86,7 +86,7 @@ describe("exec()", () => {
 
 	test("timeout with throwOnError false still throws on timeout", async () => {
 		try {
-			await exec("bun -e \"await Bun.sleep(30000)\"", { timeout: 500, throwOnError: false });
+			await exec('bun -e "await Bun.sleep(30000)"', { timeout: 500, throwOnError: false });
 			expect(true).toBe(false);
 		} catch (err) {
 			expect(err).toBeInstanceOf(ExecTimeoutError);
