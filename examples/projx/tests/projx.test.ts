@@ -132,7 +132,8 @@ describe("projx", () => {
 	});
 
 	describe("search command", () => {
-		test("searches across workspace", async () => {
+		// grep is not available on Windows
+		test.skipIf(process.platform === "win32")("searches across workspace", async () => {
 			const runtime = createRuntime();
 			const cli = createTestCli(runtime);
 			const result = await cli.env({ HOME: testDir }).run("search hello");
