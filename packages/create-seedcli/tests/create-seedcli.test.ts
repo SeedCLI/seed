@@ -90,8 +90,8 @@ describe("create-seedcli templates", () => {
 		const pkg = await Bun.file(join(targetDir, "package.json")).json();
 		expect(pkg.name).toBe("mini-cli");
 		expect(pkg.dependencies["@seedcli/core"]).toBeDefined();
-		// Minimal doesn't have @seedcli/cli devDep
-		expect(pkg.devDependencies["@seedcli/cli"]).toBeUndefined();
+		// Minimal has @seedcli/cli devDep for build/compile scripts
+		expect(pkg.devDependencies["@seedcli/cli"]).toBeDefined();
 
 		const indexTs = await Bun.file(join(targetDir, "src/index.ts")).text();
 		expect(indexTs).toContain('build("mini-cli")');
