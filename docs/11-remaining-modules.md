@@ -192,6 +192,8 @@ interface SemverModule {
   prerelease(version: string): readonly (string | number)[] | null;
   sort(versions: string[]): string[];
   maxSatisfying(versions: string[], range: string): string | null;
+  compare(a: string, b: string): -1 | 0 | 1;
+  diff(a: string, b: string): ReleaseType | null;
 }
 ```
 

@@ -61,5 +61,6 @@ export interface Toolbox<TArgs = Record<string, never>, TFlags = Record<string, 
 		version: string;
 		commandName: string;
 		brand: string;
+		debug: boolean;
 	};
 }

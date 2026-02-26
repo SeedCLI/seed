@@ -27,11 +27,12 @@ export class PluginRegistry {
 		if (validated.commands) {
 			const existingCommands = this.commands();
 			for (const cmd of validated.commands) {
-				const conflicting = existingCommands.find(
-					(existing) =>
-						existing.name === cmd.name ||
-						(cmd.alias && existing.alias && cmd.alias.some((a) => existing.alias?.includes(a))),
-				);
+				// Collect all names/aliases for the new command
+				const newNames = [cmd.name, ...(cmd.alias ?? [])];
+				const conflicting = existingCommands.find((existing) => {
+					const existingNames = [existing.name, ...(existing.alias ?? [])];
+					return newNames.some((n) => existingNames.includes(n));
+				});
 				if (conflicting) {
 					const conflictPlugin = this.findPluginByCommand(conflicting.name);
 					throw new PluginValidationError(

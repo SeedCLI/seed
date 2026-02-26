@@ -1,6 +1,6 @@
 {
 	"name": "create-seedcli",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"description": "Scaffold a new Seed CLI project — works with bun create, npx, and npm create",
 	"type": "module",
 	"license": "MIT",

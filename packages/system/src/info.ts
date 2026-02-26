@@ -42,3 +42,15 @@ export function memory(): { total: number; free: number } {
 export function uptime(): number {
 	return nodeOs.uptime();
 }
+
+/**
+ * Check if stdin is attached to a TTY (interactive terminal).
+ * Returns false in CI environments, piped input, or when redirected.
+ */
+export function isInteractive(): boolean {
+	// Check common CI environment variables
+	if (process.env.CI || process.env.CONTINUOUS_INTEGRATION || process.env.BUILD_NUMBER) {
+		return false;
+	}
+	return process.stdin.isTTY === true;
+}

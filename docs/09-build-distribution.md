@@ -185,11 +185,11 @@ seed build --bundle
 ```
 1. Read seed.config.ts
 2. Resolve entry point (src/index.ts)
-3. Bundle with Bun.build() → single .js file
+3. Generate build entry (resolve .src() and .plugins() to static imports)
+4. Bundle with Bun.build() → single .js file
    - Resolve all imports
    - Bundle node_modules (tree-shaken)
    - Transpile TypeScript → JavaScript
-4. Add Node.js-compatible shebang (#!/usr/bin/env node)
 5. Output to dist/
 ```
 
@@ -415,21 +415,26 @@ Options:
 ```
 1. Read seed.config.ts / CLI builder config
 2. Resolve entry point (src/index.ts)
-3. Bundle with Bun.build()
-   - Resolve all imports
+3. Generate build entry (if .src() or .plugins() detected):
+   a. Scan commands/ and extensions/ directories
+   b. Replace .src() with explicit .command()/.extension() calls
+   c. Replace .plugins(dir) with explicit .plugin() calls
+   d. Add static imports for @seedcli/* runtime modules used by source
+   e. Add registerModule() calls for compiled binary support
+   f. Write temporary entry file (.seed-build-*)
+4. Bundle with Bun.build()
+   - Resolve all imports (now statically traced)
    - Bundle node_modules (tree-shaken)
    - Transpile TypeScript → JavaScript
    - Process template files
-4. If --bundle (Tier 2):
-   a. Add shebang (#!/usr/bin/env node, or bun with --bun)
-   b. Output single .js file to --outdir
-5. If --compile (Tier 3):
-   a. Embed static assets (import with { type: "file" })
-   b. Embed native binaries
-   c. Run bun build --compile for each target
-   d. Stamp version into binary
-6. If --analyze: calculate and display size breakdown
-7. Output to --outdir
+5. If --bundle (Tier 2):
+   a. Output single .js file to --outdir
+6. If --compile (Tier 3):
+   a. Embed static assets
+   b. Run bun build --compile for each target
+7. If --analyze: calculate and display size breakdown
+8. Clean up temporary build entry file
+9. Output to --outdir
 ```
 
 ---

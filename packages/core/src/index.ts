@@ -43,7 +43,7 @@ export type { BuilderConfig, ConfigOptions, PluginScanOptions } from "./runtime/
 // ─── Runtime ───
 export { build } from "./runtime/builder.js";
 export type { RunConfig } from "./runtime/runtime.js";
-export { Runtime, run } from "./runtime/runtime.js";
+export { Runtime, registerModule, run } from "./runtime/runtime.js";
 // ─── Factory Functions ───
 export { arg, flag } from "./types/args.js";
 export { command } from "./types/command.js";

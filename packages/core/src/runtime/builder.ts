@@ -32,6 +32,7 @@ export interface BuilderConfig {
 	helpEnabled: boolean;
 	versionEnabled: boolean;
 	completionsEnabled: boolean;
+	debugEnabled: boolean;
 	onReady?: (toolbox: unknown) => Promise<void> | void;
 	onError?: (error: Error, toolbox: unknown) => Promise<void> | void;
 }
@@ -52,6 +53,7 @@ export class Builder {
 			helpEnabled: false,
 			versionEnabled: false,
 			completionsEnabled: false,
+			debugEnabled: false,
 		};
 	}
 
@@ -125,6 +127,11 @@ export class Builder {
 
 	completions(): this {
 		this.cfg.completionsEnabled = true;
+		return this;
+	}
+
+	debug(): this {
+		this.cfg.debugEnabled = true;
 		return this;
 	}
 

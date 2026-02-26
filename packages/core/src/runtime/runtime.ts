@@ -60,17 +60,47 @@ const DEFAULT_SETUP_TIMEOUT = 10_000;
  * 6. Run command handler
  * 7. Run extensions teardown (reverse order)
  */
+/**
+ * Pre-register modules so compiled binaries can resolve them
+ * without dynamic `await import()`. Called by the generated build entry.
+ *
+ * ```ts
+ * import * as print from "@seedcli/print";
+ * registerModule("@seedcli/print", print);
+ * ```
+ */
+const moduleRegistry = new Map<string, unknown>();
+
+export function registerModule(name: string, mod: unknown): void {
+	moduleRegistry.set(name, mod);
+}
+
 export class Runtime {
 	private config: BuilderConfig;
 	private registry = new PluginRegistry();
 	private initialized = false;
+	private moduleCache = new Map<string, unknown>();
 
 	constructor(config: BuilderConfig) {
 		this.config = config;
 	}
 
 	async run(argv?: string[]): Promise<void> {
-		const raw = argv ?? process.argv.slice(2);
+		let raw = argv ?? process.argv.slice(2);
+
+		// ─── Strip --debug/--verbose from argv if debug mode enabled ───
+		if (this.config.debugEnabled) {
+			raw = raw.filter((a) => a !== "--debug" && a !== "--verbose");
+		}
+
+		// ─── Graceful shutdown handling ───
+		const cleanup = () => {
+			// Reset cursor visibility in case a spinner hid it
+			process.stdout.write("\x1B[?25h");
+			process.exit(130);
+		};
+		process.on("SIGINT", cleanup);
+		process.on("SIGTERM", cleanup);
 
 		try {
 			// ─── Handle --version ───
@@ -128,7 +158,7 @@ export class Runtime {
 			}
 
 			// ─── Handle per-command --help ───
-			if (this.config.helpEnabled && result.argv.includes("--help")) {
+			if (this.config.helpEnabled && (result.argv.includes("--help") || result.argv.includes("-h"))) {
 				const helpText = renderCommandHelp(result.command, {
 					brand: this.config.brand,
 					...this.config.helpOptions,
@@ -140,7 +170,10 @@ export class Runtime {
 			// ─── Execute command ───
 			await this.executeCommand(result.command, result.argv);
 		} catch (err) {
-			await this.handleError(err);
+			await this.handleError(err, raw);
+		} finally {
+			process.removeListener("SIGINT", cleanup);
+			process.removeListener("SIGTERM", cleanup);
 		}
 	}
 
@@ -281,8 +314,9 @@ export class Runtime {
 		const timeout = DEFAULT_SETUP_TIMEOUT;
 
 		const setupPromise = Promise.resolve(ext.setup(toolbox));
+		let timer: ReturnType<typeof setTimeout>;
 		const timeoutPromise = new Promise<never>((_, reject) => {
-			setTimeout(() => {
+			timer = setTimeout(() => {
 				reject(
 					new ExtensionSetupError(
 						`Extension "${ext.name}" setup timed out after ${timeout}ms`,
@@ -292,7 +326,11 @@ export class Runtime {
 			}, timeout);
 		});
 
-		await Promise.race([setupPromise, timeoutPromise]);
+		try {
+			await Promise.race([setupPromise, timeoutPromise]);
+		} finally {
+			clearTimeout(timer!);
+		}
 	}
 
 	private async runMiddleware(
@@ -321,11 +359,15 @@ export class Runtime {
 	): Promise<Toolbox<Record<string, unknown>, Record<string, unknown>>> {
 		const excluded = new Set(this.config.excludeModules ?? []);
 
+		const rawArgv = process.argv.slice(2);
+		const isDebug = this.config.debugEnabled &&
+			(rawArgv.includes("--debug") || rawArgv.includes("--verbose") || process.env.DEBUG === "1");
+
 		const toolbox = {
 			args,
 			flags,
 			parameters: {
-				raw: process.argv.slice(2),
+				raw: rawArgv,
 				argv: Object.values(args).map(String),
 				command: commandName,
 			},
@@ -333,6 +375,7 @@ export class Runtime {
 				version: this.config.version ?? "0.0.0",
 				commandName,
 				brand: this.config.brand,
+				debug: isDebug,
 			},
 		} as Toolbox<Record<string, unknown>, Record<string, unknown>>;
 
@@ -368,13 +411,20 @@ export class Runtime {
 					configurable: true,
 				});
 			} else {
-				try {
-					const mod = await import(pkg);
-					(toolbox as unknown as Record<string, unknown>)[name] = namedExport
-						? mod[namedExport]
-						: mod;
-				} catch {
-					// Module not installed — skip silently
+				// Check instance cache first, then registry, then dynamic import
+				const cacheKey = `${pkg}:${namedExport ?? ""}`;
+				if (this.moduleCache.has(cacheKey)) {
+					(toolbox as unknown as Record<string, unknown>)[name] = this.moduleCache.get(cacheKey);
+				} else {
+					try {
+						const registered = moduleRegistry.get(pkg);
+						const mod = registered ?? (await import(pkg));
+						const resolved = namedExport ? mod[namedExport] : mod;
+						this.moduleCache.set(cacheKey, resolved);
+						(toolbox as unknown as Record<string, unknown>)[name] = resolved;
+					} catch {
+						// Module not installed — skip silently
+					}
 				}
 			}
 		}
@@ -484,7 +534,7 @@ export class Runtime {
 		console.log(helpText);
 	}
 
-	private async handleError(err: unknown): Promise<void> {
+	private async handleError(err: unknown, raw?: string[]): Promise<void> {
 		if (err instanceof ParseError) {
 			console.error(`ERROR: ${err.message}`);
 			process.exitCode = 1;
@@ -494,7 +544,8 @@ export class Runtime {
 		const error = err instanceof Error ? err : new Error(String(err));
 
 		if (this.config.onError) {
-			const toolbox = await this.assembleToolbox({}, {}, "");
+			const commandName = raw?.[0] ?? "";
+			const toolbox = await this.assembleToolbox({}, {}, commandName);
 			await this.config.onError(error, toolbox);
 		} else {
 			console.error(`ERROR: ${error.message}`);

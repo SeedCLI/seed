@@ -73,3 +73,19 @@ export function sort(versions: string[]): string[] {
 export function maxSatisfying(versions: string[], range: string): string | null {
 	return semverLib.maxSatisfying(versions, range);
 }
+
+/**
+ * Compare two semver versions.
+ * Returns -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2.
+ */
+export function compare(v1: string, v2: string): -1 | 0 | 1 {
+	return semverLib.compare(v1, v2);
+}
+
+/**
+ * Returns the release type difference between two versions (e.g. "major", "minor", "patch").
+ * Returns null if the versions are the same.
+ */
+export function diff(v1: string, v2: string): ReleaseType | null {
+	return semverLib.diff(v1, v2) as ReleaseType | null;
+}

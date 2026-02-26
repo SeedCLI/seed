@@ -348,7 +348,7 @@
 
 ### Week 10: Completions & Testing
 
-- [ ] **`@seedcli/completions`**
+- [x] **`@seedcli/completions`**
   - Bash completion generator
   - Zsh completion generator
   - Fish completion generator
@@ -356,7 +356,7 @@
   - `completions install` command
   - Shell detection
 
-- [ ] **`@seedcli/testing`**
+- [x] **`@seedcli/testing`**
   - `createTestCli()` — run commands, capture output
   - `.mockPrompt()` — mock interactive prompts
   - `.mockConfig()` — override config
@@ -367,18 +367,18 @@
 
 ### Week 11: Middleware & UI
 
-- [ ] **Middleware system** (`core/src/command/middleware.ts`)
+- [x] **Middleware system** (`core/src/command/middleware.ts`)
   - `middleware()` function
   - Global middleware (via builder)
   - Per-command middleware
   - Middleware chain execution
 
-- [ ] **Lifecycle hooks**
+- [x] **Lifecycle hooks**
   - `.onReady()` — pre-command hook
   - `.onError()` — global error handler
   - Cleanup / teardown
 
-- [ ] **`@seedcli/ui`**
+- [x] **`@seedcli/ui`**
   - `header()` — figlet + box combo
   - `divider()` / `keyValue()` / `tree()`
   - `progress()` — progress bar
@@ -388,7 +388,7 @@
 
 ### Week 12: Build System (Three Distribution Tiers)
 
-- [ ] **`seed build` command** (`cli/src/commands/build.ts`)
+- [x] **`seed build` command** (`cli/src/commands/build.ts`)
   - Full flag support:
     - `--bundle` — Bundle `.ts` → `.js` for Node.js-compatible npm distribution (Tier 2, default)
     - `--compile` — Compile to standalone binary (Tier 3)
@@ -399,14 +399,14 @@
     - `--no-banner` — Skip shebang line
   - `--bundle` and `--compile` are mutually exclusive
 
-- [ ] **Tier 2: JS Bundle** (`seed build --bundle`)
+- [x] **Tier 2: JS Bundle** (`seed build --bundle`)
   - Bundle with `Bun.build()` → single `.js` file
   - Tree-shake `node_modules`
   - Transpile TypeScript → JavaScript
   - Shebang injection (`#!/usr/bin/env node` default, `#!/usr/bin/env bun` with `--bun`)
   - Output to `dist/`
 
-- [ ] **Tier 3: Single Binary** (`seed build --compile`)
+- [x] **Tier 3: Single Binary** (`seed build --compile`)
   - Multi-platform targets: `bun-linux-x64`, `bun-linux-arm64`, `bun-darwin-x64`, `bun-darwin-arm64`, `bun-windows-x64`
   - Asset embedding via `import()` with `{ type: "file" }` (templates, configs, static files)
   - Native binary embedding (`build.compile.embed` and `build.compile.assets` in `seed.config.ts`)
@@ -414,12 +414,12 @@
   - `.plugins()` directory scanning resolved at build time
   - Version stamping into binary (`mycli v1.2.3 (bun-darwin-arm64, built DATE)`)
 
-- [ ] **Build analysis** (`--analyze`)
+- [x] **Build analysis** (`--analyze`)
   - Size breakdown: source code, node_modules, templates, static assets, native binaries
   - Per-target output size
   - Formatted output
 
-- [ ] **Fuzzy command matching**
+- [x] **Fuzzy command matching**
   - Levenshtein distance
   - "Did you mean?" suggestions
   - Prefix matching
@@ -439,7 +439,7 @@
 ✔ Build analysis (--analyze)
 ✔ Plugin static inlining for binary compilation
 ✔ Fuzzy command matching
-✔ examples/dev-tools/
+  examples/dev-tools/ — not yet started
 ```
 
 ---
@@ -495,6 +495,29 @@
   - Share on Twitter/X, Reddit, Hacker News
   - Dev.to article
   - GitHub Discussions enabled
+
+---
+
+## Post-Phase 4: Production Hardening
+
+Completed as part of the production readiness audit:
+
+- [x] **Graceful shutdown** — SIGINT/SIGTERM handlers restore cursor and exit cleanly
+- [x] **TTY detection** — `isInteractive()` in @seedcli/system for CI/non-interactive environments
+- [x] **Per-command `-h` support** — Both `--help` and `-h` work for per-command help
+- [x] **Extension timeout fix** — `clearTimeout` prevents memory leaks on successful setup
+- [x] **onError context** — Error handler receives command name for better error context
+- [x] **`--debug`/`--verbose` flags** — Built-in debug mode via `.debug()` builder method
+- [x] **Module import caching** — `assembleToolbox()` caches resolved modules across runs
+- [x] **Alias conflict detection** — Full cross-check of command names against aliases in plugin registry
+- [x] **Semver `diff()` and `compare()`** — Missing functions added to @seedcli/semver
+- [x] **`mockToolbox()` utility** — Added to @seedcli/testing for unit-testing commands
+- [x] **Build entry generation** — `seed build` resolves `.src()` and `.plugins()` to static imports for bundler/compiler
+- [x] **`registerModule()` pattern** — Compiled binaries pre-register @seedcli/* modules for runtime resolution
+- [x] **Shebang handling** — Build entry generator skips `#!/usr/bin/env bun` lines when inserting imports
+- [x] **Integration tests** — 17 new tests covering extension lifecycle, middleware errors, help flags, debug mode, timeouts, registerModule, and alias conflicts
+
+---
 
 ### Phase 5 Deliverables
 

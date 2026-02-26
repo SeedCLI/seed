@@ -32,38 +32,35 @@ packages/core/
 │   ├── index.ts              # Public API exports
 │   ├── runtime/
 │   │   ├── builder.ts        # Fluent CLI builder (build().src().command()...create())
-│   │   ├── runtime.ts        # CLI runtime engine (execution loop)
-│   │   └── lifecycle.ts      # Lifecycle hooks (onReady, onError)
+│   │   └── runtime.ts        # CLI runtime engine (execution loop, toolbox assembly, lifecycle)
 │   ├── command/
-│   │   ├── command.ts         # command(), arg(), flag() definitions + types
 │   │   ├── router.ts          # Command routing & fuzzy matching
 │   │   ├── parser.ts          # Argument/option parser (on node:util parseArgs)
-│   │   ├── middleware.ts      # Middleware chain executor
-│   │   ├── help.ts            # Auto-generated help renderer
-│   │   └── version.ts         # Version flag handler
+│   │   └── help.ts            # Auto-generated help renderer
 │   ├── plugin/
 │   │   ├── loader.ts          # Plugin discovery & loading
-│   │   ├── registry.ts        # Plugin registry (stores loaded plugins)
-│   │   └── types.ts           # Plugin interfaces (definePlugin, PluginConfig)
-│   ├── extension/
-│   │   ├── registry.ts        # Extension registry
-│   │   └── types.ts           # Extension interfaces (defineExtension)
-│   ├── config/
-│   │   ├── resolver.ts        # Config file resolution (via c12)
-│   │   └── types.ts           # Config types (defineConfig)
-│   ├── toolbox/
-│   │   └── toolbox.ts         # Toolbox assembly (wires all modules together)
+│   │   ├── registry.ts        # Plugin registry (validates, deduplicates, conflict detection)
+│   │   ├── topo-sort.ts       # Extension topological sort
+│   │   ├── validator.ts       # Plugin validation (version compat, peer deps)
+│   │   └── errors.ts          # Plugin/extension error types
+│   ├── discovery/
+│   │   └── auto-discover.ts   # .src() auto-discovery of commands/extensions
 │   └── types/
 │       ├── index.ts           # Re-export all types
 │       ├── toolbox.ts         # Toolbox interface + ToolboxExtensions
 │       ├── command.ts         # Command, Arg, Flag type definitions
-│       └── infer.ts           # Type inference utilities (InferArgs, InferFlags)
+│       ├── args.ts            # arg(), flag() factory functions
+│       ├── extension.ts       # Extension types + defineExtension
+│       ├── plugin.ts          # Plugin types + definePlugin
+│       └── config.ts          # Config types + defineConfig
 └── tests/
     ├── builder.test.ts
     ├── parser.test.ts
     ├── router.test.ts
-    ├── middleware.test.ts
-    └── command.test.ts
+    ├── plugin.test.ts
+    ├── extension.test.ts
+    ├── discovery.test.ts
+    └── integration.test.ts
 ```
 
 ---
@@ -75,32 +72,35 @@ packages/core/
 
 // Builder
 export { build } from "./runtime/builder";
-export { run } from "./runtime/runtime";
+export { Runtime, registerModule, run } from "./runtime/runtime";
 
 // Command system
-export { command, arg, flag } from "./command/command";
-export { middleware } from "./command/middleware";
+export { command } from "./types/command";
+export { arg, flag } from "./types/args";
+export { parse, ParseError } from "./command/parser";
+export { route, flattenCommands } from "./command/router";
+export { renderCommandHelp, renderGlobalHelp } from "./command/help";
 
 // Plugin system
-export { definePlugin } from "./plugin/types";
-export { defineExtension } from "./extension/types";
+export { definePlugin } from "./types/plugin";
+export { defineExtension } from "./types/extension";
+export { PluginRegistry } from "./plugin/registry";
+export { loadPlugin, loadPlugins } from "./plugin/loader";
 
 // Config
-export { defineConfig } from "./config/types";
+export { defineConfig } from "./types/config";
+
+// Discovery
+export { discover, discoverCommands, discoverExtensions } from "./discovery/auto-discover";
 
 // Types
 export type {
-  Toolbox,
-  ToolboxExtensions,
-  Command,
-  ArgDefinition,
-  FlagDefinition,
-  Plugin,
-  Extension,
-  Middleware,
-  RuntimeConfig,
-  InferArgs,
-  InferFlags,
+  Toolbox, ToolboxExtensions,
+  Command, CommandConfig, Middleware,
+  ArgDef, FlagDef, InferArgs, InferFlags,
+  PluginConfig, ExtensionConfig,
+  SeedConfig, HelpOptions,
+  BuilderConfig, RunConfig,
 } from "./types";
 ```
 
@@ -205,7 +205,7 @@ Add auto-generated help. Adds:
 
 - `--help, -h` global flag
 - `help` command (shows all commands)
-- Per-command help when using `mycli <command> --help`
+- Per-command help when using `mycli <command> --help` or `mycli <command> -h`
 
 ```ts
 interface HelpOptions {
@@ -233,6 +233,17 @@ Enable shell completion support. Adds a `completions` command with:
 - `mycli completions fish` — output fish completion script
 - `mycli completions powershell` — output powershell completion script
 - `mycli completions install` — auto-detect shell and install
+
+#### `.debug()`
+
+Enable `--debug` and `--verbose` global flags. When enabled:
+- `toolbox.meta.debug` is `true` when `--debug`, `--verbose`, or `DEBUG=1` is passed
+- The flags are automatically stripped from argv before command parsing
+- Commands can use `meta.debug` for verbose logging
+
+```ts
+.debug()
+```
 
 #### `.config(options: ConfigOptions)`
 
@@ -416,18 +427,23 @@ Threshold: suggest if distance ≤ 3 or if the input is a prefix of a command.
 │    - Validate configuration              │
 ├──────────────────────────────────────────┤
 │ 2. runtime.run() — Execution begins      │
-│    a. Parse raw argv                     │
-│    b. Load config files (c12)            │
-│    c. Load plugins (discover, validate)  │
-│    d. Register extensions                │
-│    e. Assemble toolbox                   │
-│    f. Run onReady hooks                  │
-│    g. Route to command                   │
-│    h. Run global middleware              │
-│    i. Run command middleware             │
-│    j. Execute command.run(toolbox)       │
+│    a. Register SIGINT/SIGTERM handlers   │
+│    b. Strip --debug/--verbose if enabled │
+│    c. Parse raw argv                     │
+│    d. Load config files (c12)            │
+│    e. Load plugins (discover, validate)  │
+│    f. Register extensions                │
+│    g. Assemble toolbox (with caching)    │
+│    h. Run onReady hooks                  │
+│    i. Route to command                   │
+│    j. Run extension setup (topo order)   │
+│    k. Run global middleware              │
+│    l. Run command middleware             │
+│    m. Execute command.run(toolbox)       │
+│    n. Run extension teardown (reverse)   │
 ├──────────────────────────────────────────┤
 │ 3. Cleanup                               │
+│    - Remove signal handlers              │
 │    - If error: run onError hooks         │
 │    - Exit with appropriate code          │
 └──────────────────────────────────────────┘
@@ -466,6 +482,7 @@ function assembleToolbox(config: RuntimeConfig): Toolbox {
     version: config.version,
     commandName: "",
     brand: config.brand,
+    debug: false, // true when --debug/--verbose passed
   };
 
   // Apply extensions

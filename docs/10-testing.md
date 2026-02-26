@@ -17,6 +17,7 @@ Provides a testing toolkit for CLI applications built with Seed CLI. Designed to
 - **Config mocking** — Override config values for tests
 - **System mocking** — Mock shell commands and their output
 - **Filesystem mocking** — Isolated temp directories for file operations
+- **`mockToolbox()`** — Create isolated toolbox for unit-testing commands
 - **Snapshot testing** — Snapshot CLI output for regression testing
 
 ---
@@ -30,6 +31,7 @@ packages/testing/
 │   ├── index.ts           # Public API
 │   ├── runner.ts          # createTestCli — run commands, capture output
 │   ├── mock.ts            # Mock factories (prompt, config, system, filesystem)
+│   ├── mock-toolbox.ts    # Mock toolbox for unit-testing commands
 │   ├── snapshot.ts        # Output snapshot helpers
 │   └── types.ts           # Shared types
 └── tests/
@@ -43,6 +45,7 @@ packages/testing/
 ```ts
 export { createTestCli, type TestCliBuilder, type TestResult } from "./runner";
 export { mockPrompt, mockConfig, mockSystem, mockFilesystem } from "./mock";
+export { mockToolbox, type MockToolboxOptions } from "./mock-toolbox";
 ```
 
 ---
@@ -246,6 +249,42 @@ const result = await createTestCli(cli)
   })
   .run("deploy");
 ```
+
+---
+
+## Mock Toolbox
+
+Create a mock `Toolbox` for unit-testing individual commands without a full runtime:
+
+```ts
+import { mockToolbox } from "@seedcli/testing";
+
+test("greet command", async () => {
+  const toolbox = mockToolbox({
+    args: { name: "Alice" },
+    flags: { loud: true },
+  });
+  await greetCommand.run(toolbox);
+});
+```
+
+### Options
+
+```ts
+interface MockToolboxOptions {
+  args?: Record<string, unknown>;
+  flags?: Record<string, unknown>;
+  commandName?: string;
+  brand?: string;
+  version?: string;
+}
+```
+
+All toolbox modules (`print`, `prompt`, `filesystem`, etc.) are stubbed with no-op implementations:
+- `print.*` methods are no-ops
+- `print.colors` returns identity functions (`colors.red("text")` → `"text"`)
+- `print.spin()` returns a mock spinner
+- Other modules use `Proxy` objects that return no-op stubs for any property access
 
 ---
 

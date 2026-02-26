@@ -1,7 +1,8 @@
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { command, flag } from "@seedcli/core";
 import { exists } from "@seedcli/filesystem";
 import { colors, error, info, success } from "@seedcli/print";
+import { cleanupBuildEntry, generateBuildEntry } from "../utils/generate-build-entry.js";
 import { resolveEntry } from "../utils/resolve-entry.js";
 
 function formatSize(bytes: number): string {
@@ -39,12 +40,39 @@ export const buildCommand = command({
 			return;
 		}
 
-		if (flags.compile) {
-			// ─── Compile Mode ───
-			await compileMode(entryPath, cwd, flags);
-		} else {
-			// ─── Bundle Mode ───
-			await bundleMode(entryPath, cwd, flags);
+		// ─── Generate build entry (resolves .src() and .plugins() to static imports) ───
+		const buildEntry = await generateBuildEntry(entryPath, cwd);
+		const effectiveEntry = buildEntry?.tempPath ?? entryPath;
+
+		if (buildEntry) {
+			const parts: string[] = [];
+			if (buildEntry.commandCount > 0) {
+				parts.push(`${buildEntry.commandCount} command${buildEntry.commandCount > 1 ? "s" : ""}`);
+			}
+			if (buildEntry.extensionCount > 0) {
+				parts.push(
+					`${buildEntry.extensionCount} extension${buildEntry.extensionCount > 1 ? "s" : ""}`,
+				);
+			}
+			if (buildEntry.pluginCount > 0) {
+				parts.push(`${buildEntry.pluginCount} plugin${buildEntry.pluginCount > 1 ? "s" : ""}`);
+			}
+			if (parts.length > 0) {
+				info(`Discovered ${parts.join(", ")}`);
+			}
+		}
+
+		try {
+			if (flags.compile) {
+				await compileMode(effectiveEntry, cwd, flags);
+			} else {
+				await bundleMode(effectiveEntry, cwd, entryPath, flags);
+			}
+		} finally {
+			// Clean up temp file
+			if (buildEntry) {
+				await cleanupBuildEntry(buildEntry.tempPath);
+			}
 		}
 	},
 });
@@ -52,11 +80,12 @@ export const buildCommand = command({
 async function bundleMode(
 	entryPath: string,
 	cwd: string,
+	originalEntryPath: string,
 	flags: { outdir?: string; minify?: boolean; sourcemap?: boolean; analyze?: boolean },
 ): Promise<void> {
 	const outdir = flags.outdir ?? join(cwd, "dist");
 
-	info(`${colors.cyan("seed build")} bundling ${colors.dim(entryPath)}`);
+	info(`${colors.cyan("seed build")} bundling...`);
 
 	const result = await Bun.build({
 		entrypoints: [entryPath],
@@ -64,6 +93,9 @@ async function bundleMode(
 		target: "bun",
 		minify: flags.minify ?? false,
 		sourcemap: flags.sourcemap ? "external" : "none",
+		naming: {
+			entry: basename(originalEntryPath).replace(/\.ts$/, ".js"),
+		},
 	});
 
 	if (!result.success) {

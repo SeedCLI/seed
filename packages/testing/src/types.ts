@@ -1,5 +1,7 @@
 import type { Runtime } from "@seedcli/core";
 
+export type { MockToolboxOptions } from "./mock-toolbox.js";
+
 export interface TestResult {
 	stdout: string;
 	stderr: string;

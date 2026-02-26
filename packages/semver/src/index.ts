@@ -3,6 +3,8 @@ export {
 	bump,
 	clean,
 	coerce,
+	compare,
+	diff,
 	eq,
 	gt,
 	gte,

@@ -62,6 +62,9 @@ interface SystemModule {
   // Environment
   env(key: string): string | undefined;
   env(key: string, defaultValue: string): string;
+
+  // Interactive detection
+  isInteractive(): boolean;
 }
 ```
 
@@ -223,6 +226,26 @@ const home = system.env("HOME");               // string | undefined
 const port = system.env("PORT", "3000");        // string (always defined)
 const nodeEnv = system.env("NODE_ENV", "development");
 ```
+
+---
+
+## Interactive Detection
+
+### `isInteractive()`
+
+Check if stdin is attached to a TTY (interactive terminal). Returns `false` in CI environments, piped input, or when redirected.
+
+```ts
+if (system.isInteractive()) {
+  const answer = await prompt.confirm({ message: "Continue?" });
+} else {
+  // Non-interactive: use defaults or fail gracefully
+}
+```
+
+Detection checks:
+- `process.stdin.isTTY === true`
+- Not in CI (`CI`, `CONTINUOUS_INTEGRATION`, or `BUILD_NUMBER` env vars)
 
 ---
 

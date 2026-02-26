@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/http",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"description": "HTTP client with OpenAPI typed client support",
 	"type": "module",
 	"license": "MIT",
