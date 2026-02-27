@@ -183,14 +183,14 @@ export interface GenerateBuildEntryResult {
 }
 
 /**
- * Find which @seedcli/* runtime modules are installed by checking the
- * project's package.json dependencies and verifying they exist in node_modules.
+ * Find which @seedcli/* runtime modules are installed in node_modules.
  *
  * The runtime's assembleToolbox() dynamically imports these modules, which the
  * bundler can't trace. We include all installed @seedcli/* packages so the
- * compiled binary has everything it needs.
+ * compiled binary has everything it needs — they're always transitive deps
+ * of @seedcli/core, so users don't need to declare them explicitly.
  */
-async function getUsedSeedcliModules(cwd: string, _srcDir: string): Promise<string[]> {
+async function getUsedSeedcliModules(cwd: string): Promise<string[]> {
 	const seedcliPackages = [
 		"@seedcli/print",
 		"@seedcli/prompt",
@@ -206,30 +206,15 @@ async function getUsedSeedcliModules(cwd: string, _srcDir: string): Promise<stri
 		"@seedcli/completions",
 	];
 
-	// Read the project's package.json to check declared dependencies
-	let declaredDeps = new Set<string>();
-	try {
-		const pkgJson = await Bun.file(join(cwd, "package.json")).json();
-		const allDeps = {
-			...(pkgJson.dependencies ?? {}),
-			...(pkgJson.devDependencies ?? {}),
-			...(pkgJson.peerDependencies ?? {}),
-		};
-		declaredDeps = new Set(Object.keys(allDeps));
-	} catch {
-		// If we can't read package.json, fall back to checking node_modules only
-	}
-
 	const used: string[] = [];
 	for (const pkg of seedcliPackages) {
-		// Include if declared in package.json AND installed
+		// Include all @seedcli/* packages found in node_modules.
+		// These are framework runtime modules loaded dynamically by assembleToolbox().
+		// They're always transitive deps of @seedcli/core, so if installed, include them —
+		// regardless of whether the user listed them in their own package.json.
 		const modPath = join(cwd, "node_modules", ...pkg.split("/"));
 		if (await isDirectory(modPath)) {
-			// If we have package.json, only include declared deps
-			// If we don't, include all installed ones
-			if (declaredDeps.size === 0 || declaredDeps.has(pkg)) {
-				used.push(pkg);
-			}
+			used.push(pkg);
 		}
 	}
 
@@ -270,7 +255,7 @@ export async function generateBuildEntry(
 	// ─── Force-include @seedcli/* runtime modules ───
 	// The runtime's assembleToolbox() uses dynamic imports that the compiler can't trace.
 	// We import them statically and register them so the runtime can find them.
-	const usedModules = await getUsedSeedcliModules(cwd, entryDir);
+	const usedModules = await getUsedSeedcliModules(cwd);
 	const moduleRegistrations: string[] = [];
 	let needsRegisterModule = false;
 	for (const mod of usedModules) {

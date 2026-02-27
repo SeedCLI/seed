@@ -76,6 +76,20 @@ export class Builder {
 		return this;
 	}
 
+	/**
+	 * Register a plugin by name or by imported module.
+	 *
+	 * **Recommended** — import the plugin for automatic type augmentation:
+	 * ```ts
+	 * import notaPlugin from "nota-plugin";
+	 * build("mycli").plugin(notaPlugin);
+	 * ```
+	 *
+	 * String-based (requires manual `import type {} from "plugin-name"` for types):
+	 * ```ts
+	 * build("mycli").plugin("nota-plugin");
+	 * ```
+	 */
 	plugin(source: string | string[] | PluginConfig): this {
 		if (Array.isArray(source)) {
 			this.cfg.plugins.push(...source);

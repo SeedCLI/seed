@@ -77,8 +77,10 @@ for (const dir of dirs) {
 	const name = pkg.name as string;
 	const isScoped = name.startsWith("@seedcli/");
 
-	// Version
-	pkg.version = VERSION;
+	// Version — create-seedcli has its own independent version
+	if (dir !== "create-seedcli") {
+		pkg.version = VERSION;
+	}
 
 	// Metadata
 	pkg.description = descriptions[dir] ?? pkg.description ?? "";
@@ -159,7 +161,7 @@ for (const dir of dirs) {
 	}
 
 	writeFileSync(pkgPath, `${JSON.stringify(ordered, null, "\t")}\n`);
-	console.log(`✔  ${name} → v${VERSION}`);
+	console.log(`✔  ${name} → v${ordered.version}`);
 }
 
 console.log("\nDone! All packages updated.");
