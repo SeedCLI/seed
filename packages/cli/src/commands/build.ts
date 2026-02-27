@@ -207,44 +207,27 @@ async function compileMode(
 		};
 	},
 ): Promise<void> {
-	const outdir = flags.outdir ?? join(cwd, "dist");
-	// Use .mjs so the compile step always treats the bundled file as ESM
-	// (required for top-level await support regardless of package.json "type")
-	const bundledFilename = basename(entryPath).replace(/\.(tsx?|mts|cts)$/, ".mjs");
-
-	// ─── Step 1: Bundle TS → single JS file via Bun.build() API ───
-	info(`${colors.cyan("seed build")} bundling for compile...`);
-
-	const bundleResult = await Bun.build({
-		entrypoints: [entryPath],
-		outdir,
-		target: "bun",
-		minify: flags.minify ?? false,
-		plugins: [polyfillPlugin],
-		naming: { entry: bundledFilename },
-	});
-
-	if (!bundleResult.success) {
-		for (const log of bundleResult.logs) {
-			error(String(log));
-		}
-		error("Bundle step failed");
-		process.exitCode = 1;
-		return;
-	}
-
-	const bundledEntry = join(outdir, bundledFilename);
-
-	// ─── Step 2: Compile pre-bundled JS → standalone binary ───
+	// Compile directly from the TS entry — `bun build --compile` handles
+	// TS → bundle → binary in a single step. The previous two-step approach
+	// (Bun.build() → bun build --compile) caused top-level await errors
+	// because the compile step couldn't parse the already-bundled output.
 	const targets = flags.target ? flags.target.split(",").map((t) => t.trim()) : [undefined];
 	const hasMultipleTargets = targets.length > 1;
 
 	for (const target of targets) {
-		const args = ["bun", "build", bundledEntry, "--compile"];
+		const args = ["bun", "build", entryPath, "--compile"];
+
+		// External packages with broken ESM/CJS interop — Bun provides
+		// native equivalents in the compiled binary (e.g. fetch)
+		for (const pkg of POLYFILL_PACKAGES) {
+			args.push("--external", pkg);
+		}
 
 		if (flags.splitting) {
 			// Splitting requires --outdir instead of --outfile
-			const splitOutdir = flags.outfile ? join(cwd, flags.outfile) : outdir;
+			const splitOutdir = flags.outfile
+				? join(cwd, flags.outfile)
+				: (flags.outdir ?? join(cwd, "dist"));
 			args.push("--outdir", splitOutdir);
 		} else if (flags.outfile) {
 			let outfile = flags.outfile;
