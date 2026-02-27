@@ -116,6 +116,7 @@ describe("create-seedcli templates", () => {
 		// Check all expected files exist
 		expect(existsSync(join(targetDir, "package.json"))).toBe(true);
 		expect(existsSync(join(targetDir, "tsconfig.json"))).toBe(true);
+		expect(existsSync(join(targetDir, "tsconfig.build.json"))).toBe(true);
 		expect(existsSync(join(targetDir, ".gitignore"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/index.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/types.d.ts"))).toBe(true);
@@ -123,7 +124,7 @@ describe("create-seedcli templates", () => {
 		expect(existsSync(join(targetDir, "src/extensions/example.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, "tests/plugin.test.ts"))).toBe(true);
 
-		// Check package.json: no bin, has exports, has peerDependencies
+		// Check package.json: no bin, has exports, has peerDependencies, has publishConfig
 		const pkg = await Bun.file(join(targetDir, "package.json")).json();
 		expect(pkg.name).toBe("my-plugin");
 		expect(pkg.description).toBe("Test plugin");
@@ -132,6 +133,12 @@ describe("create-seedcli templates", () => {
 		expect(pkg.exports["."]).toBeDefined();
 		expect(pkg.peerDependencies).toBeDefined();
 		expect(pkg.peerDependencies["@seedcli/core"]).toBeDefined();
+		expect(pkg.files).toContain("dist");
+		expect(pkg.scripts.build).toBeDefined();
+		expect(pkg.scripts.prepublishOnly).toBe("bun run build");
+		expect(pkg.publishConfig).toBeDefined();
+		expect(pkg.publishConfig.main).toBe("./dist/index.js");
+		expect(pkg.publishConfig.types).toBe("./dist/index.d.ts");
 
 		// Check index.ts contains definePlugin and re-exports types
 		const indexTs = await Bun.file(join(targetDir, "src/index.ts")).text();
@@ -159,6 +166,7 @@ describe("create-seedcli templates", () => {
 			"src/extensions/example.ts",
 			"tests/plugin.test.ts",
 			"tsconfig.json",
+			"tsconfig.build.json",
 		];
 
 		for (const file of files) {
