@@ -57,7 +57,12 @@ export function route(argv: string[], commands: Command[]): RouteResult {
 			if (subResult.suggestions.length > 0 && !remaining[0].startsWith("-")) {
 				// Build matchedPath: prepend current match to any already-matched parents
 				const parentPath = [matched.name, ...(subResult.matchedPath ?? [])];
-				return { command: null, argv: remaining, suggestions: subResult.suggestions, matchedPath: parentPath };
+				return {
+					command: null,
+					argv: remaining,
+					suggestions: subResult.suggestions,
+					matchedPath: parentPath,
+				};
 			}
 		}
 
