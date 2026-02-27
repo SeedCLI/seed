@@ -20,8 +20,8 @@ export class PluginRegistry {
 
 		// Edge case #11: Duplicate plugin → deduplicate with version conflict warning
 		if (this.plugins.has(validated.name)) {
-			const existing = this.plugins.get(validated.name)!;
-			if (existing.version !== validated.version) {
+			const existing = this.plugins.get(validated.name);
+			if (existing && existing.version !== validated.version) {
 				console.warn(
 					`[seedcli] Warning: Plugin "${validated.name}" is registered multiple times with different versions (${existing.version} vs ${validated.version}). Using the first loaded version (${existing.version}).`,
 				);

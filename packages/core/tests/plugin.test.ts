@@ -779,8 +779,8 @@ describe("Host-vs-plugin command conflict", () => {
 
 		await runtime.run(["hello"]);
 		expect(caughtError).toBeInstanceOf(PluginValidationError);
-		expect(caughtError!.message).toContain("greet-plugin");
-		expect(caughtError!.message).toContain("hello");
+		expect(caughtError?.message).toContain("greet-plugin");
+		expect(caughtError?.message).toContain("hello");
 	});
 
 	test("throws when plugin alias conflicts with host command name", async () => {

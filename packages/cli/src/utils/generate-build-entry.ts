@@ -345,12 +345,14 @@ export async function generateBuildEntry(
 		// Find .src() call that's not in a comment
 		let srcCallIdx = -1;
 		const srcRegex = /\.src\s*\(/g;
-		let srcMatch: RegExpExecArray | null;
-		while ((srcMatch = srcRegex.exec(generated)) !== null) {
+		for (const srcMatch of generated.matchAll(srcRegex)) {
 			// Check if this match is inside a comment
 			const lineStart = generated.lastIndexOf("\n", srcMatch.index) + 1;
 			const lineBeforeMatch = generated.slice(lineStart, srcMatch.index);
-			if (lineBeforeMatch.trimStart().startsWith("//") || lineBeforeMatch.trimStart().startsWith("*")) {
+			if (
+				lineBeforeMatch.trimStart().startsWith("//") ||
+				lineBeforeMatch.trimStart().startsWith("*")
+			) {
 				continue; // Skip matches in comments
 			}
 			srcCallIdx = srcMatch.index;
