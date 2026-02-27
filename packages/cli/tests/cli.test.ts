@@ -183,10 +183,10 @@ const cli = build("mycli")
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
-		expect(result!.content).toContain('import plugin_my_plugin from "my-plugin"');
-		expect(result!.content).toContain(".plugin(plugin_my_plugin)");
-		expect(result!.content).not.toContain('.plugin("my-plugin")');
-		expect(result!.pluginCount).toBe(1);
+		expect(result?.content).toContain('import plugin_my_plugin from "my-plugin"');
+		expect(result?.content).toContain(".plugin(plugin_my_plugin)");
+		expect(result?.content).not.toContain('.plugin("my-plugin")');
+		expect(result?.pluginCount).toBe(1);
 	});
 
 	test("leaves .plugin('pkg') as-is when package not in node_modules", async () => {
@@ -235,9 +235,9 @@ const cli = build("mycli")
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
-		expect(result!.content).toContain('import plugin__myorg_plugin_auth from "@myorg/plugin-auth"');
-		expect(result!.content).toContain(".plugin(plugin__myorg_plugin_auth)");
-		expect(result!.pluginCount).toBe(1);
+		expect(result?.content).toContain('import plugin__myorg_plugin_auth from "@myorg/plugin-auth"');
+		expect(result?.content).toContain(".plugin(plugin__myorg_plugin_auth)");
+		expect(result?.pluginCount).toBe(1);
 	});
 
 	test("transforms multiple .plugin('pkg') calls", async () => {
@@ -265,11 +265,11 @@ const cli = build("mycli")
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
-		expect(result!.content).toContain('import plugin_plugin_a from "plugin-a"');
-		expect(result!.content).toContain('import plugin_plugin_b from "plugin-b"');
-		expect(result!.content).toContain(".plugin(plugin_plugin_a)");
-		expect(result!.content).toContain(".plugin(plugin_plugin_b)");
-		expect(result!.pluginCount).toBe(2);
+		expect(result?.content).toContain('import plugin_plugin_a from "plugin-a"');
+		expect(result?.content).toContain('import plugin_plugin_b from "plugin-b"');
+		expect(result?.content).toContain(".plugin(plugin_plugin_a)");
+		expect(result?.content).toContain(".plugin(plugin_plugin_b)");
+		expect(result?.pluginCount).toBe(2);
 	});
 });
 
@@ -309,12 +309,12 @@ const cli = build("mycli")
 		expect(result).not.toBeNull();
 
 		// The comment should still be intact
-		expect(result!.content).toContain("// Use .src(import.meta.dir) to discover commands");
+		expect(result?.content).toContain("// Use .src(import.meta.dir) to discover commands");
 
 		// The real .src() should have been replaced with .command() calls
-		expect(result!.content).not.toContain("\t.src(import.meta.dir)");
-		expect(result!.content).toContain(".command(");
-		expect(result!.commandCount).toBe(1);
+		expect(result?.content).not.toContain("\t.src(import.meta.dir)");
+		expect(result?.content).toContain(".command(");
+		expect(result?.commandCount).toBe(1);
 	});
 
 	test("skips .src() in block comment lines", async () => {
@@ -344,12 +344,12 @@ const cli = build("mycli")
 		expect(result).not.toBeNull();
 
 		// The block comment should still be intact
-		expect(result!.content).toContain("* Call .src(dir) to scan for commands");
+		expect(result?.content).toContain("* Call .src(dir) to scan for commands");
 
 		// The real .src() should have been replaced
-		expect(result!.content).not.toContain("\t.src(import.meta.dir)");
-		expect(result!.content).toContain(".command(");
-		expect(result!.commandCount).toBe(1);
+		expect(result?.content).not.toContain("\t.src(import.meta.dir)");
+		expect(result?.content).toContain(".command(");
+		expect(result?.commandCount).toBe(1);
 	});
 });
 
@@ -391,10 +391,10 @@ const cli = build("mycli")
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
 
-		const lines = result!.content.split("\n");
+		const lines = result?.content.split("\n");
 
 		// Find where the injected import appears
-		const injectedImportIdx = lines.findIndex((l) => l.includes('import plugin_my_plugin'));
+		const injectedImportIdx = lines.findIndex((l) => l.includes("import plugin_my_plugin"));
 		// Find where "const cli" appears
 		const constCliIdx = lines.findIndex((l) => l.includes("const cli"));
 
@@ -430,7 +430,7 @@ const cli = build("mycli")
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
 
-		const lines = result!.content.split("\n");
+		const lines = result?.content.split("\n");
 
 		// Find the side-effect import
 		const sideEffectIdx = lines.findIndex((l) => l.includes('import "reflect-metadata"'));
@@ -476,7 +476,7 @@ const cli = build("mycli")
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
 
-		const lines = result!.content.split("\n");
+		const lines = result?.content.split("\n");
 
 		// Find the last original import (node:path)
 		const pathImportIdx = lines.findIndex((l) => l.includes('from "node:path"'));
