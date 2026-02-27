@@ -141,6 +141,20 @@ await http.download(
 );
 ```
 
+### Toolbox Import Names
+
+When importing HTTP functions from `@seedcli/toolbox`, the standalone methods are prefixed to avoid name collisions with other modules (e.g., `patching.patch`):
+
+| `@seedcli/http` | `@seedcli/toolbox` |
+|---|---|
+| `get()` | `httpGet()` |
+| `post()` | `httpPost()` |
+| `put()` | `httpPut()` |
+| `patch()` | `httpPatch()` |
+| `head()` | `httpHead()` |
+
+The `create()`, `download()`, and `createOpenAPIClient()` functions keep their original names.
+
 ---
 
 ## Mode 2: OpenAPI-Typed Client
@@ -226,9 +240,8 @@ class HttpError extends Error {
   status: number;
   statusText: string;
   body: unknown;
-  url: string;
-  method: string;
-  // "HTTP 404: Not Found — GET https://api.example.com/users/999"
+  url?: string;
+  // "HTTP 404 for https://api.example.com/users/999: Not Found"
 }
 
 class HttpTimeoutError extends Error {

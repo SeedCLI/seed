@@ -153,6 +153,8 @@ Register a single command inline (no auto-discovery).
 .command(deployCommand)
 ```
 
+> **Name validation:** Command names are validated at definition time and must match `^[a-z0-9][a-z0-9-]*$` (lowercase alphanumeric with hyphens only). Invalid names throw immediately.
+
 #### `.commands(cmds: Command[])`
 
 Register multiple commands at once.
@@ -201,7 +203,7 @@ Register an inline extension.
 
 #### `.help(options?: HelpOptions)`
 
-Add auto-generated help. Adds:
+Enable auto-generated help. **Help is enabled by default** (`helpEnabled: true`), so calling `.help()` is optional unless you need to pass custom `HelpOptions`. When enabled, it adds:
 
 - `--help, -h` global flag
 - `help` command (shows all commands)
@@ -218,7 +220,23 @@ interface HelpOptions {
 
 #### `.version(version?: string)`
 
-Add `--version, -v` flag. If no version is passed, reads from the nearest `package.json`.
+Add `--version, -v` flag. **Version is enabled by default** (`versionEnabled: true`) and auto-reads from the nearest `package.json`. Calling `.version()` is optional unless you need to pass an explicit version string.
+
+#### `.noHelp()`
+
+Disable the built-in help system. By default, help is enabled — use this to opt out.
+
+```ts
+.noHelp()  // Disables --help flag and help command
+```
+
+#### `.noVersion()`
+
+Disable the built-in version flag. By default, version is enabled — use this to opt out.
+
+```ts
+.noVersion()  // Disables --version flag
+```
 
 #### `.defaultCommand(cmd: Command)`
 
@@ -339,6 +357,29 @@ interface FlagDefinition<T extends string = string> {
   validate?: (value: unknown) => boolean | string;
   hidden?: boolean; // Hide from help output
 }
+```
+
+### `--no-*` Flag Negation
+
+The parser supports `--no-<flagName>` syntax for boolean flags. Passing `--no-force` sets `force` to `false`. This works automatically for any flag with `type: "boolean"` — no additional configuration is needed.
+
+```ts
+// Given: flag({ type: "boolean", default: true })
+// --no-force  → flags.force === false
+// --force     → flags.force === true
+```
+
+### Array Flag Choices Validation
+
+When a flag has `type: "string[]"` or `type: "number[]"` with `choices`, each element in the array is validated individually against the allowed choices. If any element is not in the choices list, a validation error is thrown.
+
+```ts
+flag({
+  type: "string[]",
+  choices: ["read", "write", "admin"] as const,
+})
+// --scope read --scope write   → OK
+// --scope read --scope unknown → ERROR: Invalid value "unknown" for flag "--scope"
 ```
 
 ### Type Inference Rules

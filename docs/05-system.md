@@ -85,6 +85,7 @@ interface ExecOptions {
   timeout?: number;           // Timeout in ms
   throwOnError?: boolean;     // Throw on non-zero exit (default: true)
   shell?: boolean;            // Run through shell (default: true)
+  trim?: boolean;             // Trim trailing whitespace from stdout/stderr (default: true)
 }
 
 interface ExecResult {
@@ -92,6 +93,17 @@ interface ExecResult {
   stderr: string;
   exitCode: number;
 }
+```
+
+### Output Trimming
+
+By default, `exec()` trims trailing whitespace (including newlines) from `stdout` and `stderr` using `trimEnd()`. This means most commands return clean output without trailing `\n`.
+
+To preserve raw output:
+
+```ts
+const result = await system.exec("echo hello", { trim: false });
+// result.stdout === "hello\n"  (newline preserved)
 ```
 
 **Implementation choices:**

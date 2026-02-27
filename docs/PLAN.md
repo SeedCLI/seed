@@ -45,6 +45,7 @@ Each section has a dedicated deep-dive document:
 | [11-remaining-modules.md](./11-remaining-modules.md) | Patching, strings, semver, package-manager, config, completions, UI |
 | [12-type-safety.md](./12-type-safety.md) | Type safety: inference strategy, conditional types, declaration merging |
 | [13-implementation-phases.md](./13-implementation-phases.md) | Phases: week-by-week breakdown with concrete deliverables |
+| [PUBLISHING.md](./PUBLISHING.md) | Publishing guide: how to bump versions and publish to npm via GitHub Actions |
 
 ---
 

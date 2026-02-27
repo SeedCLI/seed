@@ -104,6 +104,15 @@ export default definePlugin({
 });
 ```
 
+### Plugin Validation at Definition Time
+
+`definePlugin()` eagerly validates its input:
+
+- **`name`** — Cannot be empty or whitespace-only. Throws: `"Plugin name cannot be empty"`
+- **`version`** — Required. Throws: `"Plugin "<name>" is missing a version"`
+
+This catches configuration errors early, at definition time rather than at runtime.
+
 ---
 
 ## Plugin Type Safety
@@ -234,6 +243,15 @@ interface ExtensionConfig {
   teardown?: (toolbox: Toolbox) => Promise<void> | void;  // Cleanup on exit
 }
 ```
+
+### Extension Validation at Definition Time
+
+`defineExtension()` eagerly validates its input:
+
+- **`name`** — Cannot be empty or whitespace-only. Throws: `"Extension name cannot be empty"`
+- **`setup`** — Must be a function. Throws: `"Extension "<name>" is missing a setup function"`
+
+This catches configuration errors early, at definition time rather than at runtime.
 
 ### Extension Lifecycle
 

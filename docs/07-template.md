@@ -52,6 +52,9 @@ interface TemplateModule {
   // Render a template string and return the result (no file write)
   renderString(source: string, props?: Record<string, unknown>): Promise<string>;
 
+  // Render a template file and return the result (no file write)
+  renderFile(filePath: string, props?: Record<string, unknown>): Promise<string>;
+
   // Generate multiple files from a template directory
   directory(options: DirectoryOptions): Promise<string[]>;
 }
@@ -207,6 +210,18 @@ const output = await template.renderString(
   { name: "Alice", age: 30 },
 );
 // "Hello, Alice! You are 30 years old."
+```
+
+### `renderFile(filePath, props?)`
+
+Render a template file and return the result as a string, without writing to disk. Useful when you need the rendered output in memory.
+
+```ts
+const output = await template.renderFile("templates/component.ts.eta", {
+  name: "Button",
+  props: [{ name: "label", type: "string" }],
+});
+// Returns the rendered template as a string
 ```
 
 ---

@@ -27,7 +27,7 @@ packages/patching/
 ```ts
 interface PatchingModule {
   // Patch file content
-  patch(path: string, options: PatchOptions): Promise<boolean>;
+  patch(path: string, options: PatchOptions): Promise<PatchResult>;
 
   // Append to file
   append(path: string, content: string): Promise<void>;
@@ -58,6 +58,11 @@ interface PatchOptions {
   // Delete mode
   delete?: string | RegExp;
 }
+
+interface PatchResult {
+  changed: boolean;    // Whether the pattern was found and the file was modified
+  content: string;     // The final file content (whether changed or not)
+}
 ```
 
 ### Patch Operations
@@ -72,7 +77,7 @@ interface PatchOptions {
 ### Safety
 
 - All operations read the file, modify in memory, then write back
-- If the match pattern is not found, `patch()` returns `false` (no error)
+- If the match pattern is not found, `patch()` returns `{ changed: false, content: originalContent }` (no error)
 - Original file is unchanged if the pattern doesn't match
 - `patchJson()` preserves formatting (indentation detection)
 
@@ -130,6 +135,7 @@ interface StringsModule {
   isBlank(str: string | null | undefined): boolean;
   isNotBlank(str: string | null | undefined): boolean;
   isEmpty(str: string | null | undefined): boolean;
+  isNotEmpty(str: string | null | undefined): boolean;
 
   // Simple template
   template(str: string, data: Record<string, string>): string;
