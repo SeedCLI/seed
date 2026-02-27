@@ -460,8 +460,12 @@ export async function generateBuildEntry(
 		generated = lines.join("\n");
 	}
 
-	// Write the temp entry file in the same directory to preserve relative imports
-	const tempPath = join(entryDir, `.seed-build-${basename(entryPath)}`);
+	// Write the temp entry as .mts so `bun build --compile` treats it as ESM.
+	// Without this, projects without "type": "module" in package.json would
+	// fail on top-level await (bun build uses package.json for module detection,
+	// unlike bun run which treats all .ts as ESM).
+	const tempName = basename(entryPath).replace(/\.(tsx?|mts|cts)$/, ".mts");
+	const tempPath = join(entryDir, `.seed-build-${tempName}`);
 	await Bun.write(tempPath, generated);
 
 	return {
