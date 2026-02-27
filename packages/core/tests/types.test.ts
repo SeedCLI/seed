@@ -123,10 +123,42 @@ describe("defineExtension()", () => {
 describe("defineConfig()", () => {
 	test("returns config unchanged", () => {
 		const config = defineConfig({
-			build: { compile: { targets: ["bun-darwin-arm64"] } },
+			build: {
+				compile: {
+					targets: ["bun-darwin-arm64", "bun-linux-x64", "bun-windows-x64"],
+					bytecode: true,
+					sourcemap: true,
+					splitting: false,
+					define: { "process.env.NODE_ENV": '"production"' },
+					windows: {
+						icon: "icon.ico",
+						hideConsole: true,
+						title: "My CLI",
+						publisher: "Acme",
+						version: "1.0.0",
+						description: "A CLI tool",
+						copyright: "2026 Acme",
+					},
+				},
+				bundle: {
+					outdir: "dist",
+					sourcemap: true,
+				},
+			},
 			dev: { entry: "src/index.ts" },
 		});
-		expect(config.build?.compile?.targets).toEqual(["bun-darwin-arm64"]);
+		expect(config.build?.compile?.targets).toEqual([
+			"bun-darwin-arm64",
+			"bun-linux-x64",
+			"bun-windows-x64",
+		]);
+		expect(config.build?.compile?.bytecode).toBe(true);
+		expect(config.build?.compile?.sourcemap).toBe(true);
+		expect(config.build?.compile?.splitting).toBe(false);
+		expect(config.build?.compile?.define).toEqual({ "process.env.NODE_ENV": '"production"' });
+		expect(config.build?.compile?.windows?.icon).toBe("icon.ico");
+		expect(config.build?.compile?.windows?.hideConsole).toBe(true);
+		expect(config.build?.bundle?.sourcemap).toBe(true);
 		expect(config.dev?.entry).toBe("src/index.ts");
 	});
 });

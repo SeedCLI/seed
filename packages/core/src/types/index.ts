@@ -16,7 +16,7 @@ export type {
 export { arg, flag } from "./args.js";
 export type { Command, CommandConfig, Middleware } from "./command.js";
 export { command } from "./command.js";
-export type { SeedConfig } from "./config.js";
+export type { CompileTarget, SeedConfig } from "./config.js";
 export { defineConfig } from "./config.js";
 export type { ExtensionConfig, ExtensionToolbox } from "./extension.js";
 export { defineExtension } from "./extension.js";

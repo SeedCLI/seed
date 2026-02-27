@@ -57,6 +57,8 @@ export type {
 	// Commands
 	Command,
 	CommandConfig,
+	// Config
+	CompileTarget,
 	// Extension
 	ExtensionConfig,
 	ExtensionToolbox,
@@ -71,7 +73,6 @@ export type {
 	PrintModule,
 	ResolveArgType,
 	ResolveFlagType,
-	// Config
 	SeedConfig,
 	StringsModule,
 	// Toolbox

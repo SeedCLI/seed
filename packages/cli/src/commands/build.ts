@@ -24,6 +24,8 @@ export const buildCommand = command({
 		target: flag({ type: "string", description: "Compile targets (comma-separated)" }),
 		minify: flag({ type: "boolean", description: "Minify output" }),
 		sourcemap: flag({ type: "boolean", description: "Generate sourcemaps" }),
+		bytecode: flag({ type: "boolean", description: "Bytecode compilation for faster startup" }),
+		splitting: flag({ type: "boolean", description: "Enable code splitting" }),
 		analyze: flag({ type: "boolean", description: "Show bundle size analysis" }),
 	},
 	run: async ({ flags }) => {
@@ -82,7 +84,13 @@ export const buildCommand = command({
 			outdir: flags.outdir ?? buildConfig?.bundle?.outdir,
 			target: flags.target ?? buildConfig?.compile?.targets?.join(","),
 			minify: flags.minify ?? buildConfig?.bundle?.minify,
-			sourcemap: flags.sourcemap,
+			sourcemap:
+				flags.sourcemap ??
+				(flags.compile ? buildConfig?.compile?.sourcemap : buildConfig?.bundle?.sourcemap),
+			bytecode: flags.bytecode ?? buildConfig?.compile?.bytecode,
+			splitting: flags.splitting ?? buildConfig?.compile?.splitting,
+			define: buildConfig?.compile?.define,
+			windows: buildConfig?.compile?.windows,
 			analyze: flags.analyze,
 		};
 
@@ -105,7 +113,13 @@ async function bundleMode(
 	entryPath: string,
 	cwd: string,
 	originalEntryPath: string,
-	flags: { outdir?: string; minify?: boolean; sourcemap?: boolean; analyze?: boolean },
+	flags: {
+		outdir?: string;
+		minify?: boolean;
+		sourcemap?: boolean;
+		splitting?: boolean;
+		analyze?: boolean;
+	},
 ): Promise<void> {
 	const outdir = flags.outdir ?? join(cwd, "dist");
 
@@ -117,6 +131,7 @@ async function bundleMode(
 		target: "bun",
 		minify: flags.minify ?? false,
 		sourcemap: flags.sourcemap ? "external" : "none",
+		splitting: flags.splitting ?? false,
 		plugins: [polyfillPlugin],
 		naming: {
 			entry: basename(originalEntryPath).replace(/\.(tsx?|mts|cts)$/, ".js"),
@@ -172,7 +187,25 @@ const polyfillPlugin: BunPlugin = {
 async function compileMode(
 	entryPath: string,
 	cwd: string,
-	flags: { outdir?: string; outfile?: string; target?: string; minify?: boolean },
+	flags: {
+		outdir?: string;
+		outfile?: string;
+		target?: string;
+		minify?: boolean;
+		bytecode?: boolean;
+		sourcemap?: boolean;
+		splitting?: boolean;
+		define?: Record<string, string>;
+		windows?: {
+			icon?: string;
+			hideConsole?: boolean;
+			title?: string;
+			publisher?: string;
+			version?: string;
+			description?: string;
+			copyright?: string;
+		};
+	},
 ): Promise<void> {
 	const outdir = flags.outdir ?? join(cwd, "dist");
 	const bundledFilename = basename(entryPath).replace(/\.(tsx?|mts|cts)$/, ".js");
@@ -207,7 +240,11 @@ async function compileMode(
 	for (const target of targets) {
 		const args = ["bun", "build", bundledEntry, "--compile"];
 
-		if (flags.outfile) {
+		if (flags.splitting) {
+			// Splitting requires --outdir instead of --outfile
+			const splitOutdir = flags.outfile ? join(cwd, flags.outfile) : outdir;
+			args.push("--outdir", splitOutdir);
+		} else if (flags.outfile) {
 			let outfile = flags.outfile;
 			if (hasMultipleTargets && target) {
 				const suffix = target.replace(/^bun-/, "");
@@ -218,6 +255,34 @@ async function compileMode(
 
 		if (flags.minify) {
 			args.push("--minify");
+		}
+
+		if (flags.bytecode) {
+			args.push("--bytecode");
+		}
+
+		if (flags.sourcemap) {
+			args.push("--sourcemap=linked");
+		}
+
+		if (flags.splitting) {
+			args.push("--splitting");
+		}
+
+		if (flags.define) {
+			for (const [key, value] of Object.entries(flags.define)) {
+				args.push("--define", `${key}=${value}`);
+			}
+		}
+
+		// Windows-specific flags
+		if (flags.windows) {
+			if (flags.windows.icon) {
+				args.push("--windows-icon", flags.windows.icon);
+			}
+			if (flags.windows.hideConsole) {
+				args.push("--windows-hide-console");
+			}
 		}
 
 		if (target) {

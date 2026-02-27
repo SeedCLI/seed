@@ -1,4 +1,25 @@
 /**
+ * Supported Bun compile targets.
+ *
+ * @see https://bun.sh/docs/bundler/executables#cross-compile
+ */
+export type CompileTarget =
+	| "bun-linux-x64"
+	| "bun-linux-x64-baseline"
+	| "bun-linux-x64-modern"
+	| "bun-linux-arm64"
+	| "bun-linux-x64-musl"
+	| "bun-linux-x64-musl-baseline"
+	| "bun-linux-arm64-musl"
+	| "bun-darwin-x64"
+	| "bun-darwin-x64-baseline"
+	| "bun-darwin-arm64"
+	| "bun-windows-x64"
+	| "bun-windows-x64-baseline"
+	| "bun-windows-x64-modern"
+	| "bun-windows-arm64";
+
+/**
  * Seed CLI framework configuration — used in `seed.config.ts`.
  */
 export interface SeedConfig {
@@ -13,15 +34,42 @@ export interface SeedConfig {
 			bun?: boolean;
 			/** Minify the output */
 			minify?: boolean;
+			/** Generate sourcemaps */
+			sourcemap?: boolean;
 		};
 		/** Binary compilation options (Tier 3) */
 		compile?: {
 			/** Target platforms */
-			targets?: string[];
+			targets?: CompileTarget[];
 			/** Glob patterns to embed into binary */
 			embed?: string[];
 			/** Explicit asset mappings */
 			assets?: Array<{ src: string; dest: string }>;
+			/** Compile to bytecode for faster startup */
+			bytecode?: boolean;
+			/** Generate linked sourcemaps */
+			sourcemap?: boolean;
+			/** Enable code splitting (outputs chunks + binary in outdir) */
+			splitting?: boolean;
+			/** Compile-time defines (key-value string replacements) */
+			define?: Record<string, string>;
+			/** Windows-specific executable metadata */
+			windows?: {
+				/** Path to .ico file for the executable icon */
+				icon?: string;
+				/** Hide the console window on Windows */
+				hideConsole?: boolean;
+				/** Executable title */
+				title?: string;
+				/** Publisher name */
+				publisher?: string;
+				/** Version string */
+				version?: string;
+				/** Description */
+				description?: string;
+				/** Copyright notice */
+				copyright?: string;
+			};
 		};
 	};
 	dev?: {
