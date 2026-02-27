@@ -208,7 +208,9 @@ async function compileMode(
 	},
 ): Promise<void> {
 	const outdir = flags.outdir ?? join(cwd, "dist");
-	const bundledFilename = basename(entryPath).replace(/\.(tsx?|mts|cts)$/, ".js");
+	// Use .mjs so the compile step always treats the bundled file as ESM
+	// (required for top-level await support regardless of package.json "type")
+	const bundledFilename = basename(entryPath).replace(/\.(tsx?|mts|cts)$/, ".mjs");
 
 	// ─── Step 1: Bundle TS → single JS file via Bun.build() API ───
 	info(`${colors.cyan("seed build")} bundling for compile...`);
