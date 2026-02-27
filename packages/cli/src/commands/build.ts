@@ -148,6 +148,10 @@ async function bundleMode(
 	success("Build complete");
 }
 
+// Packages that cause bundler errors but are unnecessary in Bun
+// (Bun provides native equivalents). Externalized to prevent build failures.
+const EXTERNAL_PACKAGES = ["node-fetch-native", "node-fetch-native/proxy"];
+
 async function compileMode(
 	entryPath: string,
 	cwd: string,
@@ -159,6 +163,11 @@ async function compileMode(
 
 	for (const target of targets) {
 		const args = ["bun", "build", entryPath, "--compile"];
+
+		// Externalize packages that are incompatible with Bun's bundler
+		for (const pkg of EXTERNAL_PACKAGES) {
+			args.push("--external", pkg);
+		}
 
 		if (flags.outfile) {
 			// Append target suffix when compiling for multiple targets to avoid overwriting

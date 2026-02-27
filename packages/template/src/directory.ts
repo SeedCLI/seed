@@ -1,5 +1,5 @@
 import { mkdir, readdir } from "node:fs/promises";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { renderFile } from "./engine.js";
 import type { DirectoryOptions } from "./types.js";
 
@@ -76,7 +76,7 @@ export async function directory(options: DirectoryOptions): Promise<string[]> {
 		// Guard against path traversal — resolved path must stay within target
 		const resolvedTarget = resolve(target);
 		const resolvedPath = resolve(targetPath);
-		if (!resolvedPath.startsWith(`${resolvedTarget}/`) && resolvedPath !== resolvedTarget) {
+		if (!resolvedPath.startsWith(`${resolvedTarget}${sep}`) && resolvedPath !== resolvedTarget) {
 			throw new Error(`Target path "${targetRelative}" escapes the target directory.`);
 		}
 
