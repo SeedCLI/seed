@@ -118,6 +118,7 @@ describe("create-seedcli templates", () => {
 		expect(existsSync(join(targetDir, "tsconfig.json"))).toBe(true);
 		expect(existsSync(join(targetDir, ".gitignore"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/index.ts"))).toBe(true);
+		expect(existsSync(join(targetDir, "src/types.d.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/commands/hello.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/extensions/example.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, "tests/plugin.test.ts"))).toBe(true);
@@ -132,19 +133,28 @@ describe("create-seedcli templates", () => {
 		expect(pkg.peerDependencies).toBeDefined();
 		expect(pkg.peerDependencies["@seedcli/core"]).toBeDefined();
 
-		// Check index.ts contains definePlugin
+		// Check index.ts contains definePlugin and re-exports types
 		const indexTs = await Bun.file(join(targetDir, "src/index.ts")).text();
 		expect(indexTs).toContain("definePlugin");
 		expect(indexTs).toContain('"my-plugin"');
+		expect(indexTs).toContain('export type {} from "./types.js"');
 
-		// Check extension contains defineExtension
+		// Check types.d.ts contains ToolboxExtensions augmentation
+		const typesTs = await Bun.file(join(targetDir, "src/types.d.ts")).text();
+		expect(typesTs).toContain("ToolboxExtensions");
+		expect(typesTs).toContain('declare module "@seedcli/core"');
+
+		// Check extension contains defineExtension without declare module
 		const extensionTs = await Bun.file(join(targetDir, "src/extensions/example.ts")).text();
 		expect(extensionTs).toContain("defineExtension");
+		expect(extensionTs).not.toContain("declare module");
+		expect(extensionTs).toContain("toolbox.print");
 
 		// Ensure no Eta syntax remains
 		const files = [
 			"package.json",
 			"src/index.ts",
+			"src/types.d.ts",
 			"src/commands/hello.ts",
 			"src/extensions/example.ts",
 			"tests/plugin.test.ts",
