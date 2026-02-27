@@ -732,6 +732,149 @@ describe("Runtime with plugins", () => {
 	});
 });
 
+// ─── Host-vs-plugin command conflict (Bug fix) ───
+
+describe("Host-vs-plugin command conflict", () => {
+	let origLog: typeof console.log;
+	let origError: typeof console.error;
+
+	beforeEach(() => {
+		origLog = console.log;
+		origError = console.error;
+		console.log = mock();
+		console.error = mock();
+	});
+
+	afterEach(() => {
+		console.log = origLog;
+		console.error = origError;
+		process.exitCode = 0;
+	});
+
+	test("throws when plugin command name conflicts with host command", async () => {
+		const plugin = validPlugin({
+			name: "greet-plugin",
+			version: "1.0.0",
+			commands: [
+				command({
+					name: "hello",
+					run: async () => {},
+				}),
+			],
+		});
+
+		let caughtError: Error | null = null;
+		const runtime = build("mycli")
+			.command(
+				command({
+					name: "hello",
+					run: async () => {},
+				}),
+			)
+			.plugin(plugin)
+			.onError((err) => {
+				caughtError = err;
+			})
+			.create();
+
+		await runtime.run(["hello"]);
+		expect(caughtError).toBeInstanceOf(PluginValidationError);
+		expect(caughtError!.message).toContain("greet-plugin");
+		expect(caughtError!.message).toContain("hello");
+	});
+
+	test("throws when plugin alias conflicts with host command name", async () => {
+		const plugin = validPlugin({
+			name: "greet-plugin",
+			version: "1.0.0",
+			commands: [
+				command({
+					name: "greet",
+					alias: ["hello"],
+					run: async () => {},
+				}),
+			],
+		});
+
+		let caughtError: Error | null = null;
+		const runtime = build("mycli")
+			.command(
+				command({
+					name: "hello",
+					run: async () => {},
+				}),
+			)
+			.plugin(plugin)
+			.onError((err) => {
+				caughtError = err;
+			})
+			.create();
+
+		await runtime.run(["hello"]);
+		expect(caughtError).toBeInstanceOf(PluginValidationError);
+	});
+
+	test("throws when plugin command name conflicts with host alias", async () => {
+		const plugin = validPlugin({
+			name: "greet-plugin",
+			version: "1.0.0",
+			commands: [
+				command({
+					name: "hello",
+					run: async () => {},
+				}),
+			],
+		});
+
+		let caughtError: Error | null = null;
+		const runtime = build("mycli")
+			.command(
+				command({
+					name: "greet",
+					alias: ["hello"],
+					run: async () => {},
+				}),
+			)
+			.plugin(plugin)
+			.onError((err) => {
+				caughtError = err;
+			})
+			.create();
+
+		await runtime.run(["hello"]);
+		expect(caughtError).toBeInstanceOf(PluginValidationError);
+	});
+
+	test("no conflict when plugin and host have different command names", async () => {
+		let pluginExecuted = false;
+		const plugin = validPlugin({
+			name: "deploy-plugin",
+			version: "1.0.0",
+			commands: [
+				command({
+					name: "deploy",
+					run: async () => {
+						pluginExecuted = true;
+					},
+				}),
+			],
+		});
+
+		const runtime = build("mycli")
+			.command(
+				command({
+					name: "hello",
+					run: async () => {},
+				}),
+			)
+			.plugin(plugin)
+			.create();
+
+		await runtime.run(["deploy"]);
+		expect(pluginExecuted).toBe(true);
+	});
+});
+
 // ─── Error cause chaining ───
 
 describe("error cause chaining", () => {

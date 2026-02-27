@@ -267,3 +267,100 @@ describe("Runtime.run()", () => {
 		expect(output).toContain("env");
 	});
 });
+
+describe("Runtime.run() — --debug/--verbose stripping respects -- separator", () => {
+	let logSpy: ReturnType<typeof mock>;
+	let errorSpy: ReturnType<typeof mock>;
+	let origLog: typeof console.log;
+	let origError: typeof console.error;
+
+	beforeEach(() => {
+		origLog = console.log;
+		origError = console.error;
+		logSpy = mock();
+		errorSpy = mock();
+		console.log = logSpy;
+		console.error = errorSpy;
+	});
+
+	afterEach(() => {
+		console.log = origLog;
+		console.error = origError;
+		process.exitCode = 0;
+	});
+
+	test("--debug before -- is stripped from argv", async () => {
+		let capturedRaw: string[] = [];
+		const runtime = build("mycli")
+			.debug()
+			.command(
+				command({
+					name: "test",
+					run: async ({ parameters }) => {
+						capturedRaw = parameters.raw;
+					},
+				}),
+			)
+			.create();
+
+		await runtime.run(["test", "--debug"]);
+		expect(capturedRaw).not.toContain("--debug");
+	});
+
+	test("--debug after -- is preserved as a literal argument", async () => {
+		let capturedRaw: string[] = [];
+		const runtime = build("mycli")
+			.debug()
+			.command(
+				command({
+					name: "test",
+					run: async ({ parameters }) => {
+						capturedRaw = parameters.raw;
+					},
+				}),
+			)
+			.create();
+
+		await runtime.run(["test", "--", "--debug"]);
+		expect(capturedRaw).toContain("--debug");
+	});
+
+	test("--verbose after -- is preserved as a literal argument", async () => {
+		let capturedRaw: string[] = [];
+		const runtime = build("mycli")
+			.debug()
+			.command(
+				command({
+					name: "test",
+					run: async ({ parameters }) => {
+						capturedRaw = parameters.raw;
+					},
+				}),
+			)
+			.create();
+
+		await runtime.run(["test", "--", "--verbose"]);
+		expect(capturedRaw).toContain("--verbose");
+	});
+
+	test("--debug before -- stripped, --debug after -- preserved", async () => {
+		let capturedRaw: string[] = [];
+		const runtime = build("mycli")
+			.debug()
+			.command(
+				command({
+					name: "test",
+					run: async ({ parameters }) => {
+						capturedRaw = parameters.raw;
+					},
+				}),
+			)
+			.create();
+
+		await runtime.run(["test", "--debug", "--", "--debug"]);
+		// The first --debug (before --) should be stripped
+		// The second --debug (after --) should be preserved
+		// Result: ["test", "--", "--debug"]
+		expect(capturedRaw).toEqual(["test", "--", "--debug"]);
+	});
+});

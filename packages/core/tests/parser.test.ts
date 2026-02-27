@@ -277,6 +277,39 @@ describe("parse() — edge cases", () => {
 		const result = parse([], cmd);
 		expect(result.args.count).toBe(10);
 	});
+
+	test("number arg with float choices accepts equivalent float values", () => {
+		const cmd = makeCmd({
+			args: {
+				version: arg({ type: "number", required: true, choices: ["1.0", "2.0", "3.5"] as const }),
+			},
+		});
+		// "1.0" is coerced to Number("1.0") = 1, and choices "1.0" is Number("1.0") = 1
+		const result = parse(["1.0"], cmd);
+		expect(result.args.version).toBe(1);
+
+		const result2 = parse(["3.5"], cmd);
+		expect(result2.args.version).toBe(3.5);
+
+		// Invalid value should still be rejected
+		expect(() => parse(["4.0"], cmd)).toThrow(ParseError);
+		expect(() => parse(["4.0"], cmd)).toThrow("Expected one of");
+	});
+
+	test("number flag with float choices accepts equivalent float values", () => {
+		const cmd = makeCmd({
+			flags: {
+				rate: flag({ type: "number", choices: ["1.0", "2.0", "3.5"] as const }),
+			},
+		});
+		const result = parse(["--rate", "1.0"], cmd);
+		expect(result.flags.rate).toBe(1);
+
+		const result2 = parse(["--rate", "3.5"], cmd);
+		expect(result2.flags.rate).toBe(3.5);
+
+		expect(() => parse(["--rate", "4.0"], cmd)).toThrow(ParseError);
+	});
 });
 
 // ─── --no-* flag negation ───
@@ -352,6 +385,57 @@ describe("parse() — --no-* flag negation", () => {
 		const result = parse(["--force", "--no-verbose"], cmd);
 		expect(result.flags.force).toBe(true);
 		expect(result.flags.verbose).toBe(false);
+	});
+});
+
+// ─── --no-* respects -- separator ───
+
+describe("parse() — --no-* respects -- separator", () => {
+	test("--no-verbose after -- is treated as a positional, not a negation", () => {
+		const cmd = makeCmd({
+			args: { passthrough: arg({ type: "string" }) },
+			flags: { verbose: flag({ type: "boolean", default: true }) },
+		});
+		const result = parse(["--", "--no-verbose"], cmd);
+		// verbose should retain its default (true) since --no-verbose is after --
+		expect(result.flags.verbose).toBe(true);
+		// --no-verbose should appear as a positional argument
+		expect(result.argv).toContain("--no-verbose");
+	});
+
+	test("--no-verbose before -- is still negated", () => {
+		const cmd = makeCmd({
+			flags: { verbose: flag({ type: "boolean", default: true }) },
+		});
+		const result = parse(["--no-verbose", "--"], cmd);
+		expect(result.flags.verbose).toBe(false);
+	});
+
+	test("--no-* flags both before and after -- are handled correctly", () => {
+		const cmd = makeCmd({
+			args: { extra: arg({ type: "string" }) },
+			flags: {
+				verbose: flag({ type: "boolean", default: true }),
+				color: flag({ type: "boolean", default: true }),
+			},
+		});
+		// --no-verbose is before --, --no-color is after --
+		const result = parse(["--no-verbose", "--", "--no-color"], cmd);
+		expect(result.flags.verbose).toBe(false); // negated (before --)
+		expect(result.flags.color).toBe(true); // default retained (after --)
+		expect(result.argv).toContain("--no-color"); // passed through as positional
+	});
+
+	test("no -- separator means all --no-* flags are processed", () => {
+		const cmd = makeCmd({
+			flags: {
+				verbose: flag({ type: "boolean" }),
+				color: flag({ type: "boolean" }),
+			},
+		});
+		const result = parse(["--no-verbose", "--no-color"], cmd);
+		expect(result.flags.verbose).toBe(false);
+		expect(result.flags.color).toBe(false);
 	});
 });
 

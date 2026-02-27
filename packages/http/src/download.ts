@@ -39,6 +39,15 @@ export async function download(
 				if (done) break;
 				writer.write(value);
 			}
+		} catch (error) {
+			// Clean up partial file on error
+			try {
+				const { unlink } = await import("node:fs/promises");
+				await unlink(dest);
+			} catch {
+				// Ignore cleanup errors
+			}
+			throw error;
 		} finally {
 			reader.releaseLock();
 			try {
@@ -75,6 +84,15 @@ export async function download(
 			};
 			options.onProgress(progress);
 		}
+	} catch (error) {
+		// Clean up partial file on error
+		try {
+			const { unlink } = await import("node:fs/promises");
+			await unlink(dest);
+		} catch {
+			// Ignore cleanup errors
+		}
+		throw error;
 	} finally {
 		reader.releaseLock();
 		try {

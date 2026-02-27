@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { generateBuildEntry } from "../src/utils/generate-build-entry.js";
 import { resolveEntry } from "../src/utils/resolve-entry.js";
 
 const PKG_VERSION = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf-8"))
@@ -144,6 +145,350 @@ describe("seed new", () => {
 
 		const helloFile = Bun.file(join(dir, "test-app", "src", "commands", "hello.ts"));
 		expect(await helloFile.exists()).toBe(true);
+	});
+});
+
+describe("generateBuildEntry - plugin string references", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "seedcli-build-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	test("transforms .plugin('pkg') to static import when package exists in node_modules", async () => {
+		// Create a fake package in node_modules
+		const pkgDir = join(dir, "node_modules", "my-plugin");
+		await mkdir(pkgDir, { recursive: true });
+		await Bun.write(join(pkgDir, "index.ts"), 'export default { name: "test" };');
+		await Bun.write(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
+
+		// Create entry file with .plugin("my-plugin")
+		const entryPath = join(dir, "src", "index.ts");
+		await mkdir(join(dir, "src"), { recursive: true });
+		await Bun.write(
+			entryPath,
+			`import { build } from "@seedcli/core";
+const cli = build("mycli")
+	.plugin("my-plugin")
+	.create();
+`,
+		);
+
+		// Create package.json
+		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+
+		const result = await generateBuildEntry(entryPath, dir);
+		expect(result).not.toBeNull();
+		expect(result!.content).toContain('import plugin_my_plugin from "my-plugin"');
+		expect(result!.content).toContain(".plugin(plugin_my_plugin)");
+		expect(result!.content).not.toContain('.plugin("my-plugin")');
+		expect(result!.pluginCount).toBe(1);
+	});
+
+	test("leaves .plugin('pkg') as-is when package not in node_modules", async () => {
+		// Create entry file with .plugin("missing-plugin") — no node_modules
+		const entryPath = join(dir, "src", "index.ts");
+		await mkdir(join(dir, "src"), { recursive: true });
+		await Bun.write(
+			entryPath,
+			`import { build } from "@seedcli/core";
+const cli = build("mycli")
+	.plugin("missing-plugin")
+	.create();
+`,
+		);
+
+		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+
+		const result = await generateBuildEntry(entryPath, dir);
+		// Should still generate a result (for @seedcli/* module handling),
+		// but the plugin string should remain unchanged
+		if (result) {
+			expect(result.content).toContain('.plugin("missing-plugin")');
+			expect(result.pluginCount).toBe(0);
+		}
+	});
+
+	test("transforms scoped .plugin('@scope/pkg') to static import", async () => {
+		// Create a scoped package in node_modules
+		const pkgDir = join(dir, "node_modules", "@myorg", "plugin-auth");
+		await mkdir(pkgDir, { recursive: true });
+		await Bun.write(join(pkgDir, "index.ts"), 'export default { name: "auth" };');
+		await Bun.write(join(pkgDir, "package.json"), '{ "name": "@myorg/plugin-auth" }');
+
+		const entryPath = join(dir, "src", "index.ts");
+		await mkdir(join(dir, "src"), { recursive: true });
+		await Bun.write(
+			entryPath,
+			`import { build } from "@seedcli/core";
+const cli = build("mycli")
+	.plugin("@myorg/plugin-auth")
+	.create();
+`,
+		);
+
+		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+
+		const result = await generateBuildEntry(entryPath, dir);
+		expect(result).not.toBeNull();
+		expect(result!.content).toContain('import plugin__myorg_plugin_auth from "@myorg/plugin-auth"');
+		expect(result!.content).toContain(".plugin(plugin__myorg_plugin_auth)");
+		expect(result!.pluginCount).toBe(1);
+	});
+
+	test("transforms multiple .plugin('pkg') calls", async () => {
+		// Create two fake packages in node_modules
+		for (const name of ["plugin-a", "plugin-b"]) {
+			const pkgDir = join(dir, "node_modules", name);
+			await mkdir(pkgDir, { recursive: true });
+			await Bun.write(join(pkgDir, "index.ts"), `export default { name: "${name}" };`);
+			await Bun.write(join(pkgDir, "package.json"), `{ "name": "${name}" }`);
+		}
+
+		const entryPath = join(dir, "src", "index.ts");
+		await mkdir(join(dir, "src"), { recursive: true });
+		await Bun.write(
+			entryPath,
+			`import { build } from "@seedcli/core";
+const cli = build("mycli")
+	.plugin("plugin-a")
+	.plugin("plugin-b")
+	.create();
+`,
+		);
+
+		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+
+		const result = await generateBuildEntry(entryPath, dir);
+		expect(result).not.toBeNull();
+		expect(result!.content).toContain('import plugin_plugin_a from "plugin-a"');
+		expect(result!.content).toContain('import plugin_plugin_b from "plugin-b"');
+		expect(result!.content).toContain(".plugin(plugin_plugin_a)");
+		expect(result!.content).toContain(".plugin(plugin_plugin_b)");
+		expect(result!.pluginCount).toBe(2);
+	});
+});
+
+describe("generateBuildEntry - .src() comment safety", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "seedcli-src-comment-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	test("skips .src() in single-line comments and replaces the real call", async () => {
+		const entryPath = join(dir, "src", "index.ts");
+		await mkdir(join(dir, "src", "commands"), { recursive: true });
+		await Bun.write(
+			join(dir, "src", "commands", "hello.ts"),
+			'export default { name: "hello", run: () => {} };',
+		);
+
+		// Entry file with .src() in a comment BEFORE the real .src() call
+		await Bun.write(
+			entryPath,
+			`import { build } from "@seedcli/core";
+// Use .src(import.meta.dir) to discover commands
+const cli = build("mycli")
+	.src(import.meta.dir)
+	.create();
+`,
+		);
+
+		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+
+		const result = await generateBuildEntry(entryPath, dir);
+		expect(result).not.toBeNull();
+
+		// The comment should still be intact
+		expect(result!.content).toContain("// Use .src(import.meta.dir) to discover commands");
+
+		// The real .src() should have been replaced with .command() calls
+		expect(result!.content).not.toContain("\t.src(import.meta.dir)");
+		expect(result!.content).toContain(".command(");
+		expect(result!.commandCount).toBe(1);
+	});
+
+	test("skips .src() in block comment lines", async () => {
+		const entryPath = join(dir, "src", "index.ts");
+		await mkdir(join(dir, "src", "commands"), { recursive: true });
+		await Bun.write(
+			join(dir, "src", "commands", "deploy.ts"),
+			'export default { name: "deploy", run: () => {} };',
+		);
+
+		// Entry file with .src() in a block comment BEFORE the real call
+		await Bun.write(
+			entryPath,
+			`import { build } from "@seedcli/core";
+/*
+ * Call .src(dir) to scan for commands
+ */
+const cli = build("mycli")
+	.src(import.meta.dir)
+	.create();
+`,
+		);
+
+		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+
+		const result = await generateBuildEntry(entryPath, dir);
+		expect(result).not.toBeNull();
+
+		// The block comment should still be intact
+		expect(result!.content).toContain("* Call .src(dir) to scan for commands");
+
+		// The real .src() should have been replaced
+		expect(result!.content).not.toContain("\t.src(import.meta.dir)");
+		expect(result!.content).toContain(".command(");
+		expect(result!.commandCount).toBe(1);
+	});
+});
+
+describe("generateBuildEntry - side-effect import handling", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "seedcli-sideeffect-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	test("side-effect imports do not misplace injected imports", async () => {
+		// Create a fake package in node_modules
+		const pkgDir = join(dir, "node_modules", "my-plugin");
+		await mkdir(pkgDir, { recursive: true });
+		await Bun.write(join(pkgDir, "index.ts"), 'export default { name: "test" };');
+		await Bun.write(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
+
+		const entryPath = join(dir, "src", "index.ts");
+		await mkdir(join(dir, "src"), { recursive: true });
+
+		// Entry file with a side-effect import followed by executable code
+		await Bun.write(
+			entryPath,
+			`import { build } from "@seedcli/core";
+import "./polyfill";
+
+const cli = build("mycli")
+	.plugin("my-plugin")
+	.create();
+`,
+		);
+
+		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+
+		const result = await generateBuildEntry(entryPath, dir);
+		expect(result).not.toBeNull();
+
+		const lines = result!.content.split("\n");
+
+		// Find where the injected import appears
+		const injectedImportIdx = lines.findIndex((l) => l.includes('import plugin_my_plugin'));
+		// Find where "const cli" appears
+		const constCliIdx = lines.findIndex((l) => l.includes("const cli"));
+
+		// The injected import MUST appear before the executable code
+		expect(injectedImportIdx).toBeGreaterThan(-1);
+		expect(constCliIdx).toBeGreaterThan(-1);
+		expect(injectedImportIdx).toBeLessThan(constCliIdx);
+	});
+
+	test("side-effect imports with double quotes are handled correctly", async () => {
+		const pkgDir = join(dir, "node_modules", "my-plugin");
+		await mkdir(pkgDir, { recursive: true });
+		await Bun.write(join(pkgDir, "index.ts"), 'export default { name: "test" };');
+		await Bun.write(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
+
+		const entryPath = join(dir, "src", "index.ts");
+		await mkdir(join(dir, "src"), { recursive: true });
+
+		// Side-effect import with double quotes
+		await Bun.write(
+			entryPath,
+			`import { build } from "@seedcli/core";
+import "reflect-metadata";
+
+const cli = build("mycli")
+	.plugin("my-plugin")
+	.create();
+`,
+		);
+
+		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+
+		const result = await generateBuildEntry(entryPath, dir);
+		expect(result).not.toBeNull();
+
+		const lines = result!.content.split("\n");
+
+		// Find the side-effect import
+		const sideEffectIdx = lines.findIndex((l) => l.includes('import "reflect-metadata"'));
+		// Find the injected import
+		const injectedIdx = lines.findIndex((l) => l.includes("import plugin_my_plugin"));
+		// Find the executable code
+		const constIdx = lines.findIndex((l) => l.includes("const cli"));
+
+		// Side-effect import should be present
+		expect(sideEffectIdx).toBeGreaterThan(-1);
+		// Injected import should come after side-effect import but before executable code
+		expect(injectedIdx).toBeGreaterThan(sideEffectIdx);
+		expect(injectedIdx).toBeLessThan(constIdx);
+	});
+
+	test("multi-line imports still work correctly alongside side-effect imports", async () => {
+		const pkgDir = join(dir, "node_modules", "my-plugin");
+		await mkdir(pkgDir, { recursive: true });
+		await Bun.write(join(pkgDir, "index.ts"), 'export default { name: "test" };');
+		await Bun.write(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
+
+		const entryPath = join(dir, "src", "index.ts");
+		await mkdir(join(dir, "src"), { recursive: true });
+
+		// Mix of multi-line import, side-effect import, and normal import
+		await Bun.write(
+			entryPath,
+			`import {
+	build,
+	defineCommand,
+} from "@seedcli/core";
+import "./polyfill";
+import { join } from "node:path";
+
+const cli = build("mycli")
+	.plugin("my-plugin")
+	.create();
+`,
+		);
+
+		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+
+		const result = await generateBuildEntry(entryPath, dir);
+		expect(result).not.toBeNull();
+
+		const lines = result!.content.split("\n");
+
+		// Find the last original import (node:path)
+		const pathImportIdx = lines.findIndex((l) => l.includes('from "node:path"'));
+		// Find the injected import
+		const injectedIdx = lines.findIndex((l) => l.includes("import plugin_my_plugin"));
+		// Find the executable code
+		const constIdx = lines.findIndex((l) => l.includes("const cli"));
+
+		// Injected import should come after the last original import
+		expect(injectedIdx).toBeGreaterThan(pathImportIdx);
+		// But before executable code
+		expect(injectedIdx).toBeLessThan(constIdx);
 	});
 });
 

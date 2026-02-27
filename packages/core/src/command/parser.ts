@@ -74,8 +74,13 @@ export function parse(argv: string[], cmd: Command): ParseResult {
 	const negatedFlags = new Map<string, boolean>();
 	const preprocessedArgv: string[] = [];
 
-	for (const token of argv) {
-		if (token.startsWith("--no-")) {
+	// Find the -- separator position; tokens after it are literal positional args
+	const dashDashIdx = argv.indexOf("--");
+	const scanEnd = dashDashIdx === -1 ? argv.length : dashDashIdx;
+
+	for (let i = 0; i < argv.length; i++) {
+		const token = argv[i];
+		if (i < scanEnd && token.startsWith("--no-")) {
 			const flagName = token.slice(5); // strip "--no-"
 			if (booleanFlags.has(flagName)) {
 				negatedFlags.set(flagName, false);
@@ -244,7 +249,14 @@ function validateArg(name: string, value: unknown, def: ArgDef): void {
 	// Choices validation
 	const argChoices = def.choices as readonly string[] | undefined;
 	if (argChoices && argChoices.length > 0) {
-		if (!argChoices.includes(String(value))) {
+		// For number args, compare numerically to avoid float coercion mismatches
+		// e.g. Number("1.0") === 1, so String(1) === "1" !== "1.0"
+		const isValid =
+			def.type === "number"
+				? argChoices.map(Number).includes(Number(value))
+				: argChoices.includes(String(value));
+
+		if (!isValid) {
 			const choicesStr = argChoices.map((c: string) => `"${c}"`).join(", ");
 			const suggestion = findClosest(String(value), argChoices as string[]);
 			let msg = `Invalid value for argument "${name}"\n\n  Expected one of: ${choicesStr}\n  Received: "${value}"`;
@@ -271,10 +283,18 @@ function validateFlag(name: string, value: unknown, def: FlagDef): void {
 	// Choices validation
 	const flagChoices = def.choices as readonly string[] | undefined;
 	if (flagChoices && flagChoices.length > 0) {
+		const isNumericType = def.type === "number" || def.type === "number[]";
+		const numericChoices = isNumericType ? flagChoices.map(Number) : undefined;
+
 		// For array flags (string[], number[]), validate each element individually
 		const valuesToCheck = Array.isArray(value) ? value : [value];
 		for (const item of valuesToCheck) {
-			if (!flagChoices.includes(String(item))) {
+			// For number/number[] flags, compare numerically to avoid float coercion mismatches
+			const isValid = numericChoices
+				? numericChoices.includes(Number(item))
+				: flagChoices.includes(String(item));
+
+			if (!isValid) {
 				const choicesStr = flagChoices.map((c: string) => `"${c}"`).join(", ");
 				const suggestion = findClosest(String(item), flagChoices as string[]);
 				let msg = `Invalid value for flag "--${name}"\n\n  Expected one of: ${choicesStr}\n  Received: "${item}"`;

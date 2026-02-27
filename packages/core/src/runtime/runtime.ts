@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { stat as fsStat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CompletionInfo } from "@seedcli/completions";
@@ -6,7 +7,7 @@ import { renderCommandHelp, renderGlobalHelp } from "../command/help.js";
 import { ParseError, parse } from "../command/parser.js";
 import { route } from "../command/router.js";
 import { discover } from "../discovery/auto-discover.js";
-import { ExtensionSetupError } from "../plugin/errors.js";
+import { ExtensionSetupError, PluginValidationError } from "../plugin/errors.js";
 import { loadPlugins } from "../plugin/loader.js";
 import { PluginRegistry } from "../plugin/registry.js";
 import { topoSort } from "../plugin/topo-sort.js";
@@ -100,15 +101,18 @@ export class Runtime {
 
 		// ─── Strip --debug/--verbose from argv if debug mode enabled ───
 		if (this.config.debugEnabled) {
-			raw = raw.filter((a) => a !== "--debug" && a !== "--verbose");
+			const dashDashIdx = raw.indexOf("--");
+			raw = raw.filter((a, i) => {
+				if (dashDashIdx !== -1 && i > dashDashIdx) return true; // keep tokens after --
+				return a !== "--debug" && a !== "--verbose";
+			});
 		}
 
 		// ─── Graceful shutdown handling ───
 		const cleanup = () => {
 			// Reset cursor visibility in case a spinner hid it
 			process.stdout.write("\x1B[?25h");
-			// Set exit code but don't call process.exit() — let finally blocks run
-			process.exitCode = 130;
+			process.exit(130);
 		};
 		process.once("SIGINT", cleanup);
 		process.once("SIGTERM", cleanup);
@@ -177,9 +181,18 @@ export class Runtime {
 					const suggestions = result.suggestions
 						.map((s) => `  ${s.name}    ${s.description ?? ""}`)
 						.join("\n");
-					console.error(
-						`Command "${raw[0]}" not found.\n\nDid you mean?\n${suggestions}\n\nRun \`${this.config.brand} --help\` for a list of available commands.`,
-					);
+					if (result.matchedPath && result.matchedPath.length > 0) {
+						// Subcommand failed after matching a parent command
+						const parentPath = `${this.config.brand} ${result.matchedPath.join(" ")}`;
+						const failedToken = result.argv[0];
+						console.error(
+							`Subcommand "${failedToken}" not found for "${parentPath}".\n\nDid you mean?\n${suggestions}\n\nRun \`${parentPath} --help\` for a list of available subcommands.`,
+						);
+					} else {
+						console.error(
+							`Command "${raw[0]}" not found.\n\nDid you mean?\n${suggestions}\n\nRun \`${this.config.brand} --help\` for a list of available commands.`,
+						);
+					}
 				} else if (this.config.helpEnabled) {
 					this.printGlobalHelp();
 				} else {
@@ -269,12 +282,36 @@ export class Runtime {
 		// Validate peer dependencies across all plugins
 		this.registry.validateAll();
 
-		// Merge plugin commands into config
+		// Merge plugin commands into config (checking for host command conflicts)
 		const pluginCommands = this.registry.commands();
+		for (const pluginCmd of pluginCommands) {
+			const pluginNames = [pluginCmd.name, ...(pluginCmd.alias ?? [])];
+			const conflict = this.config.commands.find((hostCmd) => {
+				const hostNames = [hostCmd.name, ...(hostCmd.alias ?? [])];
+				return pluginNames.some((n) => hostNames.includes(n));
+			});
+			if (conflict) {
+				const pluginName = this.registry.findPluginByCommand(pluginCmd.name);
+				throw new PluginValidationError(
+					`Command name conflict: Plugin "${pluginName}" defines a command "${pluginCmd.name}" that conflicts with an existing command. Rename the command or use an alias to resolve the conflict.`,
+					pluginName ?? "unknown",
+				);
+			}
+		}
 		this.config.commands.push(...pluginCommands);
 
-		// Merge plugin extensions into config
+		// Merge plugin extensions into config (checking for host extension conflicts)
 		const pluginExtensions = this.registry.extensions();
+		for (const pluginExt of pluginExtensions) {
+			const conflict = this.config.extensions.find((hostExt) => hostExt.name === pluginExt.name);
+			if (conflict) {
+				const pluginName = this.registry.findPluginByExtension(pluginExt.name);
+				throw new PluginValidationError(
+					`Extension name conflict: Plugin "${pluginName}" defines an extension "${pluginExt.name}" that conflicts with an existing extension. Rename the extension to resolve the conflict.`,
+					pluginName ?? "unknown",
+				);
+			}
+		}
 		this.config.extensions.push(...pluginExtensions);
 
 		// Inject completions command if enabled
@@ -298,7 +335,21 @@ export class Runtime {
 		const glob = matching ? new Bun.Glob(matching) : undefined;
 
 		for (const entry of entries) {
-			if (typeof entry === "string" || !entry.isDirectory()) continue;
+			if (typeof entry === "string") continue;
+
+			if (!entry.isDirectory()) {
+				// Check if it's a symlink to a directory (e.g. from `bun link`)
+				if (entry.isSymbolicLink()) {
+					try {
+						const resolved = await fsStat(join(resolvedDir, entry.name));
+						if (!resolved.isDirectory()) continue;
+					} catch {
+						continue;
+					}
+				} else {
+					continue;
+				}
+			}
 
 			if (glob && !glob.match(entry.name)) continue;
 

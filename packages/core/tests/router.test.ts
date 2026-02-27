@@ -109,6 +109,21 @@ describe("route() — no match", () => {
 		expect(names).not.toContain("internal");
 	});
 
+	test("suggests commands when input is a typo of an alias", () => {
+		// "generate" has aliases ["g", "gen"]
+		// "gn" is close to "gen" (distance 1) but far from "generate" (distance 6)
+		const result = route(["gn"], commands);
+		expect(result.command).toBeNull();
+		expect(result.suggestions.some((s) => s.name === "generate")).toBe(true);
+	});
+
+	test("suggests commands when input is a prefix of an alias", () => {
+		// "ge" is a prefix of "gen" (alias of "generate")
+		const result = route(["ge"], commands);
+		expect(result.command).toBeNull();
+		expect(result.suggestions.some((s) => s.name === "generate")).toBe(true);
+	});
+
 	test("suggestions are sorted by distance", () => {
 		const result = route(["de"], commands);
 		// "dev" (distance 1) should come before "deploy" (distance 4)

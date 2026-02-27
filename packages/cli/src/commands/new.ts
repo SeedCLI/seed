@@ -69,12 +69,18 @@ export const newCommand = command({
 			seedcliVersion = dep.replace(/^[~^>=<]+/, "");
 		}
 
+		// JSON-escape the description to prevent injection in package.json templates
+		const safeDescription = description
+			.replace(/\\/g, "\\\\")
+			.replace(/"/g, '\\"')
+			.replace(/\n/g, "\\n");
+
 		await directory({
 			source: join(TEMPLATES_DIR, "project"),
 			target: targetDir,
 			props: {
 				name,
-				description,
+				description: safeDescription,
 				includeExamples,
 				version: "0.1.0",
 				seedcliVersion,

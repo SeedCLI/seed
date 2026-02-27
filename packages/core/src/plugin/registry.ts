@@ -18,8 +18,14 @@ export class PluginRegistry {
 	register(plugin: PluginConfig): void {
 		const validated = validatePlugin(plugin);
 
-		// Edge case #11: Duplicate plugin → silently deduplicate
+		// Edge case #11: Duplicate plugin → deduplicate with version conflict warning
 		if (this.plugins.has(validated.name)) {
+			const existing = this.plugins.get(validated.name)!;
+			if (existing.version !== validated.version) {
+				console.warn(
+					`[seedcli] Warning: Plugin "${validated.name}" is registered multiple times with different versions (${existing.version} vs ${validated.version}). Using the first loaded version (${existing.version}).`,
+				);
+			}
 			return;
 		}
 
@@ -120,7 +126,7 @@ export class PluginRegistry {
 	}
 
 	/** Find which plugin registered a given command name. */
-	private findPluginByCommand(cmdName: string): string | undefined {
+	findPluginByCommand(cmdName: string): string | undefined {
 		for (const plugin of this.plugins.values()) {
 			if (plugin.commands?.some((c) => c.name === cmdName)) {
 				return plugin.name;
@@ -130,7 +136,7 @@ export class PluginRegistry {
 	}
 
 	/** Find which plugin registered a given extension name. */
-	private findPluginByExtension(extName: string): string | undefined {
+	findPluginByExtension(extName: string): string | undefined {
 		for (const plugin of this.plugins.values()) {
 			if (plugin.extensions?.some((e) => e.name === extName)) {
 				return plugin.name;

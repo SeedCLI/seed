@@ -146,6 +146,29 @@ function detectPluginsDirCalls(
 	return results;
 }
 
+/**
+ * Detect .plugin("string") calls (string-based plugin references) in the entry source.
+ * These are npm package names that need to be converted to static imports for compilation.
+ * Skips calls that are already object references (e.g., .plugin(varName) or .plugin(import(...))).
+ */
+function detectPluginStringCalls(source: string): Array<{ fullMatch: string; name: string }> {
+	const results: Array<{ fullMatch: string; name: string }> = [];
+	// Match .plugin("package-name") or .plugin('package-name') — only string literals
+	// Negative lookahead ensures we don't match .plugins( (note the 's')
+	const regex = /\.plugin\s*\(\s*["'`]([^"'`]+)["'`]\s*\)/g;
+
+	for (const match of source.matchAll(regex)) {
+		// Skip if this is actually a .plugins() call (already handled)
+		if (/\.plugins\s*\(/.test(match[0])) continue;
+		results.push({
+			fullMatch: match[0],
+			name: match[1],
+		});
+	}
+
+	return results;
+}
+
 export interface GenerateBuildEntryResult {
 	/** The generated entry file content */
 	content: string;
@@ -319,7 +342,20 @@ export async function generateBuildEntry(
 		// Use balanced-paren matching to handle nested calls like .src(join(...))
 		const replacement =
 			chainCalls.length > 0 ? `\n${chainCalls.map((c) => `\t${c}`).join("\n")}\n\t` : "\n\t";
-		const srcCallIdx = generated.search(/\.src\s*\(/);
+		// Find .src() call that's not in a comment
+		let srcCallIdx = -1;
+		const srcRegex = /\.src\s*\(/g;
+		let srcMatch: RegExpExecArray | null;
+		while ((srcMatch = srcRegex.exec(generated)) !== null) {
+			// Check if this match is inside a comment
+			const lineStart = generated.lastIndexOf("\n", srcMatch.index) + 1;
+			const lineBeforeMatch = generated.slice(lineStart, srcMatch.index);
+			if (lineBeforeMatch.trimStart().startsWith("//") || lineBeforeMatch.trimStart().startsWith("*")) {
+				continue; // Skip matches in comments
+			}
+			srcCallIdx = srcMatch.index;
+			break;
+		}
 		if (srcCallIdx !== -1) {
 			const openParen = generated.indexOf("(", srcCallIdx);
 			let depth = 1;
@@ -360,8 +396,29 @@ export async function generateBuildEntry(
 		generated = generated.replace(call.fullMatch, replacement || "/* no plugins found */");
 	}
 
+	// ─── Handle .plugin("string-name") → static imports ───
+	const pluginStringCalls = detectPluginStringCalls(generated);
+	for (const call of pluginStringCalls) {
+		// Check if the package exists in node_modules
+		const modPath = join(cwd, "node_modules", ...call.name.split("/"));
+		if (await isDirectory(modPath)) {
+			const vname = `plugin_${call.name.replace(/[^a-zA-Z0-9_]/g, "_")}`;
+			importLines.push(`import ${vname} from "${call.name}";`);
+			// Replace .plugin("name") with .plugin(varName)
+			generated = generated.replace(call.fullMatch, `.plugin(${vname})`);
+			pluginCount++;
+		}
+		// If the package isn't in node_modules, leave the string reference as-is
+		// (it will fail at runtime with a helpful error message)
+	}
+
 	// If nothing was changed, no rewriting needed
-	if (importLines.length === 0 && !hasSrc && pluginsDirCalls.length === 0) {
+	if (
+		importLines.length === 0 &&
+		!hasSrc &&
+		pluginsDirCalls.length === 0 &&
+		pluginStringCalls.length === 0
+	) {
 		return null;
 	}
 
@@ -376,7 +433,9 @@ export async function generateBuildEntry(
 			if (/^\s*import\s/.test(lines[i])) {
 				lastImportIdx = i;
 				// Check if this import is multi-line (no 'from' on this line)
-				inMultiLineImport = !/from\s+["']/.test(lines[i]);
+				// Side-effect imports like `import "./polyfill"` or `import "module"` are single-line
+				const isSideEffect = /^\s*import\s+["']/.test(lines[i]);
+				inMultiLineImport = !isSideEffect && !/from\s+["']/.test(lines[i]);
 			} else if (inMultiLineImport) {
 				lastImportIdx = i;
 				if (/from\s+["']/.test(lines[i])) {
@@ -400,7 +459,9 @@ export async function generateBuildEntry(
 			for (let i = 0; i < lines.length; i++) {
 				if (/^\s*import\s/.test(lines[i])) {
 					newLastImportIdx = i;
-					inMultiLine = !/from\s+["']/.test(lines[i]);
+					// Side-effect imports like `import "./polyfill"` are single-line
+					const isSideEffect = /^\s*import\s+["']/.test(lines[i]);
+					inMultiLine = !isSideEffect && !/from\s+["']/.test(lines[i]);
 				} else if (inMultiLine) {
 					newLastImportIdx = i;
 					if (/from\s+["']/.test(lines[i])) inMultiLine = false;

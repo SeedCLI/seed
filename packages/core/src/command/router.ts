@@ -10,6 +10,8 @@ export interface RouteResult {
 	argv: string[];
 	/** Suggestions if command was not found */
 	suggestions: CommandSuggestion[];
+	/** Parent command names that were successfully matched before a subcommand lookup failed */
+	matchedPath?: string[];
 }
 
 export interface CommandSuggestion {
@@ -47,12 +49,15 @@ export function route(argv: string[], commands: Command[]): RouteResult {
 		if (matched.subcommands && matched.subcommands.length > 0 && remaining.length > 0) {
 			const subResult = route(remaining, matched.subcommands);
 			if (subResult.command) {
+				// Propagate matchedPath through successful nested matches
 				return subResult;
 			}
 			// If the first remaining token looks like a subcommand (not a flag)
 			// and we got suggestions, surface them instead of falling through
 			if (subResult.suggestions.length > 0 && !remaining[0].startsWith("-")) {
-				return { command: null, argv: remaining, suggestions: subResult.suggestions };
+				// Build matchedPath: prepend current match to any already-matched parents
+				const parentPath = [matched.name, ...(subResult.matchedPath ?? [])];
+				return { command: null, argv: remaining, suggestions: subResult.suggestions, matchedPath: parentPath };
 			}
 		}
 
@@ -92,14 +97,31 @@ function getSuggestions(input: string, commands: Command[]): CommandSuggestion[]
 	for (const cmd of commands) {
 		if (cmd.hidden) continue;
 
-		const distance = levenshtein(lowerInput, cmd.name.toLowerCase());
+		// Check name and all aliases, use the best (lowest) distance
+		const namesToCheck = [cmd.name, ...(cmd.alias ?? [])];
+		let bestDistance = Number.POSITIVE_INFINITY;
 
-		// Include if close enough or if input is a prefix
-		if (distance <= 3 || cmd.name.toLowerCase().startsWith(lowerInput)) {
+		for (const name of namesToCheck) {
+			const lowerName = name.toLowerCase();
+
+			// Prefix match counts as distance 0
+			if (lowerName.startsWith(lowerInput)) {
+				bestDistance = 0;
+				break;
+			}
+
+			const dist = levenshtein(lowerInput, lowerName);
+			if (dist < bestDistance) {
+				bestDistance = dist;
+			}
+		}
+
+		// Include if close enough (distance <= 3 or prefix match)
+		if (bestDistance <= 3) {
 			suggestions.push({
 				name: cmd.name,
 				description: cmd.description,
-				distance,
+				distance: bestDistance,
 			});
 		}
 	}

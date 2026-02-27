@@ -155,11 +155,19 @@ async function compileMode(
 ): Promise<void> {
 	const targets = flags.target ? flags.target.split(",").map((t) => t.trim()) : [undefined];
 
+	const hasMultipleTargets = targets.length > 1;
+
 	for (const target of targets) {
 		const args = ["bun", "build", entryPath, "--compile"];
 
 		if (flags.outfile) {
-			args.push("--outfile", flags.outfile);
+			// Append target suffix when compiling for multiple targets to avoid overwriting
+			let outfile = flags.outfile;
+			if (hasMultipleTargets && target) {
+				const suffix = target.replace(/^bun-/, "");
+				outfile = `${flags.outfile}-${suffix}`;
+			}
+			args.push("--outfile", outfile);
 		}
 
 		if (flags.minify) {
