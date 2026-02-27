@@ -1,5 +1,5 @@
 export { directory } from "./directory.js";
-export { render, renderString } from "./engine.js";
+export { render, renderFile, renderString } from "./engine.js";
 export { generate } from "./generate.js";
 export type {
 	DirectoryOptions,

@@ -40,5 +40,15 @@ export interface ExtensionConfig {
  * ```
  */
 export function defineExtension(config: ExtensionConfig): ExtensionConfig {
+	if (!config.name || config.name.trim() === "") {
+		throw new Error(
+			"Extension name cannot be empty. Provide a name in defineExtension({ name: '...' }).",
+		);
+	}
+	if (typeof config.setup !== "function") {
+		throw new Error(
+			`Extension "${config.name}" is missing a setup function. Provide setup in defineExtension({ setup: (toolbox) => { ... } }).`,
+		);
+	}
 	return config;
 }

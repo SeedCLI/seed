@@ -87,7 +87,7 @@ const BORDERS: Record<Exclude<BorderStyle, "none">, BorderChars> = {
 };
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequence stripping requires control chars
-const ANSI_REGEX = /\x1B\[[0-9;]*m/g;
+const ANSI_REGEX = /\x1B(?:\[[0-9;]*[A-Za-z]|\]8;;[^\x1B]*\x1B\\)/g;
 
 function stripAnsi(str: string): string {
 	return str.replace(ANSI_REGEX, "");
@@ -117,8 +117,24 @@ function padCell(text: string, width: number, alignment: Alignment): string {
 
 function truncateStr(str: string, maxLen: number): string {
 	if (visibleLength(str) <= maxLen) return str;
-	const plain = stripAnsi(str);
-	return `${plain.slice(0, Math.max(0, maxLen - 1))}…`;
+	// ANSI-aware truncation: walk through chars counting only visible ones
+	let visible = 0;
+	let result = "";
+	const parts = str.split(ANSI_REGEX);
+	const codes = str.match(ANSI_REGEX) ?? [];
+	for (let i = 0; i < parts.length; i++) {
+		if (i > 0 && codes[i - 1]) result += codes[i - 1];
+		for (const ch of parts[i]) {
+			if (visible >= maxLen - 1) {
+				result += "…";
+				result += "\x1b[0m"; // Reset ANSI at end
+				return result;
+			}
+			result += ch;
+			visible++;
+		}
+	}
+	return result;
 }
 
 export function table(rows: string[][], options?: TableOptions): string {
@@ -126,7 +142,8 @@ export function table(rows: string[][], options?: TableOptions): string {
 
 	const border = options?.border ?? "single";
 	const allRows = options?.headers ? [options.headers, ...rows] : rows;
-	const colCount = Math.max(...allRows.map((r) => r.length));
+	const colCount = Math.max(...allRows.map((r) => r.length), 0);
+	if (colCount === 0) return "";
 	const headerColor = options?.headerColor ?? ((t: string) => chalk.bold(t));
 
 	// Calculate column widths

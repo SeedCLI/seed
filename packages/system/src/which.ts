@@ -10,12 +10,12 @@ export class ExecutableNotFoundError extends Error {
 	}
 }
 
-export async function which(name: string): Promise<string | undefined> {
+export function which(name: string): string | undefined {
 	const result = Bun.which(name);
 	return result ?? undefined;
 }
 
-export async function whichOrThrow(name: string): Promise<string> {
+export function whichOrThrow(name: string): string {
 	const result = Bun.which(name);
 	if (!result) {
 		throw new ExecutableNotFoundError(name);

@@ -28,6 +28,7 @@ export interface StringsModule {
 	isBlank(str: string | null | undefined): boolean;
 	isNotBlank(str: string | null | undefined): boolean;
 	isEmpty(str: string | null | undefined): boolean;
+	isNotEmpty(str: string | null | undefined): boolean;
 
 	// Template
 	template(str: string, data: Record<string, string>): string;

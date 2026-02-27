@@ -9,7 +9,8 @@ import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
-const VERSION = "0.1.7";
+const rootPkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
+const VERSION: string = rootPkg.version;
 
 const AUTHOR = "Rully Ardiansyah <rully@dreamshive.io>";
 const REPO = "https://github.com/SeedCLI/seed";

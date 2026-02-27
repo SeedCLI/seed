@@ -9,7 +9,7 @@ export const exampleExtension = defineExtension({
 		toolbox.print.muted("[<%= it.name %>] extension loaded");
 
 		// Attach your extension to the toolbox (typed via src/types.d.ts)
-		toolbox.<%= it.name.replace(/-/g, "_") %> = {
+		toolbox.<%= it.name.replace(/-/g, "_").replace(/^(\d)/, "_$1") %> = {
 			greet: (name: string) => `Hello from <%= it.name %>, ${name}!`,
 		};
 	},

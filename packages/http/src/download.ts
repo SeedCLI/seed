@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+import { HttpError } from "./errors.js";
 import type { DownloadOptions, DownloadProgress } from "./types.js";
 
 export async function download(
@@ -15,7 +16,8 @@ export async function download(
 	});
 
 	if (!response.ok) {
-		throw new Error(`Download failed: HTTP ${response.status} ${response.statusText}`);
+		await response.body?.cancel();
+		throw new HttpError(response.status, response.statusText, undefined, { url });
 	}
 
 	if (!response.body) {
@@ -23,21 +25,46 @@ export async function download(
 	}
 
 	const totalHeader = response.headers.get("content-length");
-	const total = totalHeader ? parseInt(totalHeader, 10) : null;
+	const parsedTotal = totalHeader ? parseInt(totalHeader, 10) : null;
+	const total = parsedTotal !== null && !Number.isNaN(parsedTotal) ? parsedTotal : null;
+
+	if (!options?.onProgress) {
+		// Fast path: stream to disk without progress tracking
+		const file = Bun.file(dest);
+		const writer = file.writer();
+		const reader = response.body.getReader();
+		try {
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				writer.write(value);
+			}
+		} finally {
+			reader.releaseLock();
+			try {
+				await writer.end();
+			} catch {
+				// Prevent writer.end() from masking the original error
+			}
+		}
+		return;
+	}
+
+	// Stream to disk with progress reporting
 	let transferred = 0;
 	const startTime = Date.now();
+	const file = Bun.file(dest);
+	const writer = file.writer();
 
 	const reader = response.body.getReader();
-	const chunks: Uint8Array[] = [];
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
 
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
+			writer.write(value);
+			transferred += value.length;
 
-		chunks.push(value);
-		transferred += value.length;
-
-		if (options?.onProgress) {
 			const elapsed = (Date.now() - startTime) / 1000;
 			const speed = elapsed > 0 ? transferred / elapsed : 0;
 			const progress: DownloadProgress = {
@@ -48,14 +75,12 @@ export async function download(
 			};
 			options.onProgress(progress);
 		}
+	} finally {
+		reader.releaseLock();
+		try {
+			await writer.end();
+		} catch {
+			// Prevent writer.end() from masking the original error
+		}
 	}
-
-	const fullBuffer = new Uint8Array(transferred);
-	let offset = 0;
-	for (const chunk of chunks) {
-		fullBuffer.set(chunk, offset);
-		offset += chunk.length;
-	}
-
-	await Bun.write(dest, fullBuffer);
 }

@@ -37,8 +37,13 @@ async function fetchWithTimeout(
 	const controller = new AbortController();
 	const existingSignal = init.signal;
 
-	if (existingSignal) {
-		existingSignal.addEventListener("abort", () => controller.abort(existingSignal.reason));
+	const onAbort = existingSignal ? () => controller.abort(existingSignal.reason) : undefined;
+	if (existingSignal && onAbort) {
+		existingSignal.addEventListener("abort", onAbort);
+		// Handle already-aborted signal
+		if (existingSignal.aborted) {
+			controller.abort(existingSignal.reason);
+		}
 	}
 
 	const timer = setTimeout(() => controller.abort(), timeout);
@@ -52,6 +57,9 @@ async function fetchWithTimeout(
 		throw err;
 	} finally {
 		clearTimeout(timer);
+		if (existingSignal && onAbort) {
+			existingSignal.removeEventListener("abort", onAbort);
+		}
 	}
 }
 
@@ -74,7 +82,12 @@ async function fetchWithRetry(
 
 			// Check if we should retry based on status code
 			if (!response.ok && attempt < count && retryOn.includes(response.status)) {
-				onRetry?.(new HttpError(response.status, response.statusText), attempt + 1);
+				// Drain the body to release the connection
+				await response.body?.cancel();
+				onRetry?.(
+					new HttpError(response.status, response.statusText, undefined, { url }),
+					attempt + 1,
+				);
 				const waitTime = backoff === "linear" ? delay * (attempt + 1) : delay * 2 ** attempt;
 				await new Promise((resolve) => setTimeout(resolve, waitTime));
 				continue;
@@ -82,7 +95,7 @@ async function fetchWithRetry(
 
 			return response;
 		} catch (err) {
-			lastError = err instanceof Error ? err : new Error(String(err));
+			lastError = err instanceof Error ? err : new Error(String(err), { cause: err });
 			if (attempt < count) {
 				onRetry?.(lastError, attempt + 1);
 				const waitTime = backoff === "linear" ? delay * (attempt + 1) : delay * 2 ** attempt;
@@ -91,7 +104,7 @@ async function fetchWithRetry(
 		}
 	}
 
-	throw lastError;
+	throw lastError ?? new Error(`Request failed after ${count} retry attempts`);
 }
 
 function buildURL(
@@ -101,7 +114,11 @@ function buildURL(
 ): string {
 	let url = base ? `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}` : path;
 	if (params) {
-		url += serializeParams(params);
+		const paramStr = serializeParams(params);
+		if (paramStr) {
+			// Use & if URL already has query params, otherwise use ?
+			url += url.includes("?") ? `&${paramStr.slice(1)}` : paramStr;
+		}
 	}
 	return url;
 }
@@ -119,19 +136,35 @@ async function request<T>(
 		...options?.headers,
 	};
 
-	if (
-		body !== undefined &&
-		body !== null &&
-		!mergedHeaders["content-type"] &&
-		!mergedHeaders["Content-Type"]
+	const hasContentType = Object.keys(mergedHeaders).some((k) => k.toLowerCase() === "content-type");
+
+	// Determine if body should be passed through directly (FormData, Blob, etc.)
+	// or serialized as JSON
+	let serializedBody: BodyInit | undefined;
+	if (body === undefined || body === null) {
+		serializedBody = undefined;
+	} else if (
+		body instanceof FormData ||
+		body instanceof Blob ||
+		body instanceof ArrayBuffer ||
+		body instanceof URLSearchParams ||
+		body instanceof ReadableStream ||
+		typeof body === "string"
 	) {
-		mergedHeaders["Content-Type"] = "application/json";
+		// Pass through native BodyInit types directly — don't JSON.stringify them
+		serializedBody = body as BodyInit;
+	} else {
+		// Plain objects/arrays — serialize as JSON
+		if (!hasContentType) {
+			mergedHeaders["Content-Type"] = "application/json";
+		}
+		serializedBody = JSON.stringify(body);
 	}
 
 	let init: RequestInit = {
 		method,
 		headers: mergedHeaders,
-		body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
+		body: serializedBody,
 		signal: options?.signal,
 	};
 
@@ -146,21 +179,27 @@ async function request<T>(
 
 	let processed = response;
 	if (config.interceptors?.response) {
-		processed = await config.interceptors.response(processed);
+		try {
+			processed = await config.interceptors.response(processed);
+		} catch (err) {
+			await response.body?.cancel();
+			throw err;
+		}
 	}
 
 	if (!processed.ok) {
 		let errorData: unknown;
 		try {
-			errorData = await processed.clone().json();
-		} catch {
+			const errorText = await processed.text();
 			try {
-				errorData = await processed.clone().text();
+				errorData = JSON.parse(errorText);
 			} catch {
-				errorData = undefined;
+				errorData = errorText || undefined;
 			}
+		} catch {
+			errorData = undefined;
 		}
-		throw new HttpError(processed.status, processed.statusText, errorData);
+		throw new HttpError(processed.status, processed.statusText, errorData, { url: fullURL });
 	}
 
 	let data: T;

@@ -8,13 +8,20 @@ export interface TreeOptions {
 	guides?: boolean;
 }
 
+const MAX_TREE_DEPTH = 100;
+
 function renderNode(
 	node: TreeNode,
 	prefix: string,
 	isLast: boolean,
 	isRoot: boolean,
 	guides: boolean,
+	depth = 0,
 ): string[] {
+	if (depth > MAX_TREE_DEPTH) {
+		return [`${prefix}${guides ? "└── " : "  "}... (max depth exceeded)`];
+	}
+
 	const lines: string[] = [];
 
 	if (isRoot) {
@@ -29,7 +36,7 @@ function renderNode(
 		for (let i = 0; i < node.children.length; i++) {
 			const child = node.children[i];
 			const childIsLast = i === node.children.length - 1;
-			lines.push(...renderNode(child, childPrefix, childIsLast, false, guides));
+			lines.push(...renderNode(child, childPrefix, childIsLast, false, guides, depth + 1));
 		}
 	}
 

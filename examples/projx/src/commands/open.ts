@@ -72,7 +72,7 @@ export const openCommand = command({
 			return;
 		}
 
-		await system.exec(`${editor} ${project.path}`);
+		await system.exec(`${editor} "${project.path}"`);
 		print.success(`Opened ${project.name} in ${editor}`);
 	},
 });

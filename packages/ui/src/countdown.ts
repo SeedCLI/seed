@@ -3,6 +3,8 @@
  * Returns a promise that resolves when the countdown reaches zero.
  */
 export function countdown(seconds: number, label?: string): Promise<void> {
+	if (seconds <= 0) return Promise.resolve();
+
 	return new Promise((resolve) => {
 		let remaining = seconds;
 

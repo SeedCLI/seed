@@ -100,8 +100,22 @@ export class PluginRegistry {
 
 	/** Validate peer dependencies across all registered plugins. */
 	validateAll(): void {
+		const errors: Error[] = [];
 		for (const plugin of this.plugins.values()) {
-			validatePeerDependencies(plugin, this.plugins);
+			try {
+				validatePeerDependencies(plugin, this.plugins);
+			} catch (err) {
+				errors.push(err instanceof Error ? err : new Error(String(err)));
+			}
+		}
+		if (errors.length === 1) {
+			throw errors[0];
+		}
+		if (errors.length > 1) {
+			throw new PluginValidationError(
+				`Multiple plugin validation errors:\n\n${errors.map((e) => e.message).join("\n\n")}`,
+				"multiple",
+			);
 		}
 	}
 

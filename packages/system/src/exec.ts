@@ -6,11 +6,20 @@ export async function exec(command: string, options?: ExecOptions): Promise<Exec
 	const useShell = options?.shell ?? true;
 
 	const isWin = process.platform === "win32";
-	const args = useShell
-		? isWin
-			? ["cmd", "/c", command]
-			: ["sh", "-c", command]
-		: command.split(/\s+/);
+	let args: string[];
+	if (useShell) {
+		args = isWin ? ["cmd", "/c", command] : ["sh", "-c", command];
+	} else {
+		// Parse quoted strings: supports "double quotes" and 'single quotes'
+		args = [];
+		const regex = /(?:"([^"]*)")|(?:'([^']*)')|(\S+)/g;
+		for (const match of command.matchAll(regex)) {
+			args.push(match[1] ?? match[2] ?? match[3]);
+		}
+	}
+	if (args.length === 0) {
+		throw new ExecError(command || "(empty)", 1, "", "Empty command");
+	}
 	const cmd = args[0];
 	const cmdArgs = args.slice(1);
 
@@ -26,44 +35,71 @@ export async function exec(command: string, options?: ExecOptions): Promise<Exec
 	if (options?.stdin && proc.stdin) {
 		const data =
 			typeof options.stdin === "string" ? new TextEncoder().encode(options.stdin) : options.stdin;
-		proc.stdin.write(data);
-		proc.stdin.end();
+		try {
+			proc.stdin.write(data);
+			await proc.stdin.end();
+		} catch {
+			// Process may have already exited; broken pipe is expected
+		}
 	}
 
 	// Handle timeout
 	if (options?.timeout) {
 		let timedOut = false;
+		let killTimer: ReturnType<typeof setTimeout> | undefined;
 		const timer = setTimeout(() => {
 			timedOut = true;
-			proc.kill("SIGKILL");
+			// Send SIGTERM first for graceful shutdown, then SIGKILL after 2s
+			proc.kill("SIGTERM");
+			killTimer = setTimeout(() => {
+				try {
+					proc.kill("SIGKILL");
+				} catch {
+					// Process already exited
+				}
+			}, 2000);
 		}, options.timeout);
 
 		try {
-			const exitCode = await proc.exited;
+			// Read stdout/stderr concurrently with process exit to avoid deadlocks
+			const [stdout, stderr, exitCode] = await Promise.all([
+				options?.stream ? Promise.resolve("") : new Response(proc.stdout).text(),
+				options?.stream ? Promise.resolve("") : new Response(proc.stderr).text(),
+				proc.exited,
+			]);
 			clearTimeout(timer);
+			if (killTimer) clearTimeout(killTimer);
 
 			if (timedOut) {
 				throw new ExecTimeoutError(command, options.timeout);
 			}
 
-			const stdout = options?.stream ? "" : await new Response(proc.stdout).text();
-			const stderr = options?.stream ? "" : await new Response(proc.stderr).text();
+			const shouldTrim = options?.trim !== false;
+			const out = shouldTrim ? stdout.trimEnd() : stdout;
+			const err2 = shouldTrim ? stderr.trimEnd() : stderr;
 
 			if (throwOnError && exitCode !== 0) {
-				throw new ExecError(command, exitCode, stdout, stderr);
+				throw new ExecError(command, exitCode, out, err2);
 			}
 
-			return { stdout, stderr, exitCode };
+			return { stdout: out, stderr: err2, exitCode };
 		} catch (err) {
 			clearTimeout(timer);
+			if (killTimer) clearTimeout(killTimer);
 			throw err;
 		}
 	}
 
-	const exitCode = await proc.exited;
+	// Read stdout/stderr concurrently with process exit to avoid deadlocks
+	const [rawStdout, rawStderr, exitCode] = await Promise.all([
+		options?.stream ? Promise.resolve("") : new Response(proc.stdout).text(),
+		options?.stream ? Promise.resolve("") : new Response(proc.stderr).text(),
+		proc.exited,
+	]);
 
-	const stdout = options?.stream ? "" : await new Response(proc.stdout).text();
-	const stderr = options?.stream ? "" : await new Response(proc.stderr).text();
+	const shouldTrim = options?.trim !== false;
+	const stdout = shouldTrim ? rawStdout.trimEnd() : rawStdout;
+	const stderr = shouldTrim ? rawStderr.trimEnd() : rawStderr;
 
 	if (throwOnError && exitCode !== 0) {
 		throw new ExecError(command, exitCode, stdout, stderr);

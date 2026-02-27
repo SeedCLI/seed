@@ -12,7 +12,7 @@ export interface PatchResult {
 }
 
 export interface PatchingModule {
-	patch(filePath: string, options: PatchOptions): Promise<boolean>;
+	patch(filePath: string, options: PatchOptions): Promise<PatchResult>;
 	append(filePath: string, content: string): Promise<void>;
 	prepend(filePath: string, content: string): Promise<void>;
 	exists(filePath: string, pattern: string | RegExp): Promise<boolean>;

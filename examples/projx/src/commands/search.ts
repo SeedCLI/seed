@@ -43,21 +43,22 @@ export const searchCommand = command({
 		const rg = await system.which("rg");
 		const grepTool = rg ? "rg" : "grep";
 
-		let cmd: string;
+		const cmdArgs: string[] = [];
+		const query = args.query as string;
 		if (rg) {
-			cmd = `rg --no-heading --line-number --max-count ${maxResults}`;
-			if (flags.ext) cmd += ` --glob "*.${flags.ext}"`;
-			cmd += ` "${args.query}" "${workspace.projectsDir}"`;
+			cmdArgs.push("rg", "--no-heading", "--line-number", "--max-count", String(maxResults));
+			if (flags.ext) cmdArgs.push("--glob", `"*.${flags.ext}"`);
+			cmdArgs.push("--", `"${query}"`, `"${workspace.projectsDir}"`);
 		} else {
-			cmd = `grep -rn --max-count=${maxResults}`;
-			if (flags.ext) cmd += ` --include="*.${flags.ext}"`;
-			cmd += ` "${args.query}" "${workspace.projectsDir}"`;
+			cmdArgs.push("grep", "-rn", `--max-count=${maxResults}`);
+			if (flags.ext) cmdArgs.push(`"--include=*.${flags.ext}"`);
+			cmdArgs.push("--", `"${query}"`, `"${workspace.projectsDir}"`);
 		}
 
 		print.muted(`Searching with ${grepTool}...`);
 
 		try {
-			const result = await system.exec(cmd);
+			const result = await system.exec(cmdArgs.join(" "), { shell: false });
 			const lines = result.stdout.trim().split("\n").filter(Boolean);
 
 			if (lines.length === 0) {

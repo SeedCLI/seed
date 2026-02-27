@@ -120,11 +120,59 @@ describe("discoverCommands", () => {
 
 	test("skips root index.ts", async () => {
 		await Bun.write(join(dir, "commands/index.ts"), `export default { name: "index" };`);
-		await Bun.write(join(dir, "commands/hello.ts"), `export default { name: "hello" };`);
+		await Bun.write(
+			join(dir, "commands/hello.ts"),
+			`export default { name: "hello", run: async () => {} };`,
+		);
 
 		const commands = await discoverCommands(dir);
 		expect(commands.length).toBe(1);
 		expect(commands[0].name).toBe("hello");
+	});
+
+	test("skips .d.ts declaration files", async () => {
+		await Bun.write(
+			join(dir, "commands/hello.ts"),
+			`export default { name: "hello", run: async () => {} };`,
+		);
+		await Bun.write(
+			join(dir, "commands/hello.d.ts"),
+			`export declare const hello: { name: string };`,
+		);
+
+		const commands = await discoverCommands(dir);
+		expect(commands.length).toBe(1);
+		expect(commands[0].name).toBe("hello");
+	});
+
+	test("skips .test.ts files", async () => {
+		await Bun.write(
+			join(dir, "commands/deploy.ts"),
+			`export default { name: "deploy", run: async () => {} };`,
+		);
+		await Bun.write(
+			join(dir, "commands/deploy.test.ts"),
+			`import { test } from "bun:test"; test("dummy", () => {});`,
+		);
+
+		const commands = await discoverCommands(dir);
+		expect(commands.length).toBe(1);
+		expect(commands[0].name).toBe("deploy");
+	});
+
+	test("skips .spec.ts files", async () => {
+		await Bun.write(
+			join(dir, "commands/deploy.ts"),
+			`export default { name: "deploy", run: async () => {} };`,
+		);
+		await Bun.write(
+			join(dir, "commands/deploy.spec.ts"),
+			`import { test } from "bun:test"; test("spec", () => {});`,
+		);
+
+		const commands = await discoverCommands(dir);
+		expect(commands.length).toBe(1);
+		expect(commands[0].name).toBe("deploy");
 	});
 });
 
@@ -207,11 +255,107 @@ describe("discover", () => {
 	});
 });
 
-describe("DiscoveryError", () => {
-	test("has correct name and filePath", () => {
+describe("validation and error handling", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "seedcli-discovery-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	test("DiscoveryError has correct name and filePath", () => {
 		const err = new DiscoveryError("test error", "/path/to/file.ts");
 		expect(err.name).toBe("DiscoveryError");
 		expect(err.filePath).toBe("/path/to/file.ts");
 		expect(err.message).toBe("test error");
+	});
+
+	test("DiscoveryError preserves cause via ErrorOptions", () => {
+		const cause = new SyntaxError("Unexpected token");
+		const err = new DiscoveryError("Failed to import", "/commands/broken.ts", { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.filePath).toBe("/commands/broken.ts");
+		expect(err.name).toBe("DiscoveryError");
+	});
+
+	test("skips command with no run handler or subcommands", async () => {
+		await Bun.write(
+			join(dir, "commands/valid.ts"),
+			`export default { name: "valid", run: async () => {} };`,
+		);
+		await Bun.write(join(dir, "commands/invalid.ts"), `export default { description: "no run" };`);
+
+		const commands = await discoverCommands(dir);
+		expect(commands.length).toBe(1);
+		expect(commands[0].name).toBe("valid");
+	});
+
+	test("skips command that exports a non-object", async () => {
+		await Bun.write(
+			join(dir, "commands/valid.ts"),
+			`export default { name: "valid", run: async () => {} };`,
+		);
+		await Bun.write(join(dir, "commands/bad.ts"), `export default "not an object";`);
+
+		const commands = await discoverCommands(dir);
+		expect(commands.length).toBe(1);
+		expect(commands[0].name).toBe("valid");
+	});
+
+	test("skips extension with no setup function", async () => {
+		await Bun.write(
+			join(dir, "extensions/valid.ts"),
+			`export default { name: "valid", setup: () => {} };`,
+		);
+		await Bun.write(join(dir, "extensions/invalid.ts"), `export default { name: "invalid" };`);
+
+		const extensions = await discoverExtensions(dir);
+		expect(extensions.length).toBe(1);
+		expect(extensions[0].name).toBe("valid");
+	});
+
+	test("skips extension that exports a non-object", async () => {
+		await Bun.write(
+			join(dir, "extensions/valid.ts"),
+			`export default { name: "valid", setup: () => {} };`,
+		);
+		await Bun.write(join(dir, "extensions/bad.ts"), `export default 42;`);
+
+		const extensions = await discoverExtensions(dir);
+		expect(extensions.length).toBe(1);
+		expect(extensions[0].name).toBe("valid");
+	});
+
+	test("skips command files that fail to import", async () => {
+		await Bun.write(
+			join(dir, "commands/valid.ts"),
+			`export default { name: "valid", run: async () => {} };`,
+		);
+		await Bun.write(
+			join(dir, "commands/broken.ts"),
+			`import { nonExistent } from "totally-fake-module-xyz"; export default nonExistent;`,
+		);
+
+		const commands = await discoverCommands(dir);
+		expect(commands.length).toBe(1);
+		expect(commands[0].name).toBe("valid");
+	});
+
+	test("skips extension files that fail to import", async () => {
+		await Bun.write(
+			join(dir, "extensions/valid.ts"),
+			`export default { name: "valid", setup: () => {} };`,
+		);
+		await Bun.write(
+			join(dir, "extensions/broken.ts"),
+			`import { nonExistent } from "totally-fake-module-xyz"; export default nonExistent;`,
+		);
+
+		const extensions = await discoverExtensions(dir);
+		expect(extensions.length).toBe(1);
+		expect(extensions[0].name).toBe("valid");
 	});
 });

@@ -47,5 +47,15 @@ export interface PluginConfig {
  * ```
  */
 export function definePlugin(config: PluginConfig): PluginConfig {
+	if (!config.name || config.name.trim() === "") {
+		throw new Error(
+			"Plugin name cannot be empty. Provide a name in definePlugin({ name: '...' }).",
+		);
+	}
+	if (!config.version) {
+		throw new Error(
+			`Plugin "${config.name}" is missing a version. Provide a semver version in definePlugin({ version: '1.0.0' }).`,
+		);
+	}
 	return config;
 }

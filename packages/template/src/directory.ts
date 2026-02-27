@@ -1,12 +1,18 @@
 import { mkdir, readdir } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { renderFile } from "./engine.js";
 import type { DirectoryOptions } from "./types.js";
 
 function replaceDynamicSegments(filePath: string, props: Record<string, unknown>): string {
 	return filePath.replace(/__([a-zA-Z0-9_]+)__/g, (_, key: string) => {
 		const value = props[key];
-		return value !== undefined ? String(value) : `__${key}__`;
+		if (value === undefined) return `__${key}__`;
+		const str = String(value);
+		// Prevent path traversal via dynamic segment values
+		if (str.includes("..") || str.includes("/") || str.includes("\\")) {
+			throw new Error(`Dynamic segment "${key}" contains path traversal characters: "${str}"`);
+		}
+		return str;
 	});
 }
 
@@ -25,6 +31,7 @@ async function walkDirectory(dir: string): Promise<string[]> {
 	const entries = await readdir(dir, { withFileTypes: true });
 
 	for (const entry of entries) {
+		if (entry.isSymbolicLink()) continue;
 		const fullPath = join(dir, entry.name);
 		if (entry.isDirectory()) {
 			const subFiles = await walkDirectory(fullPath);
@@ -50,10 +57,12 @@ export async function directory(options: DirectoryOptions): Promise<string[]> {
 
 		let targetRelative = replaceDynamicSegments(relativePath, props);
 
-		// Apply rename mapping
+		// Apply rename mapping (compare basenames for cross-platform compatibility)
+		const fileName = basename(targetRelative);
 		for (const [from, to] of Object.entries(rename)) {
-			if (targetRelative === from || targetRelative.endsWith(`/${from}`)) {
-				targetRelative = targetRelative.replace(from, to);
+			if (fileName === from) {
+				targetRelative = join(dirname(targetRelative), to);
+				break;
 			}
 		}
 
@@ -63,6 +72,13 @@ export async function directory(options: DirectoryOptions): Promise<string[]> {
 		}
 
 		const targetPath = join(target, targetRelative);
+
+		// Guard against path traversal — resolved path must stay within target
+		const resolvedTarget = resolve(target);
+		const resolvedPath = resolve(targetPath);
+		if (!resolvedPath.startsWith(`${resolvedTarget}/`) && resolvedPath !== resolvedTarget) {
+			throw new Error(`Target path "${targetRelative}" escapes the target directory.`);
+		}
 
 		if (!options.overwrite) {
 			const file = Bun.file(targetPath);

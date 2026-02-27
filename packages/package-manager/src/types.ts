@@ -25,4 +25,15 @@ export interface PackageManager {
 export interface PackageManagerModule {
 	detect(cwd?: string): Promise<PackageManagerName>;
 	create(name?: PackageManagerName, cwd?: string): Promise<PackageManager>;
+	install(packages: string[], options?: InstallOptions): Promise<void>;
+	installDev(packages: string[], options?: InstallOptions): Promise<void>;
+	remove(packages: string[], options?: InstallOptions): Promise<void>;
+	run(script: string, options?: RunOptions): Promise<void>;
+	getCommands(name: PackageManagerName): {
+		install: string;
+		add: string;
+		addDev: string[];
+		remove: string;
+		run: string;
+	};
 }

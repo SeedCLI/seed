@@ -6,6 +6,8 @@ export interface ExecOptions {
 	timeout?: number;
 	throwOnError?: boolean;
 	shell?: boolean;
+	/** Trim trailing whitespace from stdout/stderr (default: true) */
+	trim?: boolean;
 }
 
 export interface ExecResult {

@@ -49,6 +49,11 @@ export function route(argv: string[], commands: Command[]): RouteResult {
 			if (subResult.command) {
 				return subResult;
 			}
+			// If the first remaining token looks like a subcommand (not a flag)
+			// and we got suggestions, surface them instead of falling through
+			if (subResult.suggestions.length > 0 && !remaining[0].startsWith("-")) {
+				return { command: null, argv: remaining, suggestions: subResult.suggestions };
+			}
 		}
 
 		return { command: matched, argv: remaining, suggestions: [] };
@@ -112,7 +117,13 @@ function getSuggestions(input: string, commands: Command[]): CommandSuggestion[]
 export function flattenCommands(
 	commands: Command[],
 	prefix = "",
+	depth = 0,
 ): Array<{ fullName: string; command: Command }> {
+	if (depth > 20) {
+		throw new Error(
+			`Command tree exceeds maximum nesting depth (20). Possible circular reference at "${prefix}".`,
+		);
+	}
 	const result: Array<{ fullName: string; command: Command }> = [];
 
 	for (const cmd of commands) {
@@ -120,7 +131,7 @@ export function flattenCommands(
 		result.push({ fullName, command: cmd });
 
 		if (cmd.subcommands) {
-			result.push(...flattenCommands(cmd.subcommands, fullName));
+			result.push(...flattenCommands(cmd.subcommands, fullName, depth + 1));
 		}
 	}
 

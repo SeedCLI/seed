@@ -116,6 +116,67 @@ describe("exec()", () => {
 	});
 });
 
+// ─── exec() trim behavior ───
+
+describe("exec() — trim behavior", () => {
+	test.skipIf(process.platform === "win32")(
+		"default behavior trims trailing whitespace from stdout",
+		async () => {
+			// echo adds a trailing newline by default
+			const result = await exec("echo 'hello world'");
+			expect(result.stdout).toBe("hello world");
+			// No trailing newline
+			expect(result.stdout.endsWith("\n")).toBe(false);
+		},
+	);
+
+	test.skipIf(process.platform === "win32")(
+		"trim: false preserves trailing whitespace",
+		async () => {
+			const result = await exec("echo 'hello world'", { trim: false });
+			// echo produces "hello world\n"
+			expect(result.stdout).toContain("hello world");
+			expect(result.stdout.endsWith("\n")).toBe(true);
+		},
+	);
+
+	test.skipIf(process.platform === "win32")(
+		"trim does not affect non-trailing (leading/internal) content",
+		async () => {
+			// printf outputs exactly what we tell it to, no extra newline
+			const result = await exec("printf '  hello  world  '");
+			// Default trim only removes trailing whitespace (trimEnd)
+			// Leading spaces and internal spaces should be preserved
+			expect(result.stdout).toBe("  hello  world");
+		},
+	);
+
+	test.skipIf(process.platform === "win32")(
+		"trim: false preserves all whitespace including trailing",
+		async () => {
+			const result = await exec("printf '  hello  world  '", { trim: false });
+			expect(result.stdout).toBe("  hello  world  ");
+		},
+	);
+
+	test.skipIf(process.platform === "win32")("trim applies to stderr as well", async () => {
+		const result = await exec("echo 'error output' >&2", { throwOnError: false });
+		expect(result.stderr).toBe("error output");
+		expect(result.stderr.endsWith("\n")).toBe(false);
+	});
+
+	test.skipIf(process.platform === "win32")(
+		"trim: false preserves trailing whitespace in stderr",
+		async () => {
+			const result = await exec("echo 'error output' >&2", {
+				throwOnError: false,
+				trim: false,
+			});
+			expect(result.stderr.endsWith("\n")).toBe(true);
+		},
+	);
+});
+
 // ─── error classes ───
 
 describe("ExecError", () => {
@@ -129,6 +190,14 @@ describe("ExecError", () => {
 		expect(err.message).toContain("bad-cmd");
 		expect(err.message).toContain("127");
 	});
+
+	test("preserves cause via ErrorOptions", () => {
+		const cause = new Error("spawn failed");
+		const err = new ExecError("npm install", 1, "", "ENOENT", { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.command).toBe("npm install");
+		expect(err.exitCode).toBe(1);
+	});
 });
 
 describe("ExecTimeoutError", () => {
@@ -139,6 +208,14 @@ describe("ExecTimeoutError", () => {
 		expect(err.name).toBe("ExecTimeoutError");
 		expect(err.message).toContain("3000ms");
 		expect(err.message).toContain("slow-cmd");
+	});
+
+	test("preserves cause via ErrorOptions", () => {
+		const cause = new Error("SIGKILL");
+		const err = new ExecTimeoutError("long-process", 30000, { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.command).toBe("long-process");
+		expect(err.timeout).toBe(30000);
 	});
 });
 

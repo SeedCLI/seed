@@ -2,18 +2,13 @@ import type { HelpOptions } from "../command/help.js";
 import type { Command, Middleware } from "../types/command.js";
 import type { ExtensionConfig } from "../types/extension.js";
 import type { PluginConfig } from "../types/plugin.js";
+import type { Toolbox } from "../types/toolbox.js";
 import { Runtime } from "./runtime.js";
 
 // ─── Builder Options ───
 
 export interface PluginScanOptions {
 	matching?: string;
-}
-
-export interface ConfigOptions {
-	configName?: string;
-	defaults?: Record<string, unknown>;
-	cwd?: string;
 }
 
 export interface BuilderConfig {
@@ -27,14 +22,13 @@ export interface BuilderConfig {
 	pluginDirs: Array<{ dir: string; options?: PluginScanOptions }>;
 	srcDir?: string;
 	excludeModules?: string[];
-	configOptions?: ConfigOptions;
 	helpOptions?: HelpOptions;
 	helpEnabled: boolean;
 	versionEnabled: boolean;
 	completionsEnabled: boolean;
 	debugEnabled: boolean;
-	onReady?: (toolbox: unknown) => Promise<void> | void;
-	onError?: (error: Error, toolbox: unknown) => Promise<void> | void;
+	onReady?: (toolbox: Toolbox) => Promise<void> | void;
+	onError?: (error: Error, toolbox: Toolbox) => Promise<void> | void;
 }
 
 // ─── Builder ───
@@ -50,8 +44,8 @@ export class Builder {
 			extensions: [],
 			plugins: [],
 			pluginDirs: [],
-			helpEnabled: false,
-			versionEnabled: false,
+			helpEnabled: true,
+			versionEnabled: true,
 			completionsEnabled: false,
 			debugEnabled: false,
 		};
@@ -102,18 +96,18 @@ export class Builder {
 	}
 
 	exclude(modules: string[]): this {
-		this.cfg.excludeModules = modules;
-		return this;
-	}
-
-	config(options?: ConfigOptions): this {
-		this.cfg.configOptions = options;
+		this.cfg.excludeModules = [...(this.cfg.excludeModules ?? []), ...modules];
 		return this;
 	}
 
 	help(options?: HelpOptions): this {
 		this.cfg.helpEnabled = true;
-		this.cfg.helpOptions = options;
+		this.cfg.helpOptions = options ? { ...options } : undefined;
+		return this;
+	}
+
+	noHelp(): this {
+		this.cfg.helpEnabled = false;
 		return this;
 	}
 
@@ -122,6 +116,11 @@ export class Builder {
 		if (version) {
 			this.cfg.version = version;
 		}
+		return this;
+	}
+
+	noVersion(): this {
+		this.cfg.versionEnabled = false;
 		return this;
 	}
 
@@ -135,18 +134,25 @@ export class Builder {
 		return this;
 	}
 
-	onReady(fn: (toolbox: unknown) => Promise<void> | void): this {
+	onReady(fn: (toolbox: Toolbox) => Promise<void> | void): this {
 		this.cfg.onReady = fn;
 		return this;
 	}
 
-	onError(fn: (error: Error, toolbox: unknown) => Promise<void> | void): this {
+	onError(fn: (error: Error, toolbox: Toolbox) => Promise<void> | void): this {
 		this.cfg.onError = fn;
 		return this;
 	}
 
 	create(): Runtime {
-		return new Runtime(this.cfg);
+		return new Runtime({
+			...this.cfg,
+			commands: [...this.cfg.commands],
+			middleware: [...this.cfg.middleware],
+			extensions: [...this.cfg.extensions],
+			plugins: [...this.cfg.plugins],
+			pluginDirs: [...this.cfg.pluginDirs],
+		});
 	}
 }
 

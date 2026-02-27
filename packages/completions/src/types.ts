@@ -27,3 +27,19 @@ export interface CompletionInfo {
 	brand: string;
 	commands: CompletionCommand[];
 }
+
+/**
+ * Sanitize a string for safe inclusion in a shell script.
+ * Strips any characters outside [a-zA-Z0-9_-].
+ */
+export function sanitizeShellToken(value: string): string {
+	return value.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+/**
+ * Escape a description string for shell scripts.
+ * Removes backticks, $, and other dangerous characters while preserving readability.
+ */
+export function escapeShellDescription(value: string): string {
+	return value.replace(/[`$\\!"]/g, "").replace(/'/g, "'\\''");
+}

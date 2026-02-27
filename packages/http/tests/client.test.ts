@@ -208,3 +208,136 @@ describe("retry shorthand", () => {
 		expect(res.ok).toBe(true);
 	});
 });
+
+// ─── Error cause chaining ───
+
+describe("HTTP error cause chaining", () => {
+	test("HttpError preserves cause", () => {
+		const cause = new Error("network failure");
+		const err = new HttpError(500, "Internal Server Error", { detail: "db down" }, { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.status).toBe(500);
+		expect(err.statusText).toBe("Internal Server Error");
+		expect(err.data).toEqual({ detail: "db down" });
+	});
+
+	test("HttpTimeoutError preserves cause", () => {
+		const cause = new DOMException("The operation was aborted", "AbortError");
+		const err = new HttpTimeoutError("https://api.example.com/slow", 5000, { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.url).toBe("https://api.example.com/slow");
+		expect(err.timeout).toBe(5000);
+	});
+});
+
+// ─── Interceptors ───
+
+describe("interceptors", () => {
+	test("request interceptor can modify headers", async () => {
+		const client = create({
+			baseURL,
+			interceptors: {
+				request: (_url, init) => ({
+					...init,
+					headers: {
+						...(init.headers as Record<string, string>),
+						"x-intercepted": "true",
+					},
+				}),
+			},
+		});
+		const res = await client.get<Record<string, string>>("/headers");
+		expect(res.data["x-intercepted"]).toBe("true");
+	});
+
+	test("response interceptor throwing propagates the error", async () => {
+		const interceptorError = new Error("interceptor rejected response");
+		const client = create({
+			baseURL,
+			interceptors: {
+				response: () => {
+					throw interceptorError;
+				},
+			},
+		});
+		try {
+			await client.get("/json");
+			expect(true).toBe(false); // should not reach
+		} catch (err) {
+			expect(err).toBe(interceptorError);
+		}
+	});
+
+	test("response interceptor can pass through response", async () => {
+		const client = create({
+			baseURL,
+			interceptors: {
+				response: (res) => res,
+			},
+		});
+		const res = await client.get("/json");
+		expect(res.ok).toBe(true);
+		expect(res.data).toEqual({ message: "hello", method: "GET" });
+	});
+});
+
+// ─── HttpError with URL ───
+
+describe("HttpError with URL", () => {
+	test("includes URL in message when provided", () => {
+		const err = new HttpError(404, "Not Found", null, { url: "https://api.example.com/users" });
+		expect(err.message).toContain("https://api.example.com/users");
+		expect(err.message).toContain("404");
+	});
+
+	test("url property is set", () => {
+		const err = new HttpError(500, "Internal Server Error", null, {
+			url: "https://api.example.com/data",
+		});
+		expect(err.url).toBe("https://api.example.com/data");
+	});
+
+	test("works without URL (backward compat)", () => {
+		const err = new HttpError(403, "Forbidden", { detail: "access denied" });
+		expect(err.message).toContain("403");
+		expect(err.message).toContain("Forbidden");
+		expect(err.url).toBeUndefined();
+		expect(err.status).toBe(403);
+		expect(err.data).toEqual({ detail: "access denied" });
+	});
+
+	test("works with empty options (no url key)", () => {
+		const err = new HttpError(400, "Bad Request", null, {});
+		expect(err.url).toBeUndefined();
+		expect(err.message).not.toContain("for ");
+	});
+
+	test("URL in message follows format: HTTP {status} for {url}: {statusText}", () => {
+		const err = new HttpError(422, "Unprocessable Entity", null, {
+			url: "https://api.test.com/submit",
+		});
+		expect(err.message).toBe("HTTP 422 for https://api.test.com/submit: Unprocessable Entity");
+	});
+
+	test("no URL in message follows format: HTTP {status}: {statusText}", () => {
+		const err = new HttpError(503, "Service Unavailable");
+		expect(err.message).toBe("HTTP 503: Service Unavailable");
+	});
+});
+
+// ─── Already-aborted signal ───
+
+describe("already-aborted signal", () => {
+	test("rejects immediately with an already-aborted signal", async () => {
+		const controller = new AbortController();
+		controller.abort("pre-aborted");
+		try {
+			await get(`${baseURL}/json`, { signal: controller.signal, timeout: 5000 });
+			expect(true).toBe(false); // should not reach
+		} catch (err) {
+			// Should throw an abort-related error, not a timeout
+			expect(err).toBeDefined();
+			expect(err).not.toBeInstanceOf(HttpTimeoutError);
+		}
+	});
+});

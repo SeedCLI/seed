@@ -19,13 +19,15 @@ export async function load<T extends Record<string, unknown> = Record<string, un
 		packageJson: options.packageJson,
 		rcFile: options.rcFile === true ? `.${options.name}rc` : options.rcFile,
 		globalRc: options.globalRc,
+		envName: options.envName,
 	});
 
 	// Find the config file path from layers
+	// c12 stores the file path in `configFile`, while `source` is a source identifier
 	let configFile: string | undefined;
 	for (const layer of result.layers ?? []) {
-		if (layer.source && typeof layer.source === "string") {
-			configFile = layer.source;
+		if (layer.configFile && typeof layer.configFile === "string") {
+			configFile = layer.configFile;
 			break;
 		}
 	}
@@ -49,24 +51,70 @@ export async function loadFile<T extends Record<string, unknown> = Record<string
 	const text = await file.text();
 
 	if (filePath.endsWith(".json")) {
-		return JSON.parse(text) as T;
+		try {
+			return JSON.parse(text) as T;
+		} catch (err) {
+			throw new Error(
+				`Failed to parse JSON config "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
+			);
+		}
 	}
 
 	// For JS/TS config files, use dynamic import
-	const mod = await import(filePath);
-	const config = mod.default ?? mod;
-	return config as T;
+	try {
+		const mod = await import(filePath);
+		const config = mod.default ?? mod;
+		return config as T;
+	} catch (err) {
+		throw new Error(
+			`Failed to load config file "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
+			{ cause: err },
+		);
+	}
 }
 
 export function get<T = unknown>(obj: Record<string, unknown>, path: string, defaultValue?: T): T {
-	const keys = path.split(".");
-	let current: unknown = obj;
+	if (path === "") {
+		return defaultValue as T;
+	}
+	// Support bracket notation for keys with dots: "foo[bar.baz].qux"
+	// Also support plain dot paths: "foo.bar.qux"
+	const keys: string[] = [];
+	let i = 0;
+	while (i < path.length) {
+		if (path[i] === "[") {
+			const end = path.indexOf("]", i + 1);
+			if (end === -1) {
+				keys.push(path.slice(i));
+				break;
+			}
+			keys.push(path.slice(i + 1, end));
+			i = end + 1;
+			if (path[i] === ".") i++; // skip trailing dot after ]
+		} else {
+			const dot = path.indexOf(".", i);
+			const bracket = path.indexOf("[", i);
+			let end: number;
+			if (dot === -1 && bracket === -1) end = path.length;
+			else if (dot === -1) end = bracket;
+			else if (bracket === -1) end = dot;
+			else end = Math.min(dot, bracket);
+			if (end > i) keys.push(path.slice(i, end));
+			i = end;
+			if (path[i] === ".") i++;
+		}
+	}
 
+	let current: unknown = obj;
 	for (const key of keys) {
 		if (current === null || current === undefined) {
 			return defaultValue as T;
 		}
 		if (typeof current !== "object") {
+			return defaultValue as T;
+		}
+		// Guard against prototype pollution
+		if (key === "__proto__" || key === "constructor" || key === "prototype") {
 			return defaultValue as T;
 		}
 		current = (current as Record<string, unknown>)[key];

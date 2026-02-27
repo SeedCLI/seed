@@ -71,6 +71,34 @@ describe("format", () => {
 		test("handles empty string", () => {
 			expect(wrap("")).toBe("");
 		});
+
+		test("wraps each line independently when text contains newlines", () => {
+			const text = "short line\nthis is a longer line that should wrap at a narrow width";
+			const result = wrap(text, 20);
+			const lines = result.split("\n");
+			// First line is short, should not be wrapped
+			expect(lines[0]).toBe("short line");
+			// Remaining lines should all be <= 20 chars
+			for (const line of lines) {
+				expect(line.length).toBeLessThanOrEqual(20);
+			}
+		});
+
+		test("preserves multiple newlines as separate wrapped segments", () => {
+			const text = "line one\nline two\nline three";
+			const result = wrap(text, 80);
+			expect(result).toBe("line one\nline two\nline three");
+		});
+
+		test("wraps each segment of multiline text independently", () => {
+			const text = "aaa bbb ccc ddd\neee fff ggg hhh";
+			const result = wrap(text, 11);
+			const lines = result.split("\n");
+			expect(lines[0]).toBe("aaa bbb ccc");
+			expect(lines[1]).toBe("ddd");
+			expect(lines[2]).toBe("eee fff ggg");
+			expect(lines[3]).toBe("hhh");
+		});
 	});
 
 	describe("columns", () => {
@@ -123,6 +151,22 @@ describe("format", () => {
 			const lines = result.split("\n");
 			expect(lines.length).toBe(1);
 			expect(lines[0]).toContain("only");
+		});
+
+		test("auto-calculates column count from width", () => {
+			// Items are 1 char + 2 padding = 3 chars colWidth, width 10 => floor(10/3) = 3 cols
+			const items = ["a", "b", "c", "d", "e", "f"];
+			const result = columns(items, { width: 10, padding: 2 });
+			const lines = result.split("\n");
+			// 6 items / 3 cols = 2 rows
+			expect(lines.length).toBe(2);
+		});
+
+		test("handles all identical items", () => {
+			const items = ["same", "same", "same"];
+			const result = columns(items, { columns: 3 });
+			const lines = result.split("\n");
+			expect(lines.length).toBe(1);
 		});
 	});
 });

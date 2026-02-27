@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { CompletionInfo } from "@seedcli/completions";
 import { renderCommandHelp, renderGlobalHelp } from "../command/help.js";
 import { ParseError, parse } from "../command/parser.js";
@@ -78,11 +81,18 @@ export function registerModule(name: string, mod: unknown): void {
 export class Runtime {
 	private config: BuilderConfig;
 	private registry = new PluginRegistry();
-	private initialized = false;
+	private initPromise: Promise<void> | null = null;
 	private moduleCache = new Map<string, unknown>();
+	// Snapshots of initial arrays to prevent duplication on retry
+	private readonly initialCommands: Command[];
+	private readonly initialExtensions: ExtensionConfig[];
+	private readonly initialPlugins: Array<string | import("../types/plugin.js").PluginConfig>;
 
 	constructor(config: BuilderConfig) {
 		this.config = config;
+		this.initialCommands = [...config.commands];
+		this.initialExtensions = [...config.extensions];
+		this.initialPlugins = [...config.plugins];
 	}
 
 	async run(argv?: string[]): Promise<void> {
@@ -97,33 +107,55 @@ export class Runtime {
 		const cleanup = () => {
 			// Reset cursor visibility in case a spinner hid it
 			process.stdout.write("\x1B[?25h");
-			process.exit(130);
+			// Set exit code but don't call process.exit() — let finally blocks run
+			process.exitCode = 130;
 		};
-		process.on("SIGINT", cleanup);
-		process.on("SIGTERM", cleanup);
+		process.once("SIGINT", cleanup);
+		process.once("SIGTERM", cleanup);
 
 		try {
+			// ─── Auto-detect version from package.json if not explicitly set ───
+			if (!this.config.version && this.config.srcDir) {
+				this.config.version = await this.detectVersion(this.config.srcDir);
+			}
+
 			// ─── Handle --version ───
-			if (this.config.versionEnabled && (raw.includes("--version") || raw.includes("-v"))) {
+			if (
+				this.config.versionEnabled &&
+				raw.length === 1 &&
+				(raw[0] === "--version" || raw[0] === "-v")
+			) {
 				const version = this.config.version ?? "0.0.0";
 				console.log(`${this.config.brand} v${version}`);
 				return;
 			}
 
-			// ─── Handle --help (global) ───
+			// ─── Handle --help (global or command-specific) ───
 			if (this.config.helpEnabled && raw.length === 0) {
 				await this.initPlugins();
 				this.printGlobalHelp();
 				return;
 			}
 
-			if (
-				this.config.helpEnabled &&
-				(raw.includes("--help") || raw.includes("-h")) &&
-				raw.length === 1
-			) {
+			if (this.config.helpEnabled && (raw.includes("--help") || raw.includes("-h"))) {
+				const withoutHelp = raw.filter((a) => a !== "--help" && a !== "-h");
+				if (withoutHelp.length === 0) {
+					await this.initPlugins();
+					this.printGlobalHelp();
+					return;
+				}
+				// Try to route to show command-specific help
 				await this.initPlugins();
-				this.printGlobalHelp();
+				const helpResult = route(withoutHelp, this.config.commands);
+				if (helpResult.command) {
+					const helpText = renderCommandHelp(helpResult.command, {
+						brand: this.config.brand,
+						...this.config.helpOptions,
+					});
+					console.log(helpText);
+				} else {
+					this.printGlobalHelp();
+				}
 				return;
 			}
 
@@ -136,7 +168,7 @@ export class Runtime {
 			if (!result.command) {
 				// Try default command
 				if (this.config.defaultCommand) {
-					await this.executeCommand(this.config.defaultCommand, raw);
+					await this.executeCommand(this.config.defaultCommand, raw, raw);
 					return;
 				}
 
@@ -171,7 +203,7 @@ export class Runtime {
 			}
 
 			// ─── Execute command ───
-			await this.executeCommand(result.command, result.argv);
+			await this.executeCommand(result.command, result.argv, raw);
 		} catch (err) {
 			await this.handleError(err, raw);
 		} finally {
@@ -180,9 +212,23 @@ export class Runtime {
 		}
 	}
 
-	private async initPlugins(): Promise<void> {
-		if (this.initialized) return;
-		this.initialized = true;
+	private initPlugins(): Promise<void> {
+		if (!this.initPromise) {
+			this.initPromise = this.doInitPlugins().catch((err) => {
+				// Clear cached promise so subsequent calls can retry
+				this.initPromise = null;
+				throw err;
+			});
+		}
+		return this.initPromise;
+	}
+
+	private async doInitPlugins(): Promise<void> {
+		// Reset to initial snapshot to prevent duplicates on retry
+		this.config.commands = [...this.initialCommands];
+		this.config.extensions = [...this.initialExtensions];
+		this.config.plugins = [...this.initialPlugins];
+		this.registry = new PluginRegistry();
 
 		// ─── Auto-discovery ───
 		if (this.config.srcDir) {
@@ -209,9 +255,10 @@ export class Runtime {
 		const loaded = await loadPlugins(this.config.plugins);
 
 		// Validate seedcli version compatibility
-		const runtimeVersion = this.config.version ?? "0.0.0";
+		// Use the @seedcli/core package version (framework version), not the app version
+		const frameworkVersion = await this.getFrameworkVersion();
 		for (const plugin of loaded) {
-			validateSeedcliVersion(plugin, runtimeVersion);
+			validateSeedcliVersion(plugin, frameworkVersion);
 		}
 
 		// Register each plugin (validates on register, deduplicates, checks conflicts)
@@ -237,20 +284,23 @@ export class Runtime {
 	}
 
 	private async scanPluginDir(dir: string, matching?: string): Promise<string[]> {
-		const { resolve } = await import("node:path");
 		const { readdir } = await import("node:fs/promises");
 
 		const resolvedDir = resolve(dir);
-		const entries = await readdir(resolvedDir, { withFileTypes: true });
+		const entries = await readdir(resolvedDir, { withFileTypes: true }).catch(
+			(err: NodeJS.ErrnoException) => {
+				if (err.code === "ENOENT") return [];
+				throw err;
+			},
+		);
 		const pluginPaths: string[] = [];
+		// Compile glob once outside the loop instead of per entry
+		const glob = matching ? new Bun.Glob(matching) : undefined;
 
 		for (const entry of entries) {
-			if (!entry.isDirectory()) continue;
+			if (typeof entry === "string" || !entry.isDirectory()) continue;
 
-			if (matching) {
-				const glob = new Bun.Glob(matching);
-				if (!glob.match(entry.name)) continue;
-			}
+			if (glob && !glob.match(entry.name)) continue;
 
 			pluginPaths.push(resolve(resolvedDir, entry.name));
 		}
@@ -261,16 +311,23 @@ export class Runtime {
 	private async executeCommand(
 		cmd: (typeof this.config.commands)[0],
 		argv: string[],
+		rawArgv?: string[],
 	): Promise<void> {
 		// Parse args and flags
 		const parsed = parse(argv, cmd);
 
 		// Assemble toolbox
-		const toolbox = await this.assembleToolbox(parsed.args, parsed.flags, cmd.name);
+		const toolbox = await this.assembleToolbox(
+			parsed.args,
+			parsed.flags,
+			cmd.name,
+			rawArgv,
+			parsed.argv,
+		);
 
 		// Run onReady
 		if (this.config.onReady) {
-			await this.config.onReady(toolbox);
+			await this.config.onReady(toolbox as Toolbox);
 		}
 
 		// ─── Run extension setup (topological order) ───
@@ -278,12 +335,12 @@ export class Runtime {
 		const sorted = allExtensions.length > 0 ? topoSort(allExtensions) : [];
 		const setupCompleted: ExtensionConfig[] = [];
 
-		for (const ext of sorted) {
-			await this.runExtensionSetup(ext, toolbox);
-			setupCompleted.push(ext);
-		}
-
 		try {
+			for (const ext of sorted) {
+				await this.runExtensionSetup(ext, toolbox);
+				setupCompleted.push(ext);
+			}
+
 			// Build middleware chain
 			const allMiddleware = [...this.config.middleware, ...(cmd.middleware ?? [])];
 
@@ -291,10 +348,24 @@ export class Runtime {
 				await this.runMiddleware(allMiddleware, toolbox, async () => {
 					if (cmd.run) {
 						await cmd.run(toolbox);
+					} else if (cmd.subcommands && cmd.subcommands.length > 0 && this.config.helpEnabled) {
+						// Container command with no run handler — show help
+						const helpText = renderCommandHelp(cmd, {
+							brand: this.config.brand,
+							...this.config.helpOptions,
+						});
+						console.log(helpText);
 					}
 				});
 			} else if (cmd.run) {
 				await cmd.run(toolbox);
+			} else if (cmd.subcommands && cmd.subcommands.length > 0 && this.config.helpEnabled) {
+				// Container command with no run handler — show help
+				const helpText = renderCommandHelp(cmd, {
+					brand: this.config.brand,
+					...this.config.helpOptions,
+				});
+				console.log(helpText);
 			}
 		} finally {
 			// ─── Run extension teardown (reverse order) ───
@@ -302,8 +373,11 @@ export class Runtime {
 				if (ext.teardown) {
 					try {
 						await ext.teardown(toolbox);
-					} catch {
-						// Teardown errors are swallowed to ensure all teardowns run
+					} catch (err) {
+						// Log teardown errors but don't throw — ensure all teardowns run
+						console.warn(
+							`[seedcli] Extension "${ext.name}" teardown failed: ${err instanceof Error ? err.message : String(err)}`,
+						);
 					}
 				}
 			}
@@ -331,6 +405,15 @@ export class Runtime {
 
 		try {
 			await Promise.race([setupPromise, timeoutPromise]);
+		} catch (err) {
+			if (err instanceof ExtensionSetupError) {
+				throw err;
+			}
+			throw new ExtensionSetupError(
+				`Extension "${ext.name}" setup failed: ${err instanceof Error ? err.message : String(err)}`,
+				ext.name,
+				{ cause: err },
+			);
 		} finally {
 			if (timer) clearTimeout(timer);
 		}
@@ -342,12 +425,14 @@ export class Runtime {
 		final: () => Promise<void>,
 	): Promise<void> {
 		let index = 0;
+		let finalCalled = false;
 
 		const next = async (): Promise<void> => {
 			if (index < middleware.length) {
 				const fn = middleware[index++];
 				await fn(toolbox, next);
-			} else {
+			} else if (!finalCalled) {
+				finalCalled = true;
 				await final();
 			}
 		};
@@ -359,20 +444,22 @@ export class Runtime {
 		args: Record<string, unknown>,
 		flags: Record<string, unknown>,
 		commandName: string,
+		rawArgv?: string[],
+		positionals?: string[],
 	): Promise<Toolbox<Record<string, unknown>, Record<string, unknown>>> {
 		const excluded = new Set(this.config.excludeModules ?? []);
 
-		const rawArgv = process.argv.slice(2);
+		const raw = rawArgv ?? process.argv.slice(2);
 		const isDebug =
 			this.config.debugEnabled &&
-			(rawArgv.includes("--debug") || rawArgv.includes("--verbose") || process.env.DEBUG === "1");
+			(raw.includes("--debug") || raw.includes("--verbose") || process.env.DEBUG === "1");
 
 		const toolbox = {
 			args,
 			flags,
 			parameters: {
-				raw: rawArgv,
-				argv: Object.values(args).map(String),
+				raw,
+				argv: positionals ?? [],
 				command: commandName,
 			},
 			meta: {
@@ -403,6 +490,8 @@ export class Runtime {
 			["patching", "@seedcli/patching"],
 		];
 
+		// Separate excluded modules (sync) from loadable modules (potentially async)
+		const loadableModules: Array<[string, string, string?]> = [];
 		for (const [name, pkg, namedExport] of modules) {
 			if (excluded.has(name)) {
 				Object.defineProperty(toolbox, name, {
@@ -415,21 +504,60 @@ export class Runtime {
 					configurable: true,
 				});
 			} else {
-				// Check instance cache first, then registry, then dynamic import
+				// Check instance cache first (sync fast path)
 				const cacheKey = `${pkg}:${namedExport ?? ""}`;
 				if (this.moduleCache.has(cacheKey)) {
 					(toolbox as unknown as Record<string, unknown>)[name] = this.moduleCache.get(cacheKey);
 				} else {
-					try {
-						const registered = moduleRegistry.get(pkg);
-						const mod = registered ?? (await import(pkg));
-						const resolved = namedExport ? mod[namedExport] : mod;
-						this.moduleCache.set(cacheKey, resolved);
-						(toolbox as unknown as Record<string, unknown>)[name] = resolved;
-					} catch {
-						// Module not installed — skip silently
+					loadableModules.push([name, pkg, namedExport]);
+				}
+			}
+		}
+
+		// Load uncached modules in parallel for faster cold starts
+		if (loadableModules.length > 0) {
+			const results = await Promise.allSettled(
+				loadableModules.map(async ([, pkg]) => {
+					const registered = moduleRegistry.get(pkg);
+					return registered ?? (await import(pkg));
+				}),
+			);
+
+			for (let i = 0; i < loadableModules.length; i++) {
+				const [name, pkg, namedExport] = loadableModules[i];
+				const result = results[i];
+				if (result.status === "fulfilled") {
+					const mod = result.value;
+					const resolved = namedExport ? mod[namedExport] : mod;
+					const cacheKey = `${pkg}:${namedExport ?? ""}`;
+					this.moduleCache.set(cacheKey, resolved);
+					(toolbox as unknown as Record<string, unknown>)[name] = resolved;
+				} else {
+					// Module not installed — skip silently
+					// But warn about unexpected errors (not MODULE_NOT_FOUND)
+					const err = result.reason;
+					const isModuleNotFound =
+						err instanceof Error &&
+						("code" in err ? (err as { code: string }).code === "ERR_MODULE_NOT_FOUND" : false);
+					if (!isModuleNotFound && isDebug) {
+						console.warn(
+							`[seedcli] Failed to load ${pkg}: ${err instanceof Error ? err.message : String(err)}`,
+						);
 					}
 				}
+			}
+		}
+
+		// Enable debug logging on the print module when debug mode is active
+		if (isDebug && !excluded.has("print")) {
+			try {
+				const printPkg = (moduleRegistry.get("@seedcli/print") ??
+					(await import("@seedcli/print"))) as Record<string, unknown>;
+				if (typeof printPkg.setDebugMode === "function") {
+					(printPkg.setDebugMode as (enabled: boolean) => void)(true);
+				}
+			} catch {
+				// Print module not installed — skip
 			}
 		}
 
@@ -441,40 +569,40 @@ export class Runtime {
 			brand: this.config.brand,
 			commands: this.config.commands
 				.filter((c) => c.name !== "completions" && !c.hidden)
-				.map((cmd) => ({
-					name: cmd.name,
-					description: cmd.description,
-					aliases: cmd.alias,
-					subcommands: cmd.subcommands?.map((sub) => ({
-						name: sub.name,
-						description: sub.description,
-						flags: sub.flags
-							? Object.entries(sub.flags).map(([name, def]) => ({
-									name,
-									alias: def.alias,
-									description: def.description,
-									type: def.type,
-									choices: def.choices,
-								}))
-							: undefined,
-					})),
-					flags: cmd.flags
-						? Object.entries(cmd.flags).map(([name, def]) => ({
-								name,
-								alias: def.alias,
-								description: def.description,
-								type: def.type,
-								choices: def.choices,
-							}))
-						: undefined,
-					args: cmd.args
-						? Object.entries(cmd.args).map(([name, def]) => ({
-								name,
-								description: def.description,
-								choices: def.choices,
-							}))
-						: undefined,
-				})),
+				.map((cmd) => this.mapCommandToCompletionInfo(cmd)),
+		};
+	}
+
+	/**
+	 * Recursively map a Command to CompletionCommand, preserving
+	 * arbitrarily nested subcommands for shell completion scripts.
+	 */
+	private mapCommandToCompletionInfo(
+		cmd: Command,
+	): import("@seedcli/completions").CompletionCommand {
+		return {
+			name: cmd.name,
+			description: cmd.description,
+			aliases: cmd.alias,
+			subcommands: cmd.subcommands
+				?.filter((sub) => !sub.hidden)
+				.map((sub) => this.mapCommandToCompletionInfo(sub)),
+			flags: cmd.flags
+				? Object.entries(cmd.flags).map(([name, def]) => ({
+						name,
+						alias: def.alias,
+						description: def.description,
+						type: def.type,
+						choices: def.choices,
+					}))
+				: undefined,
+			args: cmd.args
+				? Object.entries(cmd.args).map(([name, def]) => ({
+						name,
+						description: def.description,
+						choices: def.choices,
+					}))
+				: undefined,
 		};
 	}
 
@@ -529,10 +657,59 @@ export class Runtime {
 		};
 	}
 
+	private cachedFrameworkVersion: string | null = null;
+
+	private async getFrameworkVersion(): Promise<string> {
+		if (this.cachedFrameworkVersion !== null) return this.cachedFrameworkVersion;
+		try {
+			const coreDir = dirname(fileURLToPath(import.meta.url));
+			// Walk up from src/runtime/ to find package.json
+			let dir = coreDir;
+			for (let i = 0; i < 5; i++) {
+				try {
+					const pkgPath = join(dir, "package.json");
+					const data = JSON.parse(readFileSync(pkgPath, "utf-8"));
+					if (data.name === "@seedcli/core" && data.version) {
+						this.cachedFrameworkVersion = data.version;
+						return data.version;
+					}
+				} catch {
+					// Not found, try parent
+				}
+				const parent = dirname(dir);
+				if (parent === dir) break;
+				dir = parent;
+			}
+		} catch {
+			// Fallback if import.meta.url resolution fails (e.g., compiled binary)
+		}
+		this.cachedFrameworkVersion = "0.0.0";
+		return "0.0.0";
+	}
+
+	private async detectVersion(srcDir: string): Promise<string | undefined> {
+		// Walk up from srcDir looking for package.json (srcDir is typically ./src)
+		let dir = srcDir;
+		for (let i = 0; i < 3; i++) {
+			try {
+				const pkgPath = join(dir, "package.json");
+				const data = JSON.parse(readFileSync(pkgPath, "utf-8"));
+				if (data.version) return data.version;
+			} catch {
+				// Not found, try parent
+			}
+			const parent = dirname(dir);
+			if (parent === dir) break;
+			dir = parent;
+		}
+		return undefined;
+	}
+
 	private printGlobalHelp(): void {
 		const helpText = renderGlobalHelp(this.config.commands, {
 			brand: this.config.brand,
 			version: this.config.version,
+			versionEnabled: this.config.versionEnabled,
 			...this.config.helpOptions,
 		});
 		console.log(helpText);
@@ -545,12 +722,25 @@ export class Runtime {
 			return;
 		}
 
-		const error = err instanceof Error ? err : new Error(String(err));
+		const error = err instanceof Error ? err : new Error(String(err), { cause: err });
 
 		if (this.config.onError) {
-			const commandName = raw?.[0] ?? "";
-			const toolbox = await this.assembleToolbox({}, {}, commandName);
-			await this.config.onError(error, toolbox);
+			try {
+				const commandName = raw?.[0] ?? "";
+				const toolbox = await this.assembleToolbox({}, {}, commandName, raw);
+				await this.config.onError(error, toolbox as Toolbox);
+				// Set exitCode if onError handler didn't explicitly set one
+				if (process.exitCode === undefined || process.exitCode === 0) {
+					process.exitCode = 1;
+				}
+			} catch (handlerErr) {
+				// Prevent infinite loop if onError itself throws
+				console.error(`ERROR: ${error.message}`);
+				console.error(
+					`Additionally, the error handler threw: ${handlerErr instanceof Error ? handlerErr.message : String(handlerErr)}`,
+				);
+				process.exitCode = 1;
+			}
 		} else {
 			console.error(`ERROR: ${error.message}`);
 			process.exitCode = 1;

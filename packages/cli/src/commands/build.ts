@@ -1,4 +1,6 @@
 import { basename, join } from "node:path";
+import { load } from "@seedcli/config";
+import type { SeedConfig } from "@seedcli/core";
 import { command, flag } from "@seedcli/core";
 import { exists } from "@seedcli/filesystem";
 import { colors, error, info, success } from "@seedcli/print";
@@ -25,7 +27,17 @@ export const buildCommand = command({
 	},
 	run: async ({ flags }) => {
 		const cwd = process.cwd();
-		const entry = await resolveEntry(cwd);
+
+		// Load seed.config.ts build options as defaults
+		let buildConfig: SeedConfig["build"] | undefined;
+		try {
+			const result = await load({ name: "seed", cwd });
+			buildConfig = (result.config as SeedConfig).build;
+		} catch {
+			// No config file is fine
+		}
+
+		const entry = await resolveEntry(cwd, "build");
 
 		if (!entry) {
 			error("Could not detect entry point. Specify in seed.config.ts or package.json bin field.");
@@ -62,11 +74,22 @@ export const buildCommand = command({
 			}
 		}
 
+		// Merge config-file defaults with CLI flags (CLI flags take precedence)
+		const mergedFlags = {
+			compile: flags.compile,
+			outfile: flags.outfile,
+			outdir: flags.outdir ?? buildConfig?.bundle?.outdir,
+			target: flags.target ?? buildConfig?.compile?.targets?.join(","),
+			minify: flags.minify ?? buildConfig?.bundle?.minify,
+			sourcemap: flags.sourcemap,
+			analyze: flags.analyze,
+		};
+
 		try {
-			if (flags.compile) {
-				await compileMode(effectiveEntry, cwd, flags);
+			if (mergedFlags.compile) {
+				await compileMode(effectiveEntry, cwd, mergedFlags);
 			} else {
-				await bundleMode(effectiveEntry, cwd, entryPath, flags);
+				await bundleMode(effectiveEntry, cwd, entryPath, mergedFlags);
 			}
 		} finally {
 			// Clean up temp file
@@ -94,7 +117,7 @@ async function bundleMode(
 		minify: flags.minify ?? false,
 		sourcemap: flags.sourcemap ? "external" : "none",
 		naming: {
-			entry: basename(originalEntryPath).replace(/\.ts$/, ".js"),
+			entry: basename(originalEntryPath).replace(/\.(tsx?|mts|cts)$/, ".js"),
 		},
 	});
 

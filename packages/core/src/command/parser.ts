@@ -61,6 +61,30 @@ export function parse(argv: string[], cmd: Command): ParseResult {
 		}
 	}
 
+	// ─── Pre-process --no-* boolean negation ───
+	// Standard CLI convention: --no-verbose sets verbose=false.
+	// We strip these from argv and track them, since node:util parseArgs
+	// doesn't support --no-* natively.
+	const booleanFlags = new Set(
+		Object.entries(flagDefs)
+			.filter(([, def]) => def.type === "boolean")
+			.map(([name]) => name),
+	);
+
+	const negatedFlags = new Map<string, boolean>();
+	const preprocessedArgv: string[] = [];
+
+	for (const token of argv) {
+		if (token.startsWith("--no-")) {
+			const flagName = token.slice(5); // strip "--no-"
+			if (booleanFlags.has(flagName)) {
+				negatedFlags.set(flagName, false);
+				continue; // Remove from argv — we'll inject the value after parsing
+			}
+		}
+		preprocessedArgv.push(token);
+	}
+
 	// Parse with node:util parseArgs
 	let parsed: {
 		values: Record<string, string | boolean | (string | boolean)[] | undefined>;
@@ -69,7 +93,7 @@ export function parse(argv: string[], cmd: Command): ParseResult {
 
 	try {
 		parsed = parseArgs({
-			args: argv,
+			args: preprocessedArgv,
 			options,
 			strict: true,
 			allowPositionals: true,
@@ -79,6 +103,13 @@ export function parse(argv: string[], cmd: Command): ParseResult {
 			throw new ParseError(err.message);
 		}
 		throw err;
+	}
+
+	// Apply --no-* negations (explicit --flag=true wins over --no-flag)
+	for (const [name, value] of negatedFlags) {
+		if (parsed.values[name] === undefined) {
+			parsed.values[name] = value;
+		}
 	}
 
 	// ─── Process positional args ───
@@ -103,6 +134,16 @@ export function parse(argv: string[], cmd: Command): ParseResult {
 
 		args[name] = coerceArgValue(name, raw, def);
 		validateArg(name, args[name], def);
+	}
+
+	// Warn about extra positional arguments that don't match any definition
+	if (parsed.positionals.length > argEntries.length) {
+		const extra = parsed.positionals.slice(argEntries.length);
+		const defined = argEntries.length;
+		const received = parsed.positionals.length;
+		console.warn(
+			`Warning: command "${cmd.name}" received ${received} positional argument${received !== 1 ? "s" : ""} but only ${defined} ${defined !== 1 ? "are" : "is"} defined. Extra arguments ignored: ${extra.join(", ")}`,
+		);
 	}
 
 	// ─── Process flags ───
@@ -141,7 +182,7 @@ export function parse(argv: string[], cmd: Command): ParseResult {
 function coerceArgValue(name: string, raw: string, def: ArgDef): string | number {
 	if (def.type === "number") {
 		const num = Number(raw);
-		if (Number.isNaN(num)) {
+		if (!Number.isFinite(num)) {
 			throw new ParseError(
 				`Invalid value for argument "${name}"\n\n  Expected: number\n  Received: "${raw}"`,
 			);
@@ -162,7 +203,7 @@ function coerceFlagValue(
 
 		case "number": {
 			const num = Number(raw);
-			if (Number.isNaN(num)) {
+			if (!Number.isFinite(num)) {
 				throw new ParseError(
 					`Invalid value for flag "--${name}"\n\n  Expected: number\n  Received: "${raw}"`,
 				);
@@ -183,7 +224,7 @@ function coerceFlagValue(
 			const items = Array.isArray(raw) ? raw : [raw];
 			return items.map((item) => {
 				const num = Number(item);
-				if (Number.isNaN(num)) {
+				if (!Number.isFinite(num)) {
 					throw new ParseError(
 						`Invalid value for flag "--${name}"\n\n  Expected: number[]\n  Received item: "${item}"`,
 					);
@@ -227,17 +268,21 @@ function validateArg(name: string, value: unknown, def: ArgDef): void {
 }
 
 function validateFlag(name: string, value: unknown, def: FlagDef): void {
-	// Choices validation (only for string flags)
+	// Choices validation
 	const flagChoices = def.choices as readonly string[] | undefined;
 	if (flagChoices && flagChoices.length > 0) {
-		if (!flagChoices.includes(String(value))) {
-			const choicesStr = flagChoices.map((c: string) => `"${c}"`).join(", ");
-			const suggestion = findClosest(String(value), flagChoices as string[]);
-			let msg = `Invalid value for flag "--${name}"\n\n  Expected one of: ${choicesStr}\n  Received: "${value}"`;
-			if (suggestion) {
-				msg += `\n\n  Did you mean "${suggestion}"?`;
+		// For array flags (string[], number[]), validate each element individually
+		const valuesToCheck = Array.isArray(value) ? value : [value];
+		for (const item of valuesToCheck) {
+			if (!flagChoices.includes(String(item))) {
+				const choicesStr = flagChoices.map((c: string) => `"${c}"`).join(", ");
+				const suggestion = findClosest(String(item), flagChoices as string[]);
+				let msg = `Invalid value for flag "--${name}"\n\n  Expected one of: ${choicesStr}\n  Received: "${item}"`;
+				if (suggestion) {
+					msg += `\n\n  Did you mean "${suggestion}"?`;
+				}
+				throw new ParseError(msg);
 			}
-			throw new ParseError(msg);
 		}
 	}
 

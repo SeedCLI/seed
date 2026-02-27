@@ -16,6 +16,7 @@ export {
 	isBlank,
 	isEmpty,
 	isNotBlank,
+	isNotEmpty,
 	pad,
 	padEnd,
 	padStart,

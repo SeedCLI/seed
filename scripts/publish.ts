@@ -21,7 +21,7 @@
  *   cli@0.1.8            → publish only @seedcli/cli at version 0.1.8
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
@@ -46,7 +46,7 @@ const allPackages = [
 	"http",
 	"template",
 	"package-manager",
-	"ui",
+	"ui", // depends on print
 	"core",
 	"testing",
 	"toolbox",
@@ -90,6 +90,28 @@ function parseTag(tag: string | undefined): {
 	return { packages: [pkgName], versionOverrides: new Map([[pkgName, version]]) };
 }
 
+/** Check if a specific version of a package is already published on npm. */
+async function isPublished(name: string, version: string): Promise<boolean> {
+	const proc = Bun.spawn(["npm", "view", `${name}@${version}`, "version"], {
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [stdout, , exitCode] = await Promise.all([
+		new Response(proc.stdout).text(),
+		new Response(proc.stderr).text(),
+		proc.exited,
+	]);
+	return exitCode === 0 && stdout.trim() === version;
+}
+
+/** Restore all original package.json files. */
+function restorePackageJsonFiles(originals: Map<string, string>): void {
+	for (const [path, content] of originals) {
+		writeFileSync(path, content);
+	}
+	console.log("\nRestored package.json files to development state.");
+}
+
 const { packages, versionOverrides } = parseTag(tag);
 
 const scope = packages.length === allPackages.length ? "all packages" : packages.join(", ");
@@ -126,15 +148,30 @@ for (const pkg of allPackages) {
 		}
 	}
 
-	// Swap exports from src/ → dist/
+	// Swap exports from src/ → dist/ (preserving existing structure)
 	data.main = "./dist/index.js";
 	data.types = "./dist/index.d.ts";
-	data.exports = {
-		".": {
-			import: "./dist/index.js",
-			types: "./dist/index.d.ts",
-		},
-	};
+	if (data.exports && typeof data.exports === "object") {
+		const swapPath = (p: string): string => p.replace(/\.\/src\/(.+)\.ts$/, "./dist/$1.js");
+		const exports = data.exports as Record<string, unknown>;
+		for (const [key, value] of Object.entries(exports)) {
+			if (typeof value === "string") {
+				exports[key] = swapPath(value);
+			} else if (typeof value === "object" && value !== null) {
+				const entry = value as Record<string, string>;
+				for (const [k, v] of Object.entries(entry)) {
+					if (typeof v === "string") entry[k] = swapPath(v);
+				}
+			}
+		}
+	} else {
+		data.exports = {
+			".": {
+				import: "./dist/index.js",
+				types: "./dist/index.d.ts",
+			},
+		};
+	}
 
 	// Swap bin entries from src/ → dist/
 	if (data.bin) {
@@ -147,53 +184,77 @@ for (const pkg of allPackages) {
 	writeFileSync(pkgPath, `${JSON.stringify(data, null, "\t")}\n`);
 }
 
-// Second pass: publish only the targeted packages
+// Ensure restore happens even on crash (SIGINT/SIGTERM/unhandled error)
+process.on("SIGINT", () => {
+	restorePackageJsonFiles(originals);
+	process.exit(130);
+});
+process.on("SIGTERM", () => {
+	restorePackageJsonFiles(originals);
+	process.exit(143);
+});
+
+// Second pass: publish only the targeted packages (wrapped in try/finally for guaranteed restore)
 let failed = false;
+let skipped = 0;
 
-for (const pkg of packages) {
-	const pkgDir = join(ROOT, "packages", pkg);
-	const pkgJson = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf-8"));
-	const name = pkgJson.name;
+try {
+	for (const pkg of packages) {
+		const pkgDir = join(ROOT, "packages", pkg);
+		const pkgJson = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf-8"));
+		const name = pkgJson.name;
+		const publishVersion = pkgJson.version;
 
-	const publishVersion = pkgJson.version;
-	process.stdout.write(`Publishing ${name}@${publishVersion}...`);
+		process.stdout.write(`Publishing ${name}@${publishVersion}...`);
 
-	const cmd = ["npm", "publish", "--access", "public"];
-	if (dryRun) cmd.push("--dry-run");
-	if (provenance) cmd.push("--provenance");
+		// Validate dist/ exists before attempting publish
+		if (!existsSync(join(pkgDir, "dist"))) {
+			console.log(` FAIL (missing dist/ — run "bun run build" first)`);
+			failed = true;
+			continue;
+		}
 
-	const proc = Bun.spawn(cmd, {
-		cwd: pkgDir,
-		stdout: "pipe",
-		stderr: "pipe",
-	});
+		// Skip if this exact version is already on npm
+		if (!dryRun && (await isPublished(name, publishVersion))) {
+			console.log(` SKIP (already published)`);
+			skipped++;
+			continue;
+		}
 
-	const [stdout, stderr, exitCode] = await Promise.all([
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-		proc.exited,
-	]);
+		const cmd = ["npm", "publish", "--access", "public"];
+		if (dryRun) cmd.push("--dry-run");
+		if (provenance) cmd.push("--provenance");
 
-	if (exitCode !== 0) {
-		console.log(` FAIL`);
-		if (stderr.trim()) console.error(`  ${stderr.trim()}`);
-		if (stdout.trim()) console.error(`  ${stdout.trim()}`);
-		failed = true;
-	} else {
-		console.log(` OK`);
+		const proc = Bun.spawn(cmd, {
+			cwd: pkgDir,
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+
+		const [stdout, stderr, exitCode] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+			proc.exited,
+		]);
+
+		if (exitCode !== 0) {
+			console.log(` FAIL`);
+			if (stderr.trim()) console.error(`  ${stderr.trim()}`);
+			if (stdout.trim()) console.error(`  ${stdout.trim()}`);
+			failed = true;
+		} else {
+			console.log(` OK`);
+		}
 	}
+} finally {
+	// Third pass: always restore original package.json files
+	restorePackageJsonFiles(originals);
 }
-
-// Third pass: restore original package.json files (with workspace:* and src/ paths)
-for (const [path, content] of originals) {
-	writeFileSync(path, content);
-}
-
-console.log("\nRestored package.json files to development state.");
 
 if (failed) {
 	console.error("\nSome packages failed to publish.");
 	process.exit(1);
 } else {
-	console.log(`\nAll packages published successfully! v${displayVersion}`);
+	const skippedMsg = skipped > 0 ? ` (${skipped} skipped, already published)` : "";
+	console.log(`\nAll packages published successfully! v${displayVersion}${skippedMsg}`);
 }

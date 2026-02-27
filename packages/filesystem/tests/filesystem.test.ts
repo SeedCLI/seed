@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { chmod, rm } from "node:fs/promises";
 import { copy } from "../src/copy.js";
 import { ensureDir, list, subdirectories } from "../src/dir.js";
-import { FileNotFoundError, PermissionError } from "../src/errors.js";
+import { DirectoryNotEmptyError, FileNotFoundError, PermissionError } from "../src/errors.js";
 import { exists, isDirectory, isFile } from "../src/exists.js";
 import { find } from "../src/find.js";
 import { move, rename } from "../src/move.js";
@@ -36,6 +36,38 @@ describe("error classes", () => {
 		expect(err.message).toContain("Permission denied");
 		expect(err.message).toContain("/protected/file.txt");
 		expect(err).toBeInstanceOf(Error);
+	});
+
+	test("DirectoryNotEmptyError has correct properties", () => {
+		const err = new DirectoryNotEmptyError("/some/dir");
+		expect(err.name).toBe("DirectoryNotEmptyError");
+		expect(err.path).toBe("/some/dir");
+		expect(err.message).toContain("Directory not empty");
+	});
+});
+
+// ─── Error cause chaining ───
+
+describe("error cause chaining", () => {
+	test("FileNotFoundError preserves cause", () => {
+		const cause = new Error("ENOENT");
+		const err = new FileNotFoundError("/missing/file.txt", { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.path).toBe("/missing/file.txt");
+	});
+
+	test("PermissionError preserves cause", () => {
+		const cause = new Error("EACCES");
+		const err = new PermissionError("/protected/file.txt", { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.path).toBe("/protected/file.txt");
+	});
+
+	test("DirectoryNotEmptyError preserves cause", () => {
+		const cause = new Error("ENOTEMPTY");
+		const err = new DirectoryNotEmptyError("/some/dir", { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.path).toBe("/some/dir");
 	});
 });
 
@@ -92,6 +124,15 @@ describe("read / write", () => {
 		const content = await read(file);
 		const keys = Object.keys(JSON.parse(content));
 		expect(keys).toEqual(["apple", "zebra"]);
+	});
+
+	test("write throws on empty file path", async () => {
+		try {
+			await write("", "some content");
+			expect(true).toBe(false); // should not reach
+		} catch (err) {
+			expect((err as Error).message).toContain("non-empty file path");
+		}
 	});
 });
 

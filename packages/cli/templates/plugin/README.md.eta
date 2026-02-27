@@ -12,8 +12,9 @@ bun add <%= name %>
 
 ```ts
 import { build } from "@seedcli/core";
+import myPlugin from "<%= name %>";
 
 const cli = build("mycli")
-	.plugin("<%= name %>")
+	.plugin(myPlugin)
 	.create();
 ```

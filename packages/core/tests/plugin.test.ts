@@ -5,7 +5,9 @@ import { join } from "node:path";
 import { build, command } from "../src/index.js";
 import {
 	ExtensionCycleError,
+	ExtensionSetupError,
 	PluginDependencyError,
+	PluginError,
 	PluginLoadError,
 	PluginValidationError,
 } from "../src/plugin/errors.js";
@@ -18,7 +20,9 @@ import {
 	validateSeedcliVersion,
 } from "../src/plugin/validator.js";
 import type { ExtensionConfig } from "../src/types/extension.js";
+import { defineExtension } from "../src/types/extension.js";
 import type { PluginConfig } from "../src/types/plugin.js";
+import { definePlugin } from "../src/types/plugin.js";
 
 // ─── Helper ───
 
@@ -725,5 +729,171 @@ describe("Runtime with plugins", () => {
 		}
 
 		await rm(tmpDir, { recursive: true, force: true });
+	});
+});
+
+// ─── Error cause chaining ───
+
+describe("error cause chaining", () => {
+	test("PluginError preserves cause", () => {
+		const cause = new Error("root cause");
+		const err = new PluginError("wrapped", "my-plugin", { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.pluginName).toBe("my-plugin");
+	});
+
+	test("PluginValidationError preserves cause", () => {
+		const cause = new TypeError("type issue");
+		const err = new PluginValidationError("invalid", "bad-plugin", { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.name).toBe("PluginValidationError");
+	});
+
+	test("PluginLoadError preserves cause", () => {
+		const cause = new Error("module not found");
+		const err = new PluginLoadError("load failed", "missing-plugin", { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.pluginName).toBe("missing-plugin");
+	});
+
+	test("PluginDependencyError preserves cause", () => {
+		const cause = new Error("version mismatch");
+		const err = new PluginDependencyError("dep failed", "consumer", "provider", { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.dependency).toBe("provider");
+	});
+
+	test("ExtensionCycleError preserves cause", () => {
+		const cause = new Error("graph error");
+		const err = new ExtensionCycleError(["a", "b"], { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.extensions).toEqual(["a", "b"]);
+	});
+
+	test("ExtensionSetupError preserves cause", () => {
+		const cause = new Error("setup failed internally");
+		const err = new ExtensionSetupError("setup boom", "my-ext", { cause });
+		expect(err.cause).toBe(cause);
+		expect(err.extensionName).toBe("my-ext");
+	});
+});
+
+// ─── definePlugin() validation ───
+
+describe("definePlugin()", () => {
+	test("rejects empty name", () => {
+		expect(() => definePlugin({ name: "", version: "1.0.0" })).toThrow("cannot be empty");
+	});
+
+	test("rejects whitespace-only name", () => {
+		expect(() => definePlugin({ name: "   ", version: "1.0.0" })).toThrow("cannot be empty");
+	});
+
+	test("rejects missing version", () => {
+		expect(() => definePlugin({ name: "my-plugin", version: "" } as PluginConfig)).toThrow(
+			"missing a version",
+		);
+	});
+
+	test("rejects undefined version", () => {
+		expect(() => definePlugin({ name: "my-plugin" } as unknown as PluginConfig)).toThrow(
+			"missing a version",
+		);
+	});
+
+	test("accepts valid config", () => {
+		const result = definePlugin({ name: "my-plugin", version: "1.0.0" });
+		expect(result.name).toBe("my-plugin");
+		expect(result.version).toBe("1.0.0");
+	});
+
+	test("returns the same config object", () => {
+		const config = { name: "my-plugin", version: "1.0.0" };
+		const result = definePlugin(config);
+		expect(result).toBe(config);
+	});
+
+	test("error message includes guidance for empty name", () => {
+		try {
+			definePlugin({ name: "", version: "1.0.0" });
+			expect(true).toBe(false);
+		} catch (err) {
+			expect((err as Error).message).toContain("definePlugin");
+		}
+	});
+
+	test("error message includes plugin name for missing version", () => {
+		try {
+			definePlugin({ name: "cool-plugin" } as unknown as PluginConfig);
+			expect(true).toBe(false);
+		} catch (err) {
+			expect((err as Error).message).toContain("cool-plugin");
+		}
+	});
+});
+
+// ─── defineExtension() validation ───
+
+describe("defineExtension()", () => {
+	test("rejects empty name", () => {
+		expect(() => defineExtension({ name: "", setup: () => {} })).toThrow("cannot be empty");
+	});
+
+	test("rejects whitespace-only name", () => {
+		expect(() => defineExtension({ name: "   ", setup: () => {} })).toThrow("cannot be empty");
+	});
+
+	test("rejects missing setup function", () => {
+		expect(() => defineExtension({ name: "my-ext" } as unknown as ExtensionConfig)).toThrow(
+			"missing a setup function",
+		);
+	});
+
+	test("rejects non-function setup", () => {
+		expect(() =>
+			defineExtension({ name: "my-ext", setup: "not-a-function" } as unknown as ExtensionConfig),
+		).toThrow("missing a setup function");
+	});
+
+	test("accepts valid config", () => {
+		const setup = () => {};
+		const result = defineExtension({ name: "my-ext", setup });
+		expect(result.name).toBe("my-ext");
+		expect(result.setup).toBe(setup);
+	});
+
+	test("returns the same config object", () => {
+		const config = { name: "my-ext", setup: () => {} };
+		const result = defineExtension(config);
+		expect(result).toBe(config);
+	});
+
+	test("accepts config with dependencies and teardown", () => {
+		const result = defineExtension({
+			name: "my-ext",
+			dependencies: ["other-ext"],
+			setup: () => {},
+			teardown: () => {},
+		});
+		expect(result.dependencies).toEqual(["other-ext"]);
+		expect(result.teardown).toBeDefined();
+	});
+
+	test("error message includes guidance for empty name", () => {
+		try {
+			defineExtension({ name: "", setup: () => {} });
+			expect(true).toBe(false);
+		} catch (err) {
+			expect((err as Error).message).toContain("defineExtension");
+		}
+	});
+
+	test("error message includes extension name for missing setup", () => {
+		try {
+			defineExtension({ name: "auth-ext" } as unknown as ExtensionConfig);
+			expect(true).toBe(false);
+		} catch (err) {
+			expect((err as Error).message).toContain("auth-ext");
+		}
 	});
 });

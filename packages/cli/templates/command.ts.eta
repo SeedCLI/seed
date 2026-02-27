@@ -1,4 +1,4 @@
-import { command, arg, flag } from "@seedcli/core";
+import { command } from "@seedcli/core";
 
 export default command({
 	name: "<%= name %>",

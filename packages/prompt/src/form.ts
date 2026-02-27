@@ -41,6 +41,8 @@ export async function form<T extends Record<string, unknown>>(
 					default: field.default,
 				});
 				break;
+			default:
+				throw new Error(`Unknown form field type "${field.type}" for field "${field.name}"`);
 		}
 	}
 

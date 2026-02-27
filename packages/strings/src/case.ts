@@ -1,13 +1,17 @@
 /**
  * Split a string into words by spaces, hyphens, underscores, and camelCase boundaries.
+ * Also handles digit-letter boundaries (e.g., "hello2World" → ["hello", "2", "World"]).
  */
 function splitWords(str: string): string[] {
 	return (
 		str
-			// Insert separator before uppercase letters that follow lowercase
-			.replace(/([a-z])([A-Z])/g, "$1\0$2")
+			// Insert separator before uppercase letters that follow lowercase or digits
+			.replace(/([a-z\d])([A-Z])/g, "$1\0$2")
 			// Insert separator before uppercase letters followed by lowercase (e.g., "HTMLParser" → "HTML\0Parser")
 			.replace(/([A-Z]+)([A-Z][a-z])/g, "$1\0$2")
+			// Insert separator between letters and digits
+			.replace(/([a-zA-Z])(\d)/g, "$1\0$2")
+			.replace(/(\d)([a-zA-Z])/g, "$1\0$2")
 			// Split on separators
 			.split(/[\0\s\-_./]+/)
 			.filter(Boolean)

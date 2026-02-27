@@ -27,17 +27,35 @@ export {
 	loadFile as loadConfigFile,
 } from "@seedcli/config";
 // Re-export types
-export type { ArgDef, Command, CommandConfig, FlagDef, RunConfig, Toolbox } from "@seedcli/core";
+export type {
+	ArgDef,
+	Command,
+	CommandConfig,
+	ExtensionConfig,
+	ExtensionToolbox,
+	FlagDef,
+	InferArgs,
+	InferFlags,
+	Middleware,
+	PluginConfig,
+	RunConfig,
+	SeedConfig,
+	Toolbox,
+	ToolboxExtensions,
+} from "@seedcli/core";
 export {
 	arg,
+	Builder,
 	build,
 	command,
 	defineConfig,
 	defineExtension,
 	definePlugin,
 	flag,
+	ParseError,
 	parse,
 	Runtime,
+	registerModule,
 	renderCommandHelp,
 	renderGlobalHelp,
 	route,
@@ -59,11 +77,13 @@ export {
 	DirectoryNotEmptyError,
 	ensureDir,
 	exists,
+	FileNotFoundError,
 	find,
 	isDirectory,
 	isFile,
 	list,
 	move,
+	PermissionError,
 	path,
 	read,
 	readBuffer,
@@ -96,13 +116,13 @@ export {
 	createOpenAPIClient,
 	delete as httpDelete,
 	download,
-	get,
+	get as httpGet,
 	HttpError,
 	HttpTimeoutError,
-	head,
-	patch,
-	post,
-	put,
+	head as httpHead,
+	patch as httpPatch,
+	post as httpPost,
+	put as httpPut,
 } from "@seedcli/http";
 export type {
 	InstallOptions,
@@ -135,6 +155,7 @@ export type {
 	BorderStyle,
 	BoxOptions,
 	ColumnConfig,
+	ColumnOptions,
 	DividerOptions,
 	FigletOptions,
 	KeyValueOptions,
@@ -205,6 +226,8 @@ export {
 	bump,
 	clean,
 	coerce,
+	compare,
+	diff,
 	eq,
 	gt,
 	gte,
@@ -227,6 +250,7 @@ export {
 	isBlank,
 	isEmpty,
 	isNotBlank,
+	isNotEmpty,
 	isPlural,
 	isSingular,
 	kebabCase,
@@ -251,9 +275,13 @@ export type { ExecOptions, ExecResult } from "@seedcli/system";
 export {
 	arch,
 	cpus,
+	ExecError,
+	ExecTimeoutError,
+	ExecutableNotFoundError,
 	env,
 	exec,
 	hostname,
+	isInteractive,
 	memory,
 	open,
 	os,
@@ -274,11 +302,18 @@ export {
 	directory,
 	generate,
 	render,
+	renderFile,
 	renderString,
 } from "@seedcli/template";
 // Testing
-export type { Interceptor, TestCliBuilder, TestCliOptions, TestResult } from "@seedcli/testing";
-export { createInterceptor, createTestCli } from "@seedcli/testing";
+export type {
+	Interceptor,
+	MockToolboxOptions,
+	TestCliBuilder,
+	TestCliOptions,
+	TestResult,
+} from "@seedcli/testing";
+export { createInterceptor, createTestCli, mockToolbox } from "@seedcli/testing";
 // UI
 export type { HeaderOptions, ListOptions, StatusState } from "@seedcli/ui";
 export {

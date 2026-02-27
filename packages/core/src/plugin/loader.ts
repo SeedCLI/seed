@@ -31,6 +31,7 @@ export async function loadPlugin(source: string | PluginConfig): Promise<PluginC
 		throw new PluginLoadError(
 			`Plugin "${source}" not found.\n\n  Could not resolve the module "${source}".\n\n  Make sure it's installed:\n    bun add ${source}\n\n  Original error: ${message}`,
 			source,
+			{ cause: err },
 		);
 	}
 }

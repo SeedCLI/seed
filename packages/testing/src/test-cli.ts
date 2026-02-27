@@ -36,6 +36,10 @@ function parseArgv(input: string): string[] {
 		args.push(current);
 	}
 
+	if (inQuote !== null) {
+		throw new Error(`Unclosed ${inQuote} quote in argument string: "${input}"`);
+	}
+
 	return args;
 }
 

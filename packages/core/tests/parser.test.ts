@@ -278,3 +278,185 @@ describe("parse() — edge cases", () => {
 		expect(result.args.count).toBe(10);
 	});
 });
+
+// ─── --no-* flag negation ───
+
+describe("parse() — --no-* flag negation", () => {
+	test("--no-verbose sets verbose to false", () => {
+		const cmd = makeCmd({ flags: { verbose: flag({ type: "boolean" }) } });
+		const result = parse(["--no-verbose"], cmd);
+		expect(result.flags.verbose).toBe(false);
+	});
+
+	test("--verbose alone sets verbose to true", () => {
+		const cmd = makeCmd({ flags: { verbose: flag({ type: "boolean" }) } });
+		const result = parse(["--verbose"], cmd);
+		expect(result.flags.verbose).toBe(true);
+	});
+
+	test("explicit --verbose wins over preceding --no-verbose", () => {
+		const cmd = makeCmd({ flags: { verbose: flag({ type: "boolean" }) } });
+		// When --no-verbose is preprocessed but --verbose is also provided,
+		// the explicit --verbose from parseArgs takes precedence
+		const result = parse(["--no-verbose", "--verbose"], cmd);
+		expect(result.flags.verbose).toBe(true);
+	});
+
+	test("--no-verbose after --verbose — explicit parseArgs value wins", () => {
+		const cmd = makeCmd({ flags: { verbose: flag({ type: "boolean" }) } });
+		// --no-verbose is stripped before parseArgs, so --verbose is the only one parseArgs sees
+		// Then the negation is applied only if parseArgs didn't set a value
+		const result = parse(["--verbose", "--no-verbose"], cmd);
+		// Since --verbose was seen by parseArgs, the negation is NOT applied
+		expect(result.flags.verbose).toBe(true);
+	});
+
+	test("--no-notify works for a boolean flag named notify", () => {
+		const cmd = makeCmd({ flags: { notify: flag({ type: "boolean", default: true }) } });
+		const result = parse(["--no-notify"], cmd);
+		expect(result.flags.notify).toBe(false);
+	});
+
+	test("--no-* only works for boolean flags, not string flags", () => {
+		const cmd = makeCmd({ flags: { output: flag({ type: "string" }) } });
+		// --no-output with a string flag should be treated as an unknown flag
+		// since it's not in the boolean flags set
+		expect(() => parse(["--no-output"], cmd)).toThrow(ParseError);
+	});
+
+	test("--no-* for undefined flag throws ParseError", () => {
+		const cmd = makeCmd({ flags: { verbose: flag({ type: "boolean" }) } });
+		// --no-missing should pass through as an unknown flag to parseArgs (which rejects it)
+		expect(() => parse(["--no-missing"], cmd)).toThrow(ParseError);
+	});
+
+	test("--no-* with multiple boolean flags", () => {
+		const cmd = makeCmd({
+			flags: {
+				verbose: flag({ type: "boolean" }),
+				color: flag({ type: "boolean", default: true }),
+			},
+		});
+		const result = parse(["--no-verbose", "--no-color"], cmd);
+		expect(result.flags.verbose).toBe(false);
+		expect(result.flags.color).toBe(false);
+	});
+
+	test("mix of --no-* and regular flags", () => {
+		const cmd = makeCmd({
+			flags: {
+				verbose: flag({ type: "boolean" }),
+				force: flag({ type: "boolean" }),
+			},
+		});
+		const result = parse(["--force", "--no-verbose"], cmd);
+		expect(result.flags.force).toBe(true);
+		expect(result.flags.verbose).toBe(false);
+	});
+});
+
+// ─── Extra positional args warning ───
+
+describe("parse() — extra positional args warning", () => {
+	let warnSpy: typeof console.warn;
+	let warnCalls: string[];
+
+	const captureWarns = () => {
+		warnCalls = [];
+		warnSpy = console.warn;
+		console.warn = (...args: unknown[]) => {
+			warnCalls.push(String(args[0] ?? ""));
+		};
+	};
+
+	const restoreWarns = () => {
+		console.warn = warnSpy;
+	};
+
+	test("warning emitted when more positionals than defined args", () => {
+		captureWarns();
+		try {
+			const cmd = makeCmd({
+				args: { name: arg({ type: "string", required: true }) },
+			});
+			parse(["Alice", "extra1", "extra2"], cmd);
+			expect(warnCalls.length).toBe(1);
+			expect(warnCalls[0]).toContain("Warning");
+			expect(warnCalls[0]).toContain("extra1");
+			expect(warnCalls[0]).toContain("extra2");
+			expect(warnCalls[0]).toContain("3 positional arguments");
+			expect(warnCalls[0]).toContain("1 is defined");
+		} finally {
+			restoreWarns();
+		}
+	});
+
+	test("no warning when exact match of positionals", () => {
+		captureWarns();
+		try {
+			const cmd = makeCmd({
+				args: {
+					src: arg({ type: "string", required: true }),
+					dest: arg({ type: "string", required: true }),
+				},
+			});
+			parse(["a.txt", "b.txt"], cmd);
+			expect(warnCalls.length).toBe(0);
+		} finally {
+			restoreWarns();
+		}
+	});
+
+	test("no warning when fewer positionals than defined args", () => {
+		captureWarns();
+		try {
+			const cmd = makeCmd({
+				args: {
+					src: arg({ type: "string", required: true }),
+					dest: arg({ type: "string" }),
+				},
+			});
+			parse(["a.txt"], cmd);
+			expect(warnCalls.length).toBe(0);
+		} finally {
+			restoreWarns();
+		}
+	});
+
+	test("no warning when no args defined and no positionals given", () => {
+		captureWarns();
+		try {
+			const cmd = makeCmd();
+			parse([], cmd);
+			expect(warnCalls.length).toBe(0);
+		} finally {
+			restoreWarns();
+		}
+	});
+
+	test("warning when no args defined but positionals given", () => {
+		captureWarns();
+		try {
+			const cmd = makeCmd();
+			parse(["unexpected"], cmd);
+			expect(warnCalls.length).toBe(1);
+			expect(warnCalls[0]).toContain("Warning");
+			expect(warnCalls[0]).toContain("unexpected");
+		} finally {
+			restoreWarns();
+		}
+	});
+
+	test("warning includes command name", () => {
+		captureWarns();
+		try {
+			const cmd = makeCmd({
+				args: { name: arg({ type: "string", required: true }) },
+			});
+			parse(["Alice", "extra"], cmd);
+			expect(warnCalls[0]).toContain("test"); // command name from makeCmd
+		} finally {
+			restoreWarns();
+		}
+	});
+});

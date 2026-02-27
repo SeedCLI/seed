@@ -40,6 +40,41 @@ describe("config", () => {
 			const obj = { name: "test" };
 			expect(get(obj, "name")).toBe("test");
 		});
+
+		test("empty string path returns defaultValue", () => {
+			const obj = { a: 1, b: 2 };
+			expect(get(obj, "", "fallback")).toBe("fallback");
+		});
+
+		test("empty string path returns undefined when no defaultValue", () => {
+			const obj = { a: 1 };
+			expect(get(obj, "")).toBeUndefined();
+		});
+
+		test("rejects __proto__ key (prototype pollution guard)", () => {
+			const obj = { __proto__: { admin: true } } as Record<string, unknown>;
+			expect(get(obj, "__proto__", "safe")).toBe("safe");
+		});
+
+		test("rejects constructor key (prototype pollution guard)", () => {
+			const obj = { constructor: { bad: true } } as Record<string, unknown>;
+			expect(get(obj, "constructor", "safe")).toBe("safe");
+		});
+
+		test("rejects prototype key (prototype pollution guard)", () => {
+			const obj = { prototype: { evil: true } } as Record<string, unknown>;
+			expect(get(obj, "prototype", "safe")).toBe("safe");
+		});
+
+		test("supports bracket notation for keys with dots", () => {
+			const obj = { "foo.bar": { baz: 42 } } as Record<string, unknown>;
+			expect(get(obj, "[foo.bar].baz")).toBe(42);
+		});
+
+		test("returns defaultValue when traversing through non-object", () => {
+			const obj = { a: "string-value" } as Record<string, unknown>;
+			expect(get(obj, "a.b.c", "default")).toBe("default");
+		});
 	});
 
 	describe("loadFile", () => {

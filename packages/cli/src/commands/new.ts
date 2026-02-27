@@ -55,8 +55,19 @@ export const newCommand = command({
 
 		const spinner = spin("Scaffolding project...");
 
-		const pkg = await readJson<{ version: string }>(PKG_PATH);
-		const seedcliVersion = pkg.version;
+		const pkg = await readJson<{ version: string; dependencies?: Record<string, string> }>(
+			PKG_PATH,
+		);
+
+		// Derive framework version from @seedcli/* dependency, not the CLI's own version.
+		// Published: "^0.1.7" → "0.1.7", Development: "workspace:*" → use own version as fallback
+		const dep = pkg.dependencies?.["@seedcli/core"];
+		let seedcliVersion: string;
+		if (!dep || dep.startsWith("workspace:")) {
+			seedcliVersion = pkg.version;
+		} else {
+			seedcliVersion = dep.replace(/^[~^>=<]+/, "");
+		}
 
 		await directory({
 			source: join(TEMPLATES_DIR, "project"),
@@ -68,6 +79,7 @@ export const newCommand = command({
 				version: "0.1.0",
 				seedcliVersion,
 			},
+			rename: { gitignore: ".gitignore" },
 		});
 
 		spinner.succeed("Project scaffolded");

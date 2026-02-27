@@ -3,6 +3,8 @@
  */
 export interface SeedConfig {
 	build?: {
+		/** Entry point for build (overrides dev.entry for build/compile) */
+		entry?: string;
 		/** JS bundle options (Tier 2) */
 		bundle?: {
 			/** Output directory (default: "dist") */
@@ -37,8 +39,8 @@ export interface SeedConfig {
 	plugins?: {
 		/** Timeout for plugin setup in milliseconds (default: 10000) */
 		setupTimeout?: number;
-		/** Plugin-specific config overrides */
-		[pluginName: string]: unknown;
+		/** Plugin-specific config overrides, keyed by plugin name */
+		overrides?: Record<string, Record<string, unknown>>;
 	};
 }
 

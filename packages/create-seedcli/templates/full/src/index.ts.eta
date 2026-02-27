@@ -3,7 +3,7 @@
 import { build } from "@seedcli/core";
 
 const cli = build("<%= it.name %>")
-	.src(import.meta.dir)
+	.src(import.meta.dir) // Auto-discovers commands/ and extensions/
 	.help()
 	.version("<%= it.version %>")
 	.create();

@@ -1,5 +1,9 @@
 export function truncate(str: string, length: number, suffix = "..."): string {
+	if (!Number.isFinite(length) || length < 0) {
+		throw new RangeError(`truncate length must be a non-negative finite number, got ${length}`);
+	}
 	if (str.length <= length) return str;
+	if (length <= suffix.length) return suffix.slice(0, length);
 	return str.slice(0, length - suffix.length) + suffix;
 }
 
@@ -20,7 +24,10 @@ export function padEnd(str: string, length: number, char = " "): string {
 }
 
 export function repeat(str: string, count: number): string {
-	return str.repeat(count);
+	if (!Number.isFinite(count) || count < 0) {
+		throw new RangeError(`repeat count must be a non-negative finite number, got ${count}`);
+	}
+	return str.repeat(Math.floor(count));
 }
 
 export function reverse(str: string): string {
@@ -37,4 +44,8 @@ export function isNotBlank(str: string | null | undefined): boolean {
 
 export function isEmpty(str: string | null | undefined): boolean {
 	return str == null || str.length === 0;
+}
+
+export function isNotEmpty(str: string | null | undefined): boolean {
+	return !isEmpty(str);
 }

@@ -1,7 +1,8 @@
-import chalk from "chalk";
 import { box as renderBox } from "./box.js";
+import { colors } from "./colors.js";
 import { divider as renderDivider } from "./divider.js";
 import { ascii as renderAscii } from "./figlet.js";
+import { columns, indent, wrap } from "./format.js";
 import { keyValue as renderKeyValue } from "./keyValue.js";
 import { progressBar } from "./progress.js";
 import { spin } from "./spinner.js";
@@ -20,29 +21,29 @@ export function info(message: string): void {
 }
 
 export function success(message: string): void {
-	console.log(chalk.green(`✔ ${message}`));
+	console.log(colors.success(`✔ ${message}`));
 }
 
 export function warning(message: string): void {
-	console.log(chalk.yellow(`⚠ ${message}`));
+	console.log(colors.warning(`⚠ ${message}`));
 }
 
 export function error(message: string): void {
-	console.error(chalk.red(`✖ ${message}`));
+	console.error(colors.error(`✖ ${message}`));
 }
 
 export function debug(message: string): void {
 	if (debugEnabled) {
-		console.log(chalk.gray(`● ${message}`));
+		console.log(colors.muted(`● ${message}`));
 	}
 }
 
 export function highlight(message: string): void {
-	console.log(chalk.cyan.bold(message));
+	console.log(colors.highlight(message));
 }
 
 export function muted(message: string): void {
-	console.log(chalk.gray(message));
+	console.log(colors.muted(message));
 }
 
 export function newline(count = 1): void {
@@ -63,7 +64,7 @@ export const print: PrintModule = {
 	highlight,
 	muted,
 	newline,
-	colors: chalk,
+	colors,
 	spin,
 	table(rows, options) {
 		console.log(renderTable(rows, options));
@@ -84,4 +85,7 @@ export const print: PrintModule = {
 		console.log(renderDivider(options));
 	},
 	progressBar,
+	columns,
+	indent,
+	wrap,
 };

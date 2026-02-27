@@ -1,6 +1,6 @@
 {
 	"name": "create-seedcli",
-	"version": "0.1.12",
+	"version": "0.1.10",
 	"description": "Scaffold a new Seed CLI project — works with bun create, npx, and npm create",
 	"type": "module",
 	"license": "MIT",
@@ -22,6 +22,9 @@
 	],
 	"engines": {
 		"bun": ">=1.3.0"
+	},
+	"publishConfig": {
+		"access": "public"
 	},
 	"main": "./src/index.ts",
 	"types": "./src/index.ts",

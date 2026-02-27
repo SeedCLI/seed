@@ -38,18 +38,18 @@ function createManager(pmName: PackageManagerName, cwd?: string): PackageManager
 				await exec(parts, { cwd: effectiveCwd, silent: options?.silent });
 			} else {
 				const parts = cmds.add.split(" ");
-				const args = [...parts, ...packages];
+				const args =
+					options?.global && pmName === "yarn"
+						? ["yarn", "global", "add", ...packages]
+						: [...parts, ...packages];
 				if (options?.exact) {
 					if (pmName === "bun") args.push("--exact");
 					else if (pmName === "npm") args.push("--save-exact");
 					else if (pmName === "yarn") args.push("--exact");
 					else if (pmName === "pnpm") args.push("--save-exact");
 				}
-				if (options?.global) {
-					if (pmName === "bun") args.push("--global");
-					else if (pmName === "npm") args.push("--global");
-					else if (pmName === "yarn") args.push("global");
-					else if (pmName === "pnpm") args.push("--global");
+				if (options?.global && pmName !== "yarn") {
+					args.push("--global");
 				}
 				await exec(args, { cwd: effectiveCwd, silent: options?.silent });
 			}
@@ -57,18 +57,18 @@ function createManager(pmName: PackageManagerName, cwd?: string): PackageManager
 
 		async installDev(packages: string[], options?: InstallOptions): Promise<void> {
 			const effectiveCwd = options?.cwd ?? defaultCwd;
-			const args = [...cmds.addDev, ...packages];
+			const args =
+				options?.global && pmName === "yarn"
+					? ["yarn", "global", "add", "--dev", ...packages]
+					: [...cmds.addDev, ...packages];
 			if (options?.exact) {
 				if (pmName === "bun") args.push("--exact");
 				else if (pmName === "npm") args.push("--save-exact");
 				else if (pmName === "yarn") args.push("--exact");
 				else if (pmName === "pnpm") args.push("--save-exact");
 			}
-			if (options?.global) {
-				if (pmName === "bun") args.push("--global");
-				else if (pmName === "npm") args.push("--global");
-				else if (pmName === "yarn") args.push("global");
-				else if (pmName === "pnpm") args.push("--global");
+			if (options?.global && pmName !== "yarn") {
+				args.push("--global");
 			}
 			await exec(args, { cwd: effectiveCwd, silent: options?.silent });
 		},
@@ -76,12 +76,12 @@ function createManager(pmName: PackageManagerName, cwd?: string): PackageManager
 		async remove(packages: string[], options?: InstallOptions): Promise<void> {
 			const effectiveCwd = options?.cwd ?? defaultCwd;
 			const parts = cmds.remove.split(" ");
-			const args = [...parts, ...packages];
-			if (options?.global) {
-				if (pmName === "bun") args.push("--global");
-				else if (pmName === "npm") args.push("--global");
-				else if (pmName === "yarn") args.push("global");
-				else if (pmName === "pnpm") args.push("--global");
+			const args =
+				options?.global && pmName === "yarn"
+					? ["yarn", "global", "remove", ...packages]
+					: [...parts, ...packages];
+			if (options?.global && pmName !== "yarn") {
+				args.push("--global");
 			}
 			await exec(args, { cwd: effectiveCwd, silent: options?.silent });
 		},

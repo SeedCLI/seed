@@ -137,9 +137,10 @@ const envSetCommand = command({
 
 		const content = await filesystem.read(envPath);
 		if (content?.includes(`${key}=`)) {
-			// Replace existing
+			// Replace existing — escape regex special chars in key
+			const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 			await patching.patch(envPath, {
-				replace: new RegExp(`^${key}=.*$`, "m"),
+				replace: new RegExp(`^${escapedKey}=.*$`, "m"),
 				insert: line,
 			});
 			print.success(`Updated ${key}`);

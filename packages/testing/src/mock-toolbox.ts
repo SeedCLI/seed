@@ -86,6 +86,9 @@ export function mockToolbox(
 			keyValue: () => {},
 			divider: () => {},
 			progressBar: () => ({ ...noopProgressBar }),
+			columns: () => "",
+			indent: (text: string) => text,
+			wrap: (text: string) => text,
 		},
 
 		// ── Prompt (returns empty / first-option defaults) ──

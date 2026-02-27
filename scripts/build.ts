@@ -16,7 +16,6 @@ const packages = [
 	"strings",
 	"semver",
 	"patching",
-	"ui",
 	"completions",
 
 	// Tier 1 — depends on tier 0
@@ -28,6 +27,9 @@ const packages = [
 	"http",
 	"template",
 	"package-manager",
+
+	// Tier 1.5 — depends on tier 1 (ui depends on print)
+	"ui",
 
 	// Tier 2 — depends on tier 1
 	"core",
@@ -57,7 +59,6 @@ if (cleanOnly) {
 }
 
 // Build each package
-let failed = false;
 for (const pkg of packages) {
 	const pkgDir = join(ROOT, "packages", pkg);
 	const buildConfig = join(pkgDir, "tsconfig.build.json");
@@ -86,15 +87,11 @@ for (const pkg of packages) {
 		console.log(` FAIL`);
 		if (stdout.trim()) console.error(stdout);
 		if (stderr.trim()) console.error(stderr);
-		failed = true;
+		console.error(`\nBuild failed at @seedcli/${pkg}.`);
+		process.exit(1);
 	} else {
 		console.log(` OK`);
 	}
 }
 
-if (failed) {
-	console.error("\nBuild failed.");
-	process.exit(1);
-} else {
-	console.log("\nAll packages built successfully.");
-}
+console.log("\nAll packages built successfully.");

@@ -29,43 +29,79 @@ describe("patching", () => {
 		test("replaces text", async () => {
 			const file = await writeFile("test.txt", "Hello World");
 			const result = await patch(file, { replace: "World", insert: "Bun" });
-			expect(result).toBe(true);
+			expect(result.changed).toBe(true);
+			expect(result.content).toBe("Hello Bun");
 			expect(await readFile(file)).toBe("Hello Bun");
 		});
 
 		test("replaces with regex", async () => {
 			const file = await writeFile("test.txt", "version: 1.0.0");
 			const result = await patch(file, { replace: /\d+\.\d+\.\d+/, insert: "2.0.0" });
-			expect(result).toBe(true);
+			expect(result.changed).toBe(true);
 			expect(await readFile(file)).toBe("version: 2.0.0");
 		});
 
 		test("inserts before pattern", async () => {
 			const file = await writeFile("test.txt", "line1\nline3\n");
 			const result = await patch(file, { before: "line3", insert: "line2\n" });
-			expect(result).toBe(true);
+			expect(result.changed).toBe(true);
 			expect(await readFile(file)).toBe("line1\nline2\nline3\n");
 		});
 
 		test("inserts after pattern", async () => {
 			const file = await writeFile("test.txt", "line1\nline2\n");
 			const result = await patch(file, { after: "line1\n", insert: "line1.5\n" });
-			expect(result).toBe(true);
+			expect(result.changed).toBe(true);
 			expect(await readFile(file)).toBe("line1\nline1.5\nline2\n");
 		});
 
 		test("deletes pattern", async () => {
 			const file = await writeFile("test.txt", "keep remove keep");
 			const result = await patch(file, { delete: "remove " });
-			expect(result).toBe(true);
+			expect(result.changed).toBe(true);
 			expect(await readFile(file)).toBe("keep keep");
 		});
 
-		test("returns false if pattern not found", async () => {
+		test("returns unchanged result if pattern not found", async () => {
 			const file = await writeFile("test.txt", "Hello World");
 			const result = await patch(file, { replace: "missing", insert: "replaced" });
-			expect(result).toBe(false);
+			expect(result.changed).toBe(false);
+			expect(result.content).toBe("Hello World");
 			expect(await readFile(file)).toBe("Hello World");
+		});
+
+		test("result.content matches file content after replace patch", async () => {
+			const file = await writeFile("test.txt", "Hello World");
+			const result = await patch(file, { replace: "World", insert: "Universe" });
+			expect(result.changed).toBe(true);
+			const fileContent = await readFile(file);
+			expect(result.content).toBe(fileContent);
+			expect(result.content).toBe("Hello Universe");
+		});
+
+		test("result.content matches file content after before-insert patch", async () => {
+			const file = await writeFile("test.txt", "line1\nline3\n");
+			const result = await patch(file, { before: "line3", insert: "line2\n" });
+			expect(result.changed).toBe(true);
+			const fileContent = await readFile(file);
+			expect(result.content).toBe(fileContent);
+		});
+
+		test("result.content matches file content after after-insert patch", async () => {
+			const file = await writeFile("test.txt", "line1\nline2\n");
+			const result = await patch(file, { after: "line1\n", insert: "line1.5\n" });
+			expect(result.changed).toBe(true);
+			const fileContent = await readFile(file);
+			expect(result.content).toBe(fileContent);
+		});
+
+		test("result.content matches file content after delete patch", async () => {
+			const file = await writeFile("test.txt", "keep remove keep");
+			const result = await patch(file, { delete: "remove " });
+			expect(result.changed).toBe(true);
+			const fileContent = await readFile(file);
+			expect(result.content).toBe(fileContent);
+			expect(result.content).toBe("keep keep");
 		});
 	});
 

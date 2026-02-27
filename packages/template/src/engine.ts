@@ -21,9 +21,21 @@ export async function renderFile(
 	filePath: string,
 	props?: Record<string, unknown>,
 ): Promise<string> {
-	const file = Bun.file(filePath);
-	const content = await file.text();
-	return renderString(content, props);
+	let content: string;
+	try {
+		const file = Bun.file(filePath);
+		content = await file.text();
+	} catch (err) {
+		throw new Error(`Template file not found: "${filePath}"`, { cause: err });
+	}
+	try {
+		return await renderString(content, props);
+	} catch (err) {
+		throw new Error(
+			`Template rendering failed for "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
+			{ cause: err },
+		);
+	}
 }
 
 export async function render(options: RenderOptions): Promise<string> {

@@ -11,8 +11,8 @@ export interface AutoDiscoveryResult {
 export class DiscoveryError extends Error {
 	readonly filePath: string;
 
-	constructor(message: string, filePath: string) {
-		super(message);
+	constructor(message: string, filePath: string, options?: ErrorOptions) {
+		super(message, options);
 		this.name = "DiscoveryError";
 		this.filePath = filePath;
 	}
@@ -33,7 +33,9 @@ async function importModule(filePath: string): Promise<unknown> {
 		return mod.default ?? mod;
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
-		throw new DiscoveryError(`Failed to import "${filePath}": ${message}`, filePath);
+		throw new DiscoveryError(`Failed to import "${filePath}": ${message}`, filePath, {
+			cause: err,
+		});
 	}
 }
 
@@ -43,6 +45,44 @@ function shouldSkip(filename: string): boolean {
 
 function assignName(obj: Record<string, unknown>, name: string): void {
 	if (!obj.name) obj.name = name;
+}
+
+function ensureSubcommands(cmd: Command): Command[] {
+	const record = cmd as unknown as Record<string, unknown>;
+	if (!record.subcommands) record.subcommands = [];
+	return record.subcommands as Command[];
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function warnInvalidCommand(filePath: string, mod: unknown): boolean {
+	if (!isObject(mod)) {
+		console.warn(
+			`[seedcli] Skipping "${filePath}": expected a command object (default export), got ${typeof mod}`,
+		);
+		return true;
+	}
+	if (typeof mod.run !== "function" && !mod.subcommands) {
+		console.warn(`[seedcli] Skipping "${filePath}": command has no "run" handler or "subcommands"`);
+		return true;
+	}
+	return false;
+}
+
+function warnInvalidExtension(filePath: string, mod: unknown): boolean {
+	if (!isObject(mod)) {
+		console.warn(
+			`[seedcli] Skipping "${filePath}": expected an extension object (default export), got ${typeof mod}`,
+		);
+		return true;
+	}
+	if (typeof mod.setup !== "function") {
+		console.warn(`[seedcli] Skipping "${filePath}": extension is missing a "setup" function`);
+		return true;
+	}
+	return false;
 }
 
 /**
@@ -63,6 +103,13 @@ export async function discoverCommands(baseDir: string): Promise<Command[]> {
 		const normalized = match.replaceAll("\\", "/");
 		const parts = normalized.split("/");
 		if (parts.some(shouldSkip)) continue;
+		// Skip declaration files and test files
+		if (
+			normalized.endsWith(".d.ts") ||
+			normalized.endsWith(".test.ts") ||
+			normalized.endsWith(".spec.ts")
+		)
+			continue;
 		files.push(normalized);
 	}
 
@@ -73,11 +120,23 @@ export async function discoverCommands(baseDir: string): Promise<Command[]> {
 
 	for (const file of files) {
 		const fullPath = join(commandsDir, file);
-		const mod = await importModule(fullPath);
-		const cmd = mod as Command;
-		const record = cmd as unknown as Record<string, unknown>;
+
+		let mod: unknown;
+		try {
+			mod = await importModule(fullPath);
+		} catch (err) {
+			console.warn(`[seedcli] ${err instanceof Error ? err.message : String(err)}`);
+			continue;
+		}
 
 		const segments = file.replace(/\.ts$/, "").split("/");
+		const isIndex = segments[segments.length - 1] === "index";
+
+		// Validate exports (skip index files that may just define parent metadata)
+		if (!isIndex && warnInvalidCommand(fullPath, mod)) continue;
+
+		const cmd = mod as Command;
+		const record = cmd as unknown as Record<string, unknown>;
 
 		if (segments.length === 1) {
 			// Top-level command
@@ -86,35 +145,71 @@ export async function discoverCommands(baseDir: string): Promise<Command[]> {
 			assignName(record, name);
 			tree.set(name, cmd);
 		} else {
-			// Nested: first segment is parent dir, rest form the path
-			const parentName = segments[0];
-			const childName = segments[segments.length - 1];
-			const isIndex = childName === "index";
+			// Nested: walk the segment path to build the subcommand tree
+			// e.g. ["db", "migrate", "up"] → db.subcommands.migrate.subcommands.up
+			const leafName = segments[segments.length - 1];
+			const isIndex = leafName === "index";
+
+			// Determine which segments form the directory path
+			const dirSegments = isIndex ? segments.slice(0, -1) : segments.slice(0, -1);
+			const topName = dirSegments[0];
+
+			// Ensure top-level parent exists in the tree
+			if (!tree.has(topName)) {
+				tree.set(topName, { name: topName } as Command);
+			}
 
 			if (isIndex) {
-				// index.ts defines the parent command
-				assignName(record, parentName);
-				const existing = tree.get(parentName);
-				if (existing) {
-					// Merge: keep existing subcommands
-					const subs = existing.subcommands ?? [];
-					Object.assign(cmd, { subcommands: [...(cmd.subcommands ?? []), ...subs] });
+				// index.ts defines metadata for the command at this directory level
+				const targetName = dirSegments[dirSegments.length - 1];
+				assignName(record, targetName);
+
+				if (dirSegments.length === 1) {
+					// Top-level index: merge into tree entry
+					const existing = tree.get(topName);
+					const existingSubs = existing?.subcommands ?? [];
+					const merged = { ...cmd, subcommands: [...(cmd.subcommands ?? []), ...existingSubs] };
+					tree.set(topName, merged as Command);
+				} else {
+					// Nested index: walk to parent, then replace the placeholder
+					// biome-ignore lint/style/noNonNullAssertion: topName was set above
+					let parent = tree.get(topName)!;
+					for (let i = 1; i < dirSegments.length - 1; i++) {
+						const parentSubs = ensureSubcommands(parent);
+						let child = parentSubs.find((s) => s.name === dirSegments[i]);
+						if (!child) {
+							child = { name: dirSegments[i] } as Command;
+							parentSubs.push(child);
+						}
+						parent = child;
+					}
+					const parentSubs = ensureSubcommands(parent);
+					const idx = parentSubs.findIndex((s) => s.name === targetName);
+					if (idx >= 0) {
+						// Merge: keep existing subcommands from the placeholder
+						const existingSubs = parentSubs[idx].subcommands ?? [];
+						Object.assign(cmd, { subcommands: [...(cmd.subcommands ?? []), ...existingSubs] });
+						parentSubs[idx] = cmd;
+					} else {
+						parentSubs.push(cmd);
+					}
 				}
-				tree.set(parentName, cmd);
 			} else {
-				// Regular file becomes a subcommand
-				assignName(record, childName);
+				// Regular file: walk to the parent directory and add as subcommand
+				assignName(record, leafName);
 
-				let parent = tree.get(parentName);
-				if (!parent) {
-					// Auto-create minimal parent
-					parent = { name: parentName } as Command;
-					tree.set(parentName, parent);
+				// biome-ignore lint/style/noNonNullAssertion: topName was set above
+				let current = tree.get(topName)!;
+				for (let i = 1; i < dirSegments.length; i++) {
+					const subs = ensureSubcommands(current);
+					let child = subs.find((s) => s.name === dirSegments[i]);
+					if (!child) {
+						child = { name: dirSegments[i] } as Command;
+						subs.push(child);
+					}
+					current = child;
 				}
-
-				const subs = (parent.subcommands ?? []) as Command[];
-				subs.push(cmd);
-				(parent as unknown as Record<string, unknown>).subcommands = subs;
+				ensureSubcommands(current).push(cmd);
 			}
 		}
 	}
@@ -138,7 +233,17 @@ export async function discoverExtensions(baseDir: string): Promise<ExtensionConf
 		if (shouldSkip(match)) continue;
 
 		const fullPath = join(extensionsDir, match);
-		const mod = await importModule(fullPath);
+
+		let mod: unknown;
+		try {
+			mod = await importModule(fullPath);
+		} catch (err) {
+			console.warn(`[seedcli] ${err instanceof Error ? err.message : String(err)}`);
+			continue;
+		}
+
+		if (warnInvalidExtension(fullPath, mod)) continue;
+
 		const ext = mod as ExtensionConfig;
 		const name = basename(match, ".ts");
 

@@ -33,6 +33,7 @@ describe("create-seedcli templates", () => {
 				seedcliVersion: PKG_VERSION,
 				includeExamples: true,
 			},
+			rename: { gitignore: ".gitignore" },
 		});
 
 		// Check all expected files exist
@@ -43,6 +44,7 @@ describe("create-seedcli templates", () => {
 		expect(existsSync(join(targetDir, "bunfig.toml"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/index.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/commands/hello.ts"))).toBe(true);
+		expect(existsSync(join(targetDir, "src/extensions/timer.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, "tests/hello.test.ts"))).toBe(true);
 
 		// Check template variables were interpolated
@@ -74,6 +76,7 @@ describe("create-seedcli templates", () => {
 				version: "0.0.1",
 				seedcliVersion: PKG_VERSION,
 			},
+			rename: { gitignore: ".gitignore" },
 		});
 
 		// Check files
@@ -81,10 +84,11 @@ describe("create-seedcli templates", () => {
 		expect(existsSync(join(targetDir, "tsconfig.json"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/index.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, ".gitignore"))).toBe(true);
+		expect(existsSync(join(targetDir, "bunfig.toml"))).toBe(true);
+		expect(existsSync(join(targetDir, "tests/index.test.ts"))).toBe(true);
 
 		// No full-template extras
 		expect(existsSync(join(targetDir, "seed.config.ts"))).toBe(false);
-		expect(existsSync(join(targetDir, "tests"))).toBe(false);
 
 		// Check template variables
 		const pkg = await Bun.file(join(targetDir, "package.json")).json();
@@ -92,6 +96,8 @@ describe("create-seedcli templates", () => {
 		expect(pkg.dependencies["@seedcli/core"]).toBeDefined();
 		// Minimal has @seedcli/cli devDep for build/compile scripts
 		expect(pkg.devDependencies["@seedcli/cli"]).toBeDefined();
+		expect(pkg.devDependencies["@seedcli/testing"]).toBeUndefined();
+		expect(pkg.scripts.test).toBe("bun test");
 
 		const indexTs = await Bun.file(join(targetDir, "src/index.ts")).text();
 		expect(indexTs).toContain('build("mini-cli")');
@@ -111,6 +117,7 @@ describe("create-seedcli templates", () => {
 				version: "0.0.1",
 				seedcliVersion: PKG_VERSION,
 			},
+			rename: { gitignore: ".gitignore" },
 		});
 
 		// Check all expected files exist
@@ -191,6 +198,7 @@ describe("create-seedcli templates", () => {
 				seedcliVersion: PKG_VERSION,
 				includeExamples: true,
 			},
+			rename: { gitignore: ".gitignore" },
 		});
 
 		// Ensure no Eta syntax remains in output files
@@ -198,6 +206,7 @@ describe("create-seedcli templates", () => {
 			"package.json",
 			"src/index.ts",
 			"src/commands/hello.ts",
+			"src/extensions/timer.ts",
 			"seed.config.ts",
 			"tsconfig.json",
 		];

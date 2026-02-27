@@ -39,9 +39,9 @@ export {
 	validatePlugin,
 	validateSeedcliVersion,
 } from "./plugin/validator.js";
-export type { BuilderConfig, ConfigOptions, PluginScanOptions } from "./runtime/builder.js";
+export type { BuilderConfig, PluginScanOptions } from "./runtime/builder.js";
 // ─── Runtime ───
-export { build } from "./runtime/builder.js";
+export { Builder, build } from "./runtime/builder.js";
 export type { RunConfig } from "./runtime/runtime.js";
 export { Runtime, registerModule, run } from "./runtime/runtime.js";
 // ─── Factory Functions ───
@@ -59,6 +59,7 @@ export type {
 	CommandConfig,
 	// Extension
 	ExtensionConfig,
+	ExtensionToolbox,
 	FlagDef,
 	FlagType,
 	InferArgs,

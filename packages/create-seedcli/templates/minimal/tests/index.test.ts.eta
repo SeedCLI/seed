@@ -1,0 +1,15 @@
+import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
+
+describe("<%= it.name %>", () => {
+	test("hello command prints greeting", async () => {
+		const proc = Bun.spawn(["bun", "run", join(import.meta.dir, "..", "src", "index.ts"), "hello"], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		const stdout = await new Response(proc.stdout).text();
+		await proc.exited;
+
+		expect(stdout).toContain("Hello from <%= it.name %>!");
+	});
+});

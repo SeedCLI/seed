@@ -3,6 +3,8 @@ import {
 	bump,
 	clean,
 	coerce,
+	compare,
+	diff,
 	eq,
 	gt,
 	gte,
@@ -132,6 +134,84 @@ describe("semver", () => {
 
 		test("returns null when none satisfy", () => {
 			expect(maxSatisfying(["1.0.0"], "^2.0.0")).toBeNull();
+		});
+	});
+
+	describe("ensureValid throws on invalid semver", () => {
+		test("gt throws on invalid first argument", () => {
+			expect(() => gt("not-semver", "1.0.0")).toThrow('gt(): "not-semver" is not valid semver');
+		});
+
+		test("gt throws on invalid second argument", () => {
+			expect(() => gt("1.0.0", "garbage")).toThrow('gt(): "garbage" is not valid semver');
+		});
+
+		test("lt throws on invalid input", () => {
+			expect(() => lt("bad", "1.0.0")).toThrow('lt(): "bad" is not valid semver');
+		});
+
+		test("eq throws on invalid input", () => {
+			expect(() => eq("1.2", "1.0.0")).toThrow('eq(): "1.2" is not valid semver');
+		});
+
+		test("gte throws on invalid input", () => {
+			expect(() => gte("nope", "1.0.0")).toThrow('gte(): "nope" is not valid semver');
+		});
+
+		test("lte throws on invalid input", () => {
+			expect(() => lte("1.0.0", "x.y.z")).toThrow('lte(): "x.y.z" is not valid semver');
+		});
+
+		test("major throws on invalid input", () => {
+			expect(() => major("not-a-version")).toThrow('major(): "not-a-version" is not valid semver');
+		});
+
+		test("minor throws on invalid input", () => {
+			expect(() => minor("abc")).toThrow('minor(): "abc" is not valid semver');
+		});
+
+		test("patch throws on invalid input", () => {
+			expect(() => patch("xyz")).toThrow('patch(): "xyz" is not valid semver');
+		});
+	});
+
+	describe("compare", () => {
+		test("returns -1 when v1 < v2", () => {
+			expect(compare("1.0.0", "2.0.0")).toBe(-1);
+		});
+
+		test("returns 0 when v1 == v2", () => {
+			expect(compare("1.0.0", "1.0.0")).toBe(0);
+		});
+
+		test("returns 1 when v1 > v2", () => {
+			expect(compare("2.0.0", "1.0.0")).toBe(1);
+		});
+
+		test("throws on invalid input", () => {
+			expect(() => compare("bad", "1.0.0")).toThrow('compare(): "bad" is not valid semver');
+		});
+	});
+
+	describe("diff", () => {
+		test("returns major for major difference", () => {
+			expect(diff("1.0.0", "2.0.0")).toBe("major");
+		});
+
+		test("returns minor for minor difference", () => {
+			expect(diff("1.0.0", "1.1.0")).toBe("minor");
+		});
+
+		test("returns patch for patch difference", () => {
+			expect(diff("1.0.0", "1.0.1")).toBe("patch");
+		});
+
+		test("returns null for equal versions", () => {
+			expect(diff("1.0.0", "1.0.0")).toBeNull();
+		});
+
+		test("throws on invalid input", () => {
+			expect(() => diff("garbage", "1.0.0")).toThrow('diff(): "garbage" is not valid semver');
 		});
 	});
 });

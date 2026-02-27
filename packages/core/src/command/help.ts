@@ -1,6 +1,16 @@
 import type { ArgDef, FlagDef } from "../types/args.js";
 import type { Command } from "../types/command.js";
 
+// ─── ANSI helpers (zero-dependency) ───
+
+const supportsColor =
+	process.env.FORCE_COLOR !== undefined ||
+	(process.stdout.isTTY === true && process.env.NO_COLOR === undefined);
+const bold = (s: string) => (supportsColor ? `\x1b[1m${s}\x1b[0m` : s);
+const dim = (s: string) => (supportsColor ? `\x1b[2m${s}\x1b[0m` : s);
+const cyan = (s: string) => (supportsColor ? `\x1b[36m${s}\x1b[0m` : s);
+const yellow = (s: string) => (supportsColor ? `\x1b[33m${s}\x1b[0m` : s);
+
 // ─── Help Options ───
 
 export interface HelpOptions {
@@ -16,6 +26,8 @@ export interface HelpOptions {
 	brand?: string;
 	/** CLI version */
 	version?: string;
+	/** Whether --version flag is enabled (default: true) */
+	versionEnabled?: boolean;
 }
 
 // ─── Help Renderer ───
@@ -54,16 +66,16 @@ export function renderGlobalHelp(commands: Command[], options: HelpOptions = {})
 
 	// Header
 	if (header) {
-		lines.push(header);
+		lines.push(bold(header));
 	} else if (version) {
-		lines.push(`${brand} v${version}`);
+		lines.push(bold(`${brand} v${version}`));
 	} else {
-		lines.push(brand);
+		lines.push(bold(brand));
 	}
 	lines.push("");
 
 	// Usage
-	lines.push("USAGE");
+	lines.push(bold(yellow("USAGE")));
 	lines.push(`  ${brand} <command> [options]`);
 	lines.push("");
 
@@ -74,10 +86,11 @@ export function renderGlobalHelp(commands: Command[], options: HelpOptions = {})
 	}
 
 	if (visibleCmds.length > 0) {
-		lines.push("COMMANDS");
+		lines.push(bold(yellow("COMMANDS")));
 
 		// Calculate padding for alignment
 		const maxNameLen = Math.max(
+			0,
 			...visibleCmds.map((cmd) => formatCommandName(cmd, showAliases).length),
 		);
 
@@ -85,15 +98,17 @@ export function renderGlobalHelp(commands: Command[], options: HelpOptions = {})
 			const name = formatCommandName(cmd, showAliases);
 			const padding = " ".repeat(Math.max(2, maxNameLen - name.length + 4));
 			const desc = cmd.description ?? "";
-			lines.push(`  ${name}${padding}${desc}`);
+			lines.push(`  ${cyan(name)}${padding}${dim(desc)}`);
 		}
 		lines.push("");
 	}
 
 	// Global flags
-	lines.push("FLAGS");
-	lines.push("  --help, -h       Show help");
-	lines.push("  --version, -v    Show version");
+	lines.push(bold(yellow("FLAGS")));
+	lines.push(`  ${cyan("--help, -h")}       Show help`);
+	if (options.versionEnabled !== false) {
+		lines.push(`  ${cyan("--version, -v")}    Show version`);
+	}
 	lines.push("");
 
 	return lines.join("\n");
@@ -127,33 +142,33 @@ export function renderCommandHelp(cmd: Command, options: HelpOptions = {}): stri
 
 	// Description
 	if (cmd.description) {
-		lines.push(cmd.description);
+		lines.push(bold(cmd.description));
 		lines.push("");
 	}
 
 	// Aliases
 	if (showAliases && cmd.alias && cmd.alias.length > 0) {
-		lines.push(`ALIASES`);
+		lines.push(bold(yellow("ALIASES")));
 		lines.push(`  ${cmd.alias.join(", ")}`);
 		lines.push("");
 	}
 
 	// Usage line
-	lines.push("USAGE");
+	lines.push(bold(yellow("USAGE")));
 	lines.push(`  ${brand} ${buildUsageLine(cmd)}`);
 	lines.push("");
 
 	// Arguments
 	const argEntries = Object.entries(cmd.args ?? {});
 	if (argEntries.length > 0) {
-		lines.push("ARGUMENTS");
+		lines.push(bold(yellow("ARGUMENTS")));
 
-		const maxNameLen = Math.max(...argEntries.map(([name]) => name.length));
+		const maxNameLen = Math.max(0, ...argEntries.map(([name]) => name.length));
 
 		for (const [name, def] of argEntries) {
 			const padding = " ".repeat(Math.max(2, maxNameLen - name.length + 4));
 			const meta = formatArgMeta(def);
-			lines.push(`  ${name}${padding}${meta}`);
+			lines.push(`  ${cyan(name)}${padding}${dim(meta)}`);
 		}
 		lines.push("");
 	}
@@ -161,18 +176,18 @@ export function renderCommandHelp(cmd: Command, options: HelpOptions = {}): stri
 	// Flags
 	const flagEntries = Object.entries(cmd.flags ?? {}).filter(([, def]) => !def.hidden);
 	if (flagEntries.length > 0) {
-		lines.push("FLAGS");
+		lines.push(bold(yellow("FLAGS")));
 
 		const formattedFlags = flagEntries.map(([name, def]) => ({
 			label: formatFlagLabel(name, def),
 			meta: formatFlagMeta(def),
 		}));
 
-		const maxLabelLen = Math.max(...formattedFlags.map((f) => f.label.length));
+		const maxLabelLen = Math.max(0, ...formattedFlags.map((f) => f.label.length));
 
 		for (const { label, meta } of formattedFlags) {
 			const padding = " ".repeat(Math.max(2, maxLabelLen - label.length + 4));
-			lines.push(`  ${label}${padding}${meta}`);
+			lines.push(`  ${cyan(label)}${padding}${dim(meta)}`);
 		}
 		lines.push("");
 	}
@@ -180,14 +195,14 @@ export function renderCommandHelp(cmd: Command, options: HelpOptions = {}): stri
 	// Subcommands
 	const subcommands = (cmd.subcommands ?? []).filter((sub) => showHidden || !sub.hidden);
 	if (subcommands.length > 0) {
-		lines.push("SUBCOMMANDS");
+		lines.push(bold(yellow("SUBCOMMANDS")));
 
-		const maxNameLen = Math.max(...subcommands.map((sub) => sub.name.length));
+		const maxNameLen = Math.max(0, ...subcommands.map((sub) => sub.name.length));
 
 		for (const sub of subcommands) {
 			const padding = " ".repeat(Math.max(2, maxNameLen - sub.name.length + 4));
 			const desc = sub.description ?? "";
-			lines.push(`  ${sub.name}${padding}${desc}`);
+			lines.push(`  ${cyan(sub.name)}${padding}${dim(desc)}`);
 		}
 		lines.push("");
 	}

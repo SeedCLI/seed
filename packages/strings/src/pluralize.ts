@@ -55,10 +55,24 @@ const uncountable = new Set([
 	"music",
 ]);
 
-// ─── Plural rules (order matters — more specific first) ───
+// ─── Helpers ───
+
+/**
+ * Match the casing pattern of `original` onto `replacement`.
+ * Handles: all-uppercase, first-letter-uppercase, and lowercase.
+ */
+function matchCase(original: string, replacement: string): string {
+	if (original.length === 0) return replacement;
+	if (original === original.toUpperCase()) return replacement.toUpperCase();
+	if (original[0] === original[0].toUpperCase()) {
+		return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+	}
+	return replacement;
+}
+
+// ─── Plural rules (order matters — more specific first, generic fallbacks last) ───
 
 const pluralRules: [RegExp, string][] = [
-	[/s$/i, "ses"],
 	[/(ax|test)is$/i, "$1es"],
 	[/(octop|vir)us$/i, "$1i"],
 	[/(alias|status)$/i, "$1es"],
@@ -71,16 +85,15 @@ const pluralRules: [RegExp, string][] = [
 	[/([^aeiouy]|qu)y$/i, "$1ies"],
 	[/(x|ch|ss|sh)$/i, "$1es"],
 	[/(matr|vert|append)ix$/i, "$1ices"],
+	[/s$/i, "ses"],
 	[/$/, "s"],
 ];
 
 const singularRules: [RegExp, string][] = [
-	[/ses$/i, "s"],
 	[/(n)ews$/i, "$1ews"],
 	[/([dti])a$/i, "$1um"],
 	[/((a)naly|(b)a|(d)iagno|(p)arenthe|(p)rogno|(s)ynop|(t)he)ses$/i, "$1$2sis"],
 	[/(^analy)ses$/i, "$1sis"],
-	[/([^f])ves$/i, "$1fe"],
 	[/(hive)s$/i, "$1"],
 	[/(tive)s$/i, "$1"],
 	[/([lr])ves$/i, "$1f"],
@@ -95,20 +108,23 @@ const singularRules: [RegExp, string][] = [
 	[/(cris|ax|test)es$/i, "$1is"],
 	[/(octop|vir)i$/i, "$1us"],
 	[/(alias|status)es$/i, "$1"],
-	[/^(ox)en/i, "$1"],
+	[/^(ox)en$/i, "$1"],
 	[/(vert|ind)ices$/i, "$1ex"],
 	[/(matr)ices$/i, "$1ix"],
 	[/(quiz)zes$/i, "$1"],
+	[/sses$/i, "ss"],
+	[/ses$/i, "se"],
 	[/s$/i, ""],
 ];
 
 export function plural(str: string): string {
+	if (str.length === 0) return str;
 	const lower = str.toLowerCase();
 
 	if (uncountable.has(lower)) return str;
 
 	const irregular = singularToPlural.get(lower);
-	if (irregular) return irregular;
+	if (irregular) return matchCase(str, irregular);
 
 	for (const [rule, replacement] of pluralRules) {
 		if (rule.test(str)) {
@@ -120,12 +136,13 @@ export function plural(str: string): string {
 }
 
 export function singular(str: string): string {
+	if (str.length === 0) return str;
 	const lower = str.toLowerCase();
 
 	if (uncountable.has(lower)) return str;
 
 	const irregular = pluralToSingular.get(lower);
-	if (irregular) return irregular;
+	if (irregular) return matchCase(str, irregular);
 
 	for (const [rule, replacement] of singularRules) {
 		if (rule.test(str)) {
@@ -137,9 +154,9 @@ export function singular(str: string): string {
 }
 
 export function isPlural(str: string): boolean {
-	return plural(singular(str)) === str.toLowerCase();
+	return plural(singular(str)).toLowerCase() === str.toLowerCase();
 }
 
 export function isSingular(str: string): boolean {
-	return singular(str) === str.toLowerCase();
+	return singular(str).toLowerCase() === str.toLowerCase();
 }

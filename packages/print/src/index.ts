@@ -28,4 +28,4 @@ export type { Alignment, BorderStyle, ColumnConfig, TableOptions } from "./table
 export { table } from "./table.js";
 export type { TreeNode, TreeOptions } from "./tree.js";
 export { tree } from "./tree.js";
-export type { PrintModule } from "./types.js";
+export type { ColumnOptions, PrintModule } from "./types.js";

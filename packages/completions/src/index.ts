@@ -10,4 +10,5 @@ export type {
 	CompletionInfo,
 	ShellType,
 } from "./types.js";
+export { escapeShellDescription, sanitizeShellToken } from "./types.js";
 export { zsh } from "./zsh.js";

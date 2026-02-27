@@ -82,9 +82,19 @@ export interface Command {
  * });
  * ```
  */
+const COMMAND_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+
 export function command<
 	TArgs extends Record<string, ArgDef>,
 	TFlags extends Record<string, FlagDef>,
 >(config: CommandConfig<TArgs, TFlags>): Command {
+	if (!config.name || config.name.trim() === "") {
+		throw new Error("Command name cannot be empty");
+	}
+	if (!COMMAND_NAME_PATTERN.test(config.name)) {
+		throw new Error(
+			`Invalid command name "${config.name}". Command names must be lowercase alphanumeric with hyphens (e.g., "deploy", "db-migrate").`,
+		);
+	}
 	return config as unknown as Command;
 }

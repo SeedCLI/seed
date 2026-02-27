@@ -21,24 +21,30 @@ export function satisfies(version: string, range: string): boolean {
 	return semverLib.satisfies(version, range);
 }
 
+function ensureValid(version: string, fn: string): string {
+	const v = semverLib.valid(version);
+	if (!v) throw new Error(`${fn}(): "${version}" is not valid semver`);
+	return v;
+}
+
 export function gt(v1: string, v2: string): boolean {
-	return semverLib.gt(v1, v2);
+	return semverLib.gt(ensureValid(v1, "gt"), ensureValid(v2, "gt"));
 }
 
 export function gte(v1: string, v2: string): boolean {
-	return semverLib.gte(v1, v2);
+	return semverLib.gte(ensureValid(v1, "gte"), ensureValid(v2, "gte"));
 }
 
 export function lt(v1: string, v2: string): boolean {
-	return semverLib.lt(v1, v2);
+	return semverLib.lt(ensureValid(v1, "lt"), ensureValid(v2, "lt"));
 }
 
 export function lte(v1: string, v2: string): boolean {
-	return semverLib.lte(v1, v2);
+	return semverLib.lte(ensureValid(v1, "lte"), ensureValid(v2, "lte"));
 }
 
 export function eq(v1: string, v2: string): boolean {
-	return semverLib.eq(v1, v2);
+	return semverLib.eq(ensureValid(v1, "eq"), ensureValid(v2, "eq"));
 }
 
 export function bump(version: string, release: ReleaseType, identifier?: string): string | null {
@@ -51,15 +57,15 @@ export function coerce(version: string): string | null {
 }
 
 export function major(version: string): number {
-	return semverLib.major(version);
+	return semverLib.major(ensureValid(version, "major"));
 }
 
 export function minor(version: string): number {
-	return semverLib.minor(version);
+	return semverLib.minor(ensureValid(version, "minor"));
 }
 
 export function patch(version: string): number {
-	return semverLib.patch(version);
+	return semverLib.patch(ensureValid(version, "patch"));
 }
 
 export function prerelease(version: string): ReadonlyArray<string | number> | null {
@@ -79,7 +85,7 @@ export function maxSatisfying(versions: string[], range: string): string | null 
  * Returns -1 if v1 < v2, 0 if v1 == v2, 1 if v1 > v2.
  */
 export function compare(v1: string, v2: string): -1 | 0 | 1 {
-	return semverLib.compare(v1, v2);
+	return semverLib.compare(ensureValid(v1, "compare"), ensureValid(v2, "compare"));
 }
 
 /**
@@ -87,5 +93,5 @@ export function compare(v1: string, v2: string): -1 | 0 | 1 {
  * Returns null if the versions are the same.
  */
 export function diff(v1: string, v2: string): ReleaseType | null {
-	return semverLib.diff(v1, v2) as ReleaseType | null;
+	return semverLib.diff(ensureValid(v1, "diff"), ensureValid(v2, "diff")) as ReleaseType | null;
 }

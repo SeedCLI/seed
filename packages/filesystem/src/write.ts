@@ -3,6 +3,9 @@ import { dirname } from "node:path";
 import type { JsonWriteOptions } from "./types.js";
 
 export async function write(filePath: string, content: string | Buffer): Promise<void> {
+	if (!filePath) {
+		throw new Error("write() requires a non-empty file path");
+	}
 	await mkdir(dirname(filePath), { recursive: true });
 	await Bun.write(filePath, content);
 }

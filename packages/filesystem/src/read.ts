@@ -12,10 +12,13 @@ function handleError(err: unknown, filePath: string): never {
 	throw err;
 }
 
-export async function read(filePath: string, _encoding?: BufferEncoding): Promise<string> {
+export async function read(filePath: string, encoding?: BufferEncoding): Promise<string> {
 	try {
 		const file = Bun.file(filePath);
-		// Bun.file().text() always returns UTF-8; encoding param reserved for future use
+		if (encoding && encoding !== "utf-8" && encoding !== "utf8") {
+			const buf = await file.arrayBuffer();
+			return new TextDecoder(encoding).decode(buf);
+		}
 		return await file.text();
 	} catch (err) {
 		return handleError(err, filePath);
@@ -24,7 +27,14 @@ export async function read(filePath: string, _encoding?: BufferEncoding): Promis
 
 export async function readJson<T = unknown>(filePath: string): Promise<T> {
 	const content = await read(filePath);
-	return JSON.parse(content) as T;
+	try {
+		return JSON.parse(content) as T;
+	} catch (err) {
+		throw new Error(
+			`Failed to parse JSON in "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
+			{ cause: err },
+		);
+	}
 }
 
 export async function readBuffer(filePath: string): Promise<Buffer> {
@@ -39,11 +49,25 @@ export async function readBuffer(filePath: string): Promise<Buffer> {
 
 export async function readToml<T = unknown>(filePath: string): Promise<T> {
 	const content = await read(filePath);
-	return Bun.TOML.parse(content) as T;
+	try {
+		return Bun.TOML.parse(content) as T;
+	} catch (err) {
+		throw new Error(
+			`Failed to parse TOML in "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
+			{ cause: err },
+		);
+	}
 }
 
 export async function readYaml<T = unknown>(filePath: string): Promise<T> {
 	const { parse } = await import("yaml");
 	const content = await read(filePath);
-	return parse(content) as T;
+	try {
+		return parse(content) as T;
+	} catch (err) {
+		throw new Error(
+			`Failed to parse YAML in "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
+			{ cause: err },
+		);
+	}
 }

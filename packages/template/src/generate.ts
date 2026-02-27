@@ -1,10 +1,15 @@
 import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, isAbsolute } from "node:path";
 import { renderFile } from "./engine.js";
 import type { GenerateOptions } from "./types.js";
 
 export async function generate(options: GenerateOptions): Promise<string> {
 	const { template, target, props } = options;
+
+	// Validate target path
+	if (!isAbsolute(target)) {
+		throw new Error(`Target path must be absolute: "${target}"`);
+	}
 
 	if (!options.overwrite) {
 		const file = Bun.file(target);

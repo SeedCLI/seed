@@ -1,6 +1,26 @@
 import { join } from "node:path";
+import { load } from "@seedcli/config";
+import type { SeedConfig } from "@seedcli/core";
 
-export async function resolveEntry(cwd: string): Promise<string | null> {
+export async function resolveEntry(
+	cwd: string,
+	context: "dev" | "build" = "dev",
+): Promise<string | null> {
+	// 1. Check seed.config.ts for context-specific entry, then fallback to other
+	try {
+		const result = await load({ name: "seed", cwd });
+		const config = result.config as SeedConfig;
+		if (context === "build" && config.build?.entry) {
+			return config.build.entry;
+		}
+		if (config.dev?.entry) {
+			return config.dev.entry;
+		}
+	} catch {
+		// No config file is fine
+	}
+
+	// 2. Check package.json bin field
 	const pkgPath = join(cwd, "package.json");
 	const pkgFile = Bun.file(pkgPath);
 
@@ -19,6 +39,7 @@ export async function resolveEntry(cwd: string): Promise<string | null> {
 		}
 	}
 
+	// 3. Fall back to common defaults
 	const defaults = ["src/index.ts", "src/cli.ts", "index.ts"];
 	for (const d of defaults) {
 		if (await Bun.file(join(cwd, d)).exists()) {

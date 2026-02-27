@@ -134,15 +134,13 @@ function detectPluginsDirCalls(
 	// Match .plugins("./plugins", { matching: "pattern" }) or .plugins("./plugins")
 	const regex =
 		/\.plugins\s*\(\s*["'`]([^"'`]+)["'`](?:\s*,\s*\{[^}]*matching\s*:\s*["'`]([^"'`]+)["'`][^}]*\})?\s*\)/g;
-	let match = regex.exec(source);
 
-	while (match !== null) {
+	for (const match of source.matchAll(regex)) {
 		results.push({
 			fullMatch: match[0],
 			dir: match[1],
 			matching: match[2],
 		});
-		match = regex.exec(source);
 	}
 
 	return results;
@@ -162,56 +160,54 @@ export interface GenerateBuildEntryResult {
 }
 
 /**
- * Find which @seedcli/* runtime modules are used by the project's commands
- * and extensions. We scan the source files for toolbox property usage
- * (e.g. `print.`, `filesystem.`, `prompt.`) to determine which modules
- * are needed, then check if they're installed.
+ * Find which @seedcli/* runtime modules are installed by checking the
+ * project's package.json dependencies and verifying they exist in node_modules.
+ *
+ * The runtime's assembleToolbox() dynamically imports these modules, which the
+ * bundler can't trace. We include all installed @seedcli/* packages so the
+ * compiled binary has everything it needs.
  */
-async function getUsedSeedcliModules(cwd: string, srcDir: string): Promise<string[]> {
-	// Map toolbox property names to their package names
-	const toolboxToPackage: Record<string, string> = {
-		print: "@seedcli/print",
-		prompt: "@seedcli/prompt",
-		filesystem: "@seedcli/filesystem",
-		system: "@seedcli/system",
-		http: "@seedcli/http",
-		template: "@seedcli/template",
-		strings: "@seedcli/strings",
-		semver: "@seedcli/semver",
-		packageManager: "@seedcli/package-manager",
-		config: "@seedcli/config",
-		patching: "@seedcli/patching",
-	};
+async function getUsedSeedcliModules(cwd: string, _srcDir: string): Promise<string[]> {
+	const seedcliPackages = [
+		"@seedcli/print",
+		"@seedcli/prompt",
+		"@seedcli/filesystem",
+		"@seedcli/system",
+		"@seedcli/http",
+		"@seedcli/template",
+		"@seedcli/strings",
+		"@seedcli/semver",
+		"@seedcli/package-manager",
+		"@seedcli/config",
+		"@seedcli/patching",
+		"@seedcli/completions",
+	];
 
-	// Scan all .ts files in the src dir
-	const allFiles = await scanTsFiles(srcDir, srcDir);
-	let allSource = "";
-	for (const file of allFiles) {
-		try {
-			allSource += await Bun.file(join(srcDir, file)).text();
-		} catch {
-			// Skip unreadable files
-		}
+	// Read the project's package.json to check declared dependencies
+	let declaredDeps = new Set<string>();
+	try {
+		const pkgJson = await Bun.file(join(cwd, "package.json")).json();
+		const allDeps = {
+			...(pkgJson.dependencies ?? {}),
+			...(pkgJson.devDependencies ?? {}),
+			...(pkgJson.peerDependencies ?? {}),
+		};
+		declaredDeps = new Set(Object.keys(allDeps));
+	} catch {
+		// If we can't read package.json, fall back to checking node_modules only
 	}
 
 	const used: string[] = [];
-	for (const [prop, pkg] of Object.entries(toolboxToPackage)) {
-		// Check if the toolbox property is referenced in the source
-		// Match patterns like: toolbox.print, { print }, print.info, etc.
-		const pattern = new RegExp(`\\b${prop}\\b`);
-		if (pattern.test(allSource)) {
-			// Verify the module is actually installed
-			const modPath = join(cwd, "node_modules", ...pkg.split("/"));
-			if (await isDirectory(modPath)) {
+	for (const pkg of seedcliPackages) {
+		// Include if declared in package.json AND installed
+		const modPath = join(cwd, "node_modules", ...pkg.split("/"));
+		if (await isDirectory(modPath)) {
+			// If we have package.json, only include declared deps
+			// If we don't, include all installed ones
+			if (declaredDeps.size === 0 || declaredDeps.has(pkg)) {
 				used.push(pkg);
 			}
 		}
-	}
-
-	// Always include completions if installed (needed for completions command)
-	const completionsPath = join(cwd, "node_modules", "@seedcli", "completions");
-	if (await isDirectory(completionsPath)) {
-		used.push("@seedcli/completions");
 	}
 
 	return used;
@@ -263,14 +259,19 @@ export async function generateBuildEntry(
 	if (needsRegisterModule) {
 		// Add registerModule import if not already importing from @seedcli/core
 		if (source.includes('from "@seedcli/core"') || source.includes("from '@seedcli/core'")) {
-			// Need to add registerModule to the existing import
-			generated = generated.replace(
-				/import\s*\{([^}]+)\}\s*from\s*["']@seedcli\/core["']/,
-				(match, imports) => {
+			// Need to add registerModule to the existing value import (not `import type`)
+			// Use negative lookahead to skip type-only imports
+			const valueImportRegex = /import\s+(?!type\s)\{([\s\S]*?)\}\s*from\s*["']@seedcli\/core["']/;
+			if (valueImportRegex.test(generated)) {
+				generated = generated.replace(valueImportRegex, (match, imports: string) => {
 					if (imports.includes("registerModule")) return match;
-					return `import {${imports}, registerModule } from "@seedcli/core"`;
-				},
-			);
+					const trimmed = imports.trimEnd().replace(/,\s*$/, "");
+					return `import {${trimmed}, registerModule } from "@seedcli/core"`;
+				});
+			} else {
+				// Only type imports exist — add a separate value import
+				importLines.unshift('import { registerModule } from "@seedcli/core";');
+			}
 		} else {
 			importLines.unshift('import { registerModule } from "@seedcli/core";');
 		}
@@ -315,9 +316,26 @@ export async function generateBuildEntry(
 		}
 
 		// Replace .src(...) with the explicit command/extension calls
+		// Use balanced-paren matching to handle nested calls like .src(join(...))
 		const replacement =
 			chainCalls.length > 0 ? `\n${chainCalls.map((c) => `\t${c}`).join("\n")}\n\t` : "\n\t";
-		generated = generated.replace(/\s*\.src\s*\([^)]*\)\s*/g, replacement);
+		const srcCallIdx = generated.search(/\.src\s*\(/);
+		if (srcCallIdx !== -1) {
+			const openParen = generated.indexOf("(", srcCallIdx);
+			let depth = 1;
+			let i = openParen + 1;
+			while (i < generated.length && depth > 0) {
+				if (generated[i] === "(") depth++;
+				else if (generated[i] === ")") depth--;
+				i++;
+			}
+			// Trim surrounding whitespace
+			let start = srcCallIdx;
+			while (start > 0 && /\s/.test(generated[start - 1])) start--;
+			let end = i;
+			while (end < generated.length && /\s/.test(generated[end])) end++;
+			generated = generated.slice(0, start) + replacement + generated.slice(end);
+		}
 	}
 
 	// ─── Handle .plugins(dir, { matching }) ───
@@ -353,9 +371,17 @@ export async function generateBuildEntry(
 		// Skip shebang line when searching for imports
 		const startIdx = lines.length > 0 && lines[0].startsWith("#!") ? 1 : 0;
 		let lastImportIdx = -1;
+		let inMultiLineImport = false;
 		for (let i = startIdx; i < lines.length; i++) {
 			if (/^\s*import\s/.test(lines[i])) {
 				lastImportIdx = i;
+				// Check if this import is multi-line (no 'from' on this line)
+				inMultiLineImport = !/from\s+["']/.test(lines[i]);
+			} else if (inMultiLineImport) {
+				lastImportIdx = i;
+				if (/from\s+["']/.test(lines[i])) {
+					inMultiLineImport = false;
+				}
 			}
 		}
 
@@ -370,9 +396,14 @@ export async function generateBuildEntry(
 		// Insert registerModule() calls after all imports
 		if (moduleRegistrations.length > 0) {
 			let newLastImportIdx = -1;
+			let inMultiLine = false;
 			for (let i = 0; i < lines.length; i++) {
 				if (/^\s*import\s/.test(lines[i])) {
 					newLastImportIdx = i;
+					inMultiLine = !/from\s+["']/.test(lines[i]);
+				} else if (inMultiLine) {
+					newLastImportIdx = i;
+					if (/from\s+["']/.test(lines[i])) inMultiLine = false;
 				}
 			}
 			lines.splice(newLastImportIdx + 1, 0, "", ...moduleRegistrations);

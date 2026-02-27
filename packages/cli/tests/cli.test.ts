@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resolveEntry } from "../src/utils/resolve-entry.js";
+
+const PKG_VERSION = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf-8"))
+	.version as string;
 
 describe("resolveEntry", () => {
 	let dir: string;
@@ -90,7 +94,7 @@ describe("seed CLI", () => {
 		const output = await new Response(proc.stdout).text();
 		await proc.exited;
 
-		expect(output).toContain("seed v0.1.0");
+		expect(output).toContain(`seed v${PKG_VERSION}`);
 	});
 });
 

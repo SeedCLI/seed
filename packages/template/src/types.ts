@@ -23,6 +23,7 @@ export interface DirectoryOptions {
 
 export interface TemplateModule {
 	render(options: RenderOptions): Promise<string>;
+	renderFile(filePath: string, props?: Record<string, unknown>): Promise<string>;
 	renderString(source: string, props?: Record<string, unknown>): Promise<string>;
 	generate(options: GenerateOptions): Promise<string>;
 	directory(options: DirectoryOptions): Promise<string[]>;

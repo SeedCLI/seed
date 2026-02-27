@@ -51,8 +51,33 @@ export async function install(
 		await mkdir(dir, { recursive: true });
 	}
 
-	const marker = `# ${info.brand} completions`;
-	await appendFile(rcPath, `\n${marker}\n${script}\n`);
+	const markerStart = `# ${info.brand} completions`;
+	const markerEnd = `# end ${info.brand} completions`;
+	const block = `\n${markerStart}\n${script}\n${markerEnd}\n`;
+
+	// Check if completions are already installed — update if so
+	try {
+		const { readFile, writeFile } = await import("node:fs/promises");
+		const content = await readFile(rcPath, "utf-8");
+		const startIdx = content.indexOf(markerStart);
+		if (startIdx !== -1) {
+			const endIdx = content.indexOf(markerEnd, startIdx);
+			if (endIdx !== -1) {
+				// Replace existing block
+				const updated =
+					content.slice(0, startIdx) +
+					`${markerStart}\n${script}\n${markerEnd}` +
+					content.slice(endIdx + markerEnd.length);
+				await writeFile(rcPath, updated);
+			}
+			// If no end marker found, leave as-is (legacy install)
+			return { shell: detectedShell, path: rcPath };
+		}
+	} catch {
+		// File doesn't exist yet — proceed with install
+	}
+
+	await appendFile(rcPath, block);
 
 	return { shell: detectedShell, path: rcPath };
 }

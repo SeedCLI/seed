@@ -1,5 +1,5 @@
 import type { ExtensionConfig } from "../types/extension.js";
-import { ExtensionCycleError } from "./errors.js";
+import { ExtensionCycleError, PluginValidationError } from "./errors.js";
 
 /**
  * Topologically sort extensions by their dependencies using Kahn's algorithm.
@@ -9,6 +9,12 @@ import { ExtensionCycleError } from "./errors.js";
 export function topoSort(extensions: ExtensionConfig[]): ExtensionConfig[] {
 	const byName = new Map<string, ExtensionConfig>();
 	for (const ext of extensions) {
+		if (byName.has(ext.name)) {
+			throw new PluginValidationError(
+				`Duplicate extension name "${ext.name}". Each extension must have a unique name.`,
+				ext.name,
+			);
+		}
 		byName.set(ext.name, ext);
 	}
 
@@ -32,13 +38,14 @@ export function topoSort(extensions: ExtensionConfig[]): ExtensionConfig[] {
 		}
 	}
 
-	// Collect nodes with zero in-degree
+	// Collect nodes with zero in-degree (sorted for deterministic output)
 	const queue: string[] = [];
 	for (const [name, degree] of inDegree) {
 		if (degree === 0) {
 			queue.push(name);
 		}
 	}
+	queue.sort();
 
 	const sorted: ExtensionConfig[] = [];
 
@@ -49,13 +56,17 @@ export function topoSort(extensions: ExtensionConfig[]): ExtensionConfig[] {
 		const ext = byName.get(name)!;
 		sorted.push(ext);
 
+		const newReady: string[] = [];
 		for (const dependent of dependents.get(name) ?? []) {
 			const newDegree = (inDegree.get(dependent) ?? 1) - 1;
 			inDegree.set(dependent, newDegree);
 			if (newDegree === 0) {
-				queue.push(dependent);
+				newReady.push(dependent);
 			}
 		}
+		// Sort newly ready nodes for deterministic ordering
+		newReady.sort();
+		queue.push(...newReady);
 	}
 
 	if (sorted.length !== extensions.length) {

@@ -1,5 +1,5 @@
-import type chalk from "chalk";
 import type { BoxOptions } from "./box.js";
+import type { colors } from "./colors.js";
 import type { DividerOptions } from "./divider.js";
 import type { FigletOptions } from "./figlet.js";
 import type { KeyValueOptions, KeyValuePair } from "./keyValue.js";
@@ -7,6 +7,12 @@ import type { ProgressBar, ProgressBarOptions } from "./progress.js";
 import type { Spinner } from "./spinner.js";
 import type { TableOptions } from "./table.js";
 import type { TreeNode, TreeOptions } from "./tree.js";
+
+export interface ColumnOptions {
+	width?: number;
+	padding?: number;
+	columns?: number;
+}
 
 export interface PrintModule {
 	info(message: string): void;
@@ -17,7 +23,7 @@ export interface PrintModule {
 	highlight(message: string): void;
 	muted(message: string): void;
 	newline(count?: number): void;
-	colors: typeof chalk;
+	colors: typeof colors;
 	spin(message: string): Spinner;
 	table(rows: string[][], options?: TableOptions): void;
 	box(text: string, options?: BoxOptions): void;
@@ -26,4 +32,7 @@ export interface PrintModule {
 	keyValue(pairs: KeyValuePair[] | Record<string, string>, options?: KeyValueOptions): void;
 	divider(options?: DividerOptions): void;
 	progressBar(options: ProgressBarOptions): ProgressBar;
+	columns(items: string[], options?: ColumnOptions): string;
+	indent(text: string, spaces?: number): string;
+	wrap(text: string, width?: number): string;
 }

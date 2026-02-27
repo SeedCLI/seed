@@ -8,6 +8,7 @@
 	},
 	"scripts": {
 		"dev": "bun --watch src/index.ts",
+		"test": "bun test",
 		"build": "seed build",
 		"compile": "seed build --compile --outfile <%= it.name %>",
 		"typecheck": "tsc --noEmit"

@@ -4,8 +4,14 @@ export class ExecError extends Error {
 	stdout: string;
 	stderr: string;
 
-	constructor(command: string, exitCode: number, stdout: string, stderr: string) {
-		super(`Command failed: ${command} (exit code ${exitCode})\n${stderr}`);
+	constructor(
+		command: string,
+		exitCode: number,
+		stdout: string,
+		stderr: string,
+		options?: ErrorOptions,
+	) {
+		super(`Command failed: ${command} (exit code ${exitCode})\n${stderr}`, options);
 		this.name = "ExecError";
 		this.command = command;
 		this.exitCode = exitCode;
@@ -18,8 +24,8 @@ export class ExecTimeoutError extends Error {
 	command: string;
 	timeout: number;
 
-	constructor(command: string, timeout: number) {
-		super(`Command timed out after ${timeout}ms: ${command}`);
+	constructor(command: string, timeout: number, options?: ErrorOptions) {
+		super(`Command timed out after ${timeout}ms: ${command}`, options);
 		this.name = "ExecTimeoutError";
 		this.command = command;
 		this.timeout = timeout;

@@ -20,16 +20,20 @@ async function getVersions(): Promise<{ version: string; frameworkVersion: strin
 
 	// Framework version: derived from a @seedcli/* dependency
 	// Published: "^0.1.7" → "0.1.7", Development: "workspace:*" → read from root
-	const dep = pkg.dependencies["@seedcli/filesystem"];
+	const dep = pkg.dependencies?.["@seedcli/filesystem"];
 	let frameworkVersion: string;
 
-	if (dep.startsWith("workspace:")) {
+	if (!dep) {
+		// Fallback: use the create-seedcli version itself
+		frameworkVersion = version;
+	} else if (dep.startsWith("workspace:")) {
 		const rootPkg = await readJson<{ version: string }>(
 			join(import.meta.dir, "..", "..", "..", "package.json"),
 		);
 		frameworkVersion = rootPkg.version;
 	} else {
-		frameworkVersion = dep.replace(/^\^/, "");
+		// Strip version range prefixes: ^, ~, >=, >, <=, <, =
+		frameworkVersion = dep.replace(/^[~^>=<]+/, "");
 	}
 
 	return { version, frameworkVersion };
@@ -136,17 +140,39 @@ async function main() {
 	// Scaffold
 	const spinner = spin("Scaffolding project...");
 
-	await directory({
-		source: join(TEMPLATES_DIR, options.template),
-		target: targetDir,
-		props: {
-			name: options.name,
-			description: options.description,
-			version: "0.1.0",
-			seedcliVersion: FRAMEWORK_VERSION,
-			includeExamples: options.template === "full",
-		},
-	});
+	try {
+		// JSON-escape the description to prevent injection in package.json templates
+		const safeDescription = options.description
+			.replace(/\\/g, "\\\\")
+			.replace(/"/g, '\\"')
+			.replace(/\n/g, "\\n")
+			.replace(/\r/g, "\\r")
+			.replace(/\t/g, "\\t");
+
+		await directory({
+			source: join(TEMPLATES_DIR, options.template),
+			target: targetDir,
+			props: {
+				name: options.name,
+				description: safeDescription,
+				version: "0.1.0",
+				seedcliVersion: FRAMEWORK_VERSION,
+				includeExamples: options.template === "full",
+			},
+			// npm strips .gitignore from published tarballs, so templates store it as "gitignore"
+			rename: { gitignore: ".gitignore" },
+		});
+	} catch (err) {
+		spinner.fail("Failed to scaffold project");
+		// Clean up partial scaffold
+		try {
+			const { rm } = await import("node:fs/promises");
+			await rm(targetDir, { recursive: true, force: true });
+		} catch {
+			// Ignore cleanup errors
+		}
+		throw err;
+	}
 
 	spinner.succeed("Project scaffolded");
 
