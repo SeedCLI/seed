@@ -4,6 +4,7 @@ import type { SeedConfig } from "@seedcli/core";
 import { command, flag } from "@seedcli/core";
 import { exists } from "@seedcli/filesystem";
 import { colors, error, info, success } from "@seedcli/print";
+import type { BunPlugin } from "bun";
 import { cleanupBuildEntry, generateBuildEntry } from "../utils/generate-build-entry.js";
 import { resolveEntry } from "../utils/resolve-entry.js";
 
@@ -116,6 +117,7 @@ async function bundleMode(
 		target: "bun",
 		minify: flags.minify ?? false,
 		sourcemap: flags.sourcemap ? "external" : "none",
+		plugins: [polyfillPlugin],
 		naming: {
 			entry: basename(originalEntryPath).replace(/\.(tsx?|mts|cts)$/, ".js"),
 		},
@@ -148,29 +150,64 @@ async function bundleMode(
 	success("Build complete");
 }
 
-// Packages that cause bundler errors but are unnecessary in Bun
-// (Bun provides native equivalents). Externalized to prevent build failures.
-const EXTERNAL_PACKAGES = ["node-fetch-native", "node-fetch-native/proxy"];
+// Packages with broken ESM/CJS interop that Bun provides native equivalents for.
+// The plugin intercepts these imports and replaces them with no-op stubs.
+const POLYFILL_PACKAGES = ["node-fetch-native"];
+
+const polyfillPlugin: BunPlugin = {
+	name: "seed-polyfill-shim",
+	setup(build) {
+		const filter = new RegExp(`^(${POLYFILL_PACKAGES.join("|")})(\\/.*)?$`);
+		build.onResolve({ filter }, (args) => ({
+			path: args.path,
+			namespace: "seed-polyfill",
+		}));
+		build.onLoad({ filter: /.*/, namespace: "seed-polyfill" }, () => ({
+			contents: "export default {}; export const fetch = globalThis.fetch;",
+			loader: "js",
+		}));
+	},
+};
 
 async function compileMode(
 	entryPath: string,
 	cwd: string,
-	flags: { outfile?: string; target?: string; minify?: boolean },
+	flags: { outdir?: string; outfile?: string; target?: string; minify?: boolean },
 ): Promise<void> {
-	const targets = flags.target ? flags.target.split(",").map((t) => t.trim()) : [undefined];
+	const outdir = flags.outdir ?? join(cwd, "dist");
+	const bundledFilename = basename(entryPath).replace(/\.(tsx?|mts|cts)$/, ".js");
 
+	// ─── Step 1: Bundle TS → single JS file via Bun.build() API ───
+	info(`${colors.cyan("seed build")} bundling for compile...`);
+
+	const bundleResult = await Bun.build({
+		entrypoints: [entryPath],
+		outdir,
+		target: "bun",
+		minify: flags.minify ?? false,
+		plugins: [polyfillPlugin],
+		naming: { entry: bundledFilename },
+	});
+
+	if (!bundleResult.success) {
+		for (const log of bundleResult.logs) {
+			error(String(log));
+		}
+		error("Bundle step failed");
+		process.exitCode = 1;
+		return;
+	}
+
+	const bundledEntry = join(outdir, bundledFilename);
+
+	// ─── Step 2: Compile pre-bundled JS → standalone binary ───
+	const targets = flags.target ? flags.target.split(",").map((t) => t.trim()) : [undefined];
 	const hasMultipleTargets = targets.length > 1;
 
 	for (const target of targets) {
-		const args = ["bun", "build", entryPath, "--compile"];
-
-		// Externalize packages that are incompatible with Bun's bundler
-		for (const pkg of EXTERNAL_PACKAGES) {
-			args.push("--external", pkg);
-		}
+		const args = ["bun", "build", bundledEntry, "--compile"];
 
 		if (flags.outfile) {
-			// Append target suffix when compiling for multiple targets to avoid overwriting
 			let outfile = flags.outfile;
 			if (hasMultipleTargets && target) {
 				const suffix = target.replace(/^bun-/, "");
