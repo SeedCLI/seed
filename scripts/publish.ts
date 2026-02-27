@@ -54,19 +54,23 @@ const allPackages = [
 	"create-seedcli",
 ];
 
+// Framework version — always from root package.json, used to resolve workspace:* deps
+const rootPkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
+const frameworkVersion: string = rootPkg.version;
+
 /**
  * Parse a git tag to determine which packages to publish and at what version.
  *
- * - "v0.1.8" → all packages, version from root package.json
- * - "create-seedcli@0.1.8" → only create-seedcli, version 0.1.8
- * - "cli@0.1.8" → only cli (maps to @seedcli/cli), version 0.1.8
+ * - "v0.1.8"               → all packages at framework version
+ * - "create-seedcli@0.1.8" → only create-seedcli at 0.1.8 (deps still use framework version)
  */
-function parseTag(tag: string | undefined): { packages: string[]; version: string } {
-	const rootPkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
-
-	// No tag or v* tag → publish everything
+function parseTag(tag: string | undefined): {
+	packages: string[];
+	versionOverrides: Map<string, string>;
+} {
+	// No tag or v* tag → publish everything at framework version
 	if (!tag || tag.startsWith("v")) {
-		return { packages: allPackages, version: rootPkg.version };
+		return { packages: allPackages, versionOverrides: new Map() };
 	}
 
 	// package@version tag → publish single package
@@ -83,13 +87,17 @@ function parseTag(tag: string | undefined): { packages: string[]; version: strin
 		process.exit(1);
 	}
 
-	return { packages: [pkgName], version };
+	return { packages: [pkgName], versionOverrides: new Map([[pkgName, version]]) };
 }
 
-const { packages, version } = parseTag(tag);
+const { packages, versionOverrides } = parseTag(tag);
 
 const scope = packages.length === allPackages.length ? "all packages" : packages.join(", ");
-console.log(`Publishing ${scope} @ v${version}${dryRun ? " (DRY RUN)" : ""}\n`);
+const displayVersion =
+	packages.length === 1 && versionOverrides.has(packages[0])
+		? versionOverrides.get(packages[0])
+		: frameworkVersion;
+console.log(`Publishing ${scope} @ v${displayVersion}${dryRun ? " (DRY RUN)" : ""}\n`);
 
 // First pass: transform ALL package.json for workspace resolution
 // (even non-published packages need workspace:* resolved for dependency consistency)
@@ -102,13 +110,18 @@ for (const pkg of allPackages) {
 
 	const data = JSON.parse(content);
 
-	// Resolve workspace:* → ^version
+	// Apply version override if this package has one (e.g. create-seedcli@0.1.10)
+	if (versionOverrides.has(pkg)) {
+		data.version = versionOverrides.get(pkg);
+	}
+
+	// Resolve workspace:* → ^frameworkVersion (always uses the framework version)
 	for (const depField of ["dependencies", "devDependencies", "peerDependencies"]) {
 		const deps = data[depField];
 		if (!deps) continue;
 		for (const [name, ver] of Object.entries(deps)) {
 			if ((ver as string).startsWith("workspace:")) {
-				deps[name] = `^${version}`;
+				deps[name] = `^${frameworkVersion}`;
 			}
 		}
 	}
@@ -142,7 +155,8 @@ for (const pkg of packages) {
 	const pkgJson = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf-8"));
 	const name = pkgJson.name;
 
-	process.stdout.write(`Publishing ${name}@${version}...`);
+	const publishVersion = pkgJson.version;
+	process.stdout.write(`Publishing ${name}@${publishVersion}...`);
 
 	const cmd = ["npm", "publish", "--access", "public"];
 	if (dryRun) cmd.push("--dry-run");
@@ -181,5 +195,5 @@ if (failed) {
 	console.error("\nSome packages failed to publish.");
 	process.exit(1);
 } else {
-	console.log(`\nAll packages published successfully! v${version}`);
+	console.log(`\nAll packages published successfully! v${displayVersion}`);
 }
