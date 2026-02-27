@@ -207,27 +207,48 @@ async function compileMode(
 		};
 	},
 ): Promise<void> {
-	// Compile directly from the TS entry — `bun build --compile` handles
-	// TS → bundle → binary in a single step. The previous two-step approach
-	// (Bun.build() → bun build --compile) caused top-level await errors
-	// because the compile step couldn't parse the already-bundled output.
+	const outdir = flags.outdir ?? join(cwd, "dist");
+	const bundledFilename = basename(entryPath).replace(/\.(mts|tsx?|cts)$/, ".js");
+
+	// ─── Step 1: Bundle TS → single JS file via Bun.build() API ───
+	info(`${colors.cyan("seed build")} bundling for compile...`);
+
+	const bundleResult = await Bun.build({
+		entrypoints: [entryPath],
+		outdir,
+		target: "bun",
+		minify: flags.minify ?? false,
+		plugins: [polyfillPlugin],
+		naming: { entry: bundledFilename },
+	});
+
+	if (!bundleResult.success) {
+		for (const log of bundleResult.logs) {
+			error(String(log));
+		}
+		error("Bundle step failed");
+		process.exitCode = 1;
+		return;
+	}
+
+	// Wrap the bundled output in an async IIFE so top-level `await` is valid.
+	// `bun build --compile` re-parses the file and rejects top-level await
+	// even in ESM. The bundled output has no import/export statements
+	// (everything is inlined), so wrapping in an IIFE is safe.
+	const bundledEntry = join(outdir, bundledFilename);
+	const bundledContent = await Bun.file(bundledEntry).text();
+	await Bun.write(bundledEntry, `(async()=>{${bundledContent}})();`);
+
+	// ─── Step 2: Compile pre-bundled JS → standalone binary ───
 	const targets = flags.target ? flags.target.split(",").map((t) => t.trim()) : [undefined];
 	const hasMultipleTargets = targets.length > 1;
 
 	for (const target of targets) {
-		const args = ["bun", "build", entryPath, "--compile"];
-
-		// External packages with broken ESM/CJS interop — Bun provides
-		// native equivalents in the compiled binary (e.g. fetch)
-		for (const pkg of POLYFILL_PACKAGES) {
-			args.push("--external", pkg);
-		}
+		const args = ["bun", "build", bundledEntry, "--compile"];
 
 		if (flags.splitting) {
 			// Splitting requires --outdir instead of --outfile
-			const splitOutdir = flags.outfile
-				? join(cwd, flags.outfile)
-				: (flags.outdir ?? join(cwd, "dist"));
+			const splitOutdir = flags.outfile ? join(cwd, flags.outfile) : outdir;
 			args.push("--outdir", splitOutdir);
 		} else if (flags.outfile) {
 			let outfile = flags.outfile;
