@@ -1,0 +1,27 @@
+{
+	"name": "<%= it.name %>",
+	"version": "<%= it.version %>",
+	"description": "<%= it.description %>",
+	"type": "module",
+	"exports": {
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"scripts": {
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@seedcli/core": "^<%= it.seedcliVersion %>"
+	},
+	"peerDependencies": {
+		"@seedcli/core": "^<%= it.seedcliVersion %>"
+	},
+	"devDependencies": {
+		"@seedcli/testing": "^<%= it.seedcliVersion %>",
+		"@types/bun": "latest",
+		"typescript": "^5.9.0"
+	}
+}

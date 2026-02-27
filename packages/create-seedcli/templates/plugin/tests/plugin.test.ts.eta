@@ -1,0 +1,19 @@
+import { describe, expect, test } from "bun:test";
+import { build } from "@seedcli/core";
+import { createTestCli } from "@seedcli/testing";
+import plugin from "../src/index.js";
+
+describe("<%= it.name %> plugin", () => {
+	test("hello command runs", async () => {
+		const runtime = build("test-cli")
+			.plugin(plugin)
+			.version("0.0.1")
+			.create();
+
+		const cli = createTestCli(runtime);
+		const result = await cli.run("hello");
+
+		expect(result.stdout).toContain("Hello, World!");
+		expect(result.exitCode).toBe(0);
+	});
+});

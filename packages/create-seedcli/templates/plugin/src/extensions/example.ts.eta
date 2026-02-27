@@ -1,0 +1,24 @@
+import { defineExtension } from "@seedcli/core";
+
+declare module "@seedcli/core" {
+	interface ToolboxExtensions {
+		<%= it.name.replace(/-/g, "_") %>: {
+			greet(name: string): string;
+		};
+	}
+}
+
+export const exampleExtension = defineExtension({
+	name: "<%= it.name %>",
+	description: "Example extension for <%= it.name %>",
+
+	setup: (toolbox) => {
+		(toolbox as unknown as Record<string, unknown>).<%= it.name.replace(/-/g, "_") %> = {
+			greet: (name: string) => `Hello from <%= it.name %>, ${name}!`,
+		};
+	},
+
+	teardown: () => {
+		// Clean up resources if needed
+	},
+});

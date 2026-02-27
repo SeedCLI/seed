@@ -98,6 +98,67 @@ describe("create-seedcli templates", () => {
 		expect(indexTs).toContain("Hello from mini-cli!");
 	});
 
+	test("plugin template scaffolds correctly", async () => {
+		const targetDir = join(tempDir, "my-plugin");
+		mkdirSync(targetDir, { recursive: true });
+
+		await directory({
+			source: join(TEMPLATES_DIR, "plugin"),
+			target: targetDir,
+			props: {
+				name: "my-plugin",
+				description: "Test plugin",
+				version: "0.0.1",
+				seedcliVersion: PKG_VERSION,
+			},
+		});
+
+		// Check all expected files exist
+		expect(existsSync(join(targetDir, "package.json"))).toBe(true);
+		expect(existsSync(join(targetDir, "tsconfig.json"))).toBe(true);
+		expect(existsSync(join(targetDir, ".gitignore"))).toBe(true);
+		expect(existsSync(join(targetDir, "src/index.ts"))).toBe(true);
+		expect(existsSync(join(targetDir, "src/commands/hello.ts"))).toBe(true);
+		expect(existsSync(join(targetDir, "src/extensions/example.ts"))).toBe(true);
+		expect(existsSync(join(targetDir, "tests/plugin.test.ts"))).toBe(true);
+
+		// Check package.json: no bin, has exports, has peerDependencies
+		const pkg = await Bun.file(join(targetDir, "package.json")).json();
+		expect(pkg.name).toBe("my-plugin");
+		expect(pkg.description).toBe("Test plugin");
+		expect(pkg.bin).toBeUndefined();
+		expect(pkg.exports).toBeDefined();
+		expect(pkg.exports["."]).toBeDefined();
+		expect(pkg.peerDependencies).toBeDefined();
+		expect(pkg.peerDependencies["@seedcli/core"]).toBeDefined();
+
+		// Check index.ts contains definePlugin
+		const indexTs = await Bun.file(join(targetDir, "src/index.ts")).text();
+		expect(indexTs).toContain("definePlugin");
+		expect(indexTs).toContain('"my-plugin"');
+
+		// Check extension contains defineExtension
+		const extensionTs = await Bun.file(join(targetDir, "src/extensions/example.ts")).text();
+		expect(extensionTs).toContain("defineExtension");
+
+		// Ensure no Eta syntax remains
+		const files = [
+			"package.json",
+			"src/index.ts",
+			"src/commands/hello.ts",
+			"src/extensions/example.ts",
+			"tests/plugin.test.ts",
+			"tsconfig.json",
+		];
+
+		for (const file of files) {
+			const content = await Bun.file(join(targetDir, file)).text();
+			expect(content).not.toContain("<%=");
+			expect(content).not.toContain("<%~");
+			expect(content).not.toContain("<% ");
+		}
+	});
+
 	test("full template generates valid TypeScript", async () => {
 		const targetDir = join(tempDir, "ts-check-cli");
 		mkdirSync(targetDir, { recursive: true });

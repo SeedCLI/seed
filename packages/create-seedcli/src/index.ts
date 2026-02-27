@@ -22,7 +22,7 @@ const VERSION = await getVersion();
 
 interface CreateOptions {
 	name: string;
-	template: "minimal" | "full";
+	template: "minimal" | "full" | "plugin";
 	description: string;
 	skipInstall: boolean;
 	skipGit: boolean;
@@ -67,11 +67,12 @@ async function parseArgs(): Promise<CreateOptions> {
 		};
 	}
 
-	const template = await select<"minimal" | "full">({
+	const template = await select<"minimal" | "full" | "plugin">({
 		message: "Template:",
 		choices: [
 			{ name: "Full (recommended)", value: "full" },
 			{ name: "Minimal (bare bones)", value: "minimal" },
+			{ name: "Plugin (reusable plugin package)", value: "plugin" },
 		],
 	});
 
@@ -164,10 +165,21 @@ async function main() {
 	newline();
 	muted("  Next steps:\n");
 	info(`  cd ${options.name}`);
-	info("  bun run dev");
-	info(`  bun run src/index.ts --help`);
-	muted(`\n  To use "${options.name}" as a global command:\n`);
-	info("  bun link");
+
+	if (options.template === "plugin") {
+		info("  bun test");
+		muted(`\n  To use this plugin in a CLI:\n`);
+		info(`  import plugin from "${options.name}";`);
+		info("");
+		info(`  const cli = build("my-cli")`);
+		info(`    .plugin(plugin)`);
+		info(`    .create();`);
+	} else {
+		info("  bun run dev");
+		info(`  bun run src/index.ts --help`);
+		muted(`\n  To use "${options.name}" as a global command:\n`);
+		info("  bun link");
+	}
 	newline();
 }
 
