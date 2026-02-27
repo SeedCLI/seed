@@ -12,13 +12,30 @@ import { directory } from "@seedcli/template";
 const TEMPLATES_DIR = join(import.meta.dir, "..", "templates");
 const PKG_PATH = join(import.meta.dir, "..", "package.json");
 
-async function getVersion(): Promise<string> {
+async function getVersions(): Promise<{ version: string; frameworkVersion: string }> {
 	const { readJson } = await import("@seedcli/filesystem");
-	const pkg = await readJson<{ version: string }>(PKG_PATH);
-	return pkg.version;
+	const pkg = await readJson<{ version: string; dependencies: Record<string, string> }>(PKG_PATH);
+
+	const version = pkg.version;
+
+	// Framework version: derived from a @seedcli/* dependency
+	// Published: "^0.1.7" → "0.1.7", Development: "workspace:*" → read from root
+	const dep = pkg.dependencies["@seedcli/filesystem"];
+	let frameworkVersion: string;
+
+	if (dep.startsWith("workspace:")) {
+		const rootPkg = await readJson<{ version: string }>(
+			join(import.meta.dir, "..", "..", "..", "package.json"),
+		);
+		frameworkVersion = rootPkg.version;
+	} else {
+		frameworkVersion = dep.replace(/^\^/, "");
+	}
+
+	return { version, frameworkVersion };
 }
 
-const VERSION = await getVersion();
+const { version: VERSION, frameworkVersion: FRAMEWORK_VERSION } = await getVersions();
 
 interface CreateOptions {
 	name: string;
@@ -126,7 +143,7 @@ async function main() {
 			name: options.name,
 			description: options.description,
 			version: "0.1.0",
-			seedcliVersion: VERSION,
+			seedcliVersion: FRAMEWORK_VERSION,
 			includeExamples: options.template === "full",
 		},
 	});
