@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+      - "*@*"
 
 jobs:
   ci:
@@ -40,8 +41,8 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Publish all packages
-        run: bun scripts/publish.ts --provenance
+      - name: Publish packages
+        run: bun scripts/publish.ts --provenance --tag "${{ github.ref_name }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
