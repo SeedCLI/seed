@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/testing",
-	"version": "0.1.13",
+	"version": "0.1.14",
 	"description": "Testing utilities: createTestCli, mock prompts, mock config, mock system",
 	"type": "module",
 	"license": "MIT",

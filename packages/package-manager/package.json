@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/package-manager",
-	"version": "0.1.13",
+	"version": "0.1.14",
 	"description": "Package manager detection and commands (bun, npm, yarn, pnpm)",
 	"type": "module",
 	"license": "MIT",
