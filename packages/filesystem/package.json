@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/filesystem",
-	"version": "0.1.17",
+	"version": "0.1.18",
 	"description": "File system utilities: read, write, copy, move, find, path helpers, temp dirs",
 	"type": "module",
 	"license": "MIT",

@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/print",
-	"version": "0.1.17",
+	"version": "0.1.18",
 	"description": "Terminal output: logging, colors, spinner, table, box, ASCII art, tree, progress bar",
 	"type": "module",
 	"license": "MIT",
