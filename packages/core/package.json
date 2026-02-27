@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/core",
-	"version": "0.1.7",
+	"version": "0.1.8",
 	"description": "Core runtime, builder API, command system, and arg parser for Seed CLI",
 	"type": "module",
 	"license": "MIT",
