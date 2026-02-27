@@ -90,10 +90,7 @@ export function mockToolbox(
 
 		// ── Prompt (returns empty / first-option defaults) ──
 		prompt: new Proxy({} as never, {
-			get:
-				() =>
-				() =>
-					Promise.resolve(""),
+			get: () => () => Promise.resolve(""),
 		}),
 
 		// ── Filesystem (no-op stubs) ──
