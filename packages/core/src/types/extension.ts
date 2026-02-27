@@ -1,6 +1,13 @@
 import type { Toolbox } from "./toolbox.js";
 
 /**
+ * The toolbox type exposed to extensions.
+ * Extensions run before any command, so args/flags are not available.
+ * All core modules (print, filesystem, etc.) and ToolboxExtensions are fully typed.
+ */
+export type ExtensionToolbox = Omit<Toolbox, "args" | "flags">;
+
+/**
  * Extension configuration — defines how a plugin extends the toolbox.
  */
 export interface ExtensionConfig {
@@ -14,14 +21,10 @@ export interface ExtensionConfig {
 	dependencies?: string[];
 
 	/** Called during toolbox assembly, before any command runs */
-	setup: (
-		toolbox: Toolbox<Record<string, unknown>, Record<string, unknown>>,
-	) => Promise<void> | void;
+	setup: (toolbox: ExtensionToolbox) => Promise<void> | void;
 
 	/** Called during cleanup, after command completes */
-	teardown?: (
-		toolbox: Toolbox<Record<string, unknown>, Record<string, unknown>>,
-	) => Promise<void> | void;
+	teardown?: (toolbox: ExtensionToolbox) => Promise<void> | void;
 }
 
 /**
