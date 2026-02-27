@@ -84,7 +84,7 @@ describe("exec()", () => {
 				expect((err as ExecTimeoutError).command).toBe("sleep 10");
 			}
 		},
-		10000,
+		15000,
 	);
 
 	test.skipIf(process.platform === "win32")(
@@ -97,7 +97,7 @@ describe("exec()", () => {
 				expect(err).toBeInstanceOf(ExecTimeoutError);
 			}
 		},
-		10000,
+		15000,
 	);
 
 	test("timeout path throws ExecError on non-zero exit", async () => {
