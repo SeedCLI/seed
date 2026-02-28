@@ -236,7 +236,9 @@ async function compileMode(
 	// even in ESM. The bundled output has no import/export statements
 	// (everything is inlined), so wrapping in an IIFE is safe.
 	const bundledEntry = join(outdir, bundledFilename);
-	const bundledContent = await Bun.file(bundledEntry).text();
+	let bundledContent = await Bun.file(bundledEntry).text();
+	// Strip shebang — it becomes a syntax error inside the IIFE wrapper
+	bundledContent = bundledContent.replace(/^#!.*\n?/, "");
 	await Bun.write(bundledEntry, `(async()=>{${bundledContent}})();`);
 
 	// ─── Step 2: Compile pre-bundled JS → standalone binary ───
