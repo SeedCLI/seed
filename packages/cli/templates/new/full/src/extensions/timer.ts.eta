@@ -1,0 +1,37 @@
+import { defineExtension } from "@seedcli/core";
+
+/**
+ * Example extension — adds a `timer` helper to the toolbox.
+ *
+ * Extensions run before any command and can attach utilities to the toolbox.
+ * This file is auto-discovered from the `extensions/` directory.
+ *
+ * To type the toolbox for consumers, declare the module augmentation:
+ */
+declare module "@seedcli/core" {
+	interface ToolboxExtensions {
+		timer: {
+			start(): void;
+			stop(): string;
+		};
+	}
+}
+
+export default defineExtension({
+	name: "timer",
+	description: "Simple timing utility",
+
+	setup: (toolbox) => {
+		let startTime = 0;
+
+		toolbox.timer = {
+			start: () => {
+				startTime = performance.now();
+			},
+			stop: () => {
+				const elapsed = performance.now() - startTime;
+				return `${elapsed.toFixed(0)}ms`;
+			},
+		};
+	},
+});

@@ -105,6 +105,18 @@ export function parse(argv: string[], cmd: Command): ParseResult {
 		});
 	} catch (err) {
 		if (err instanceof Error) {
+			// Enhance unknown option errors with "did you mean?" suggestions
+			const unknownMatch = err.message.match(/Unknown option '(--.+?)'/);
+			if (unknownMatch) {
+				const unknownFlag = unknownMatch[1].replace(/^--/, "");
+				const definedFlags = Object.keys(flagDefs);
+				const suggestion = findClosest(unknownFlag, definedFlags);
+				let msg = err.message;
+				if (suggestion) {
+					msg += `\n\n  Did you mean --${suggestion}?`;
+				}
+				throw new ParseError(msg);
+			}
 			throw new ParseError(err.message);
 		}
 		throw err;

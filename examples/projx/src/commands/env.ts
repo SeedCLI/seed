@@ -1,4 +1,3 @@
-import type { ToolboxExtensions } from "@seedcli/core";
 import { arg, command, flag } from "@seedcli/core";
 
 const envListCommand = command({
@@ -9,8 +8,8 @@ const envListCommand = command({
 		name: arg({ type: "string", required: true, description: "Project name" }),
 	},
 
-	run: async ({ args, print, filesystem, ...toolbox }) => {
-		const { workspace } = toolbox as unknown as ToolboxExtensions;
+	run: async (toolbox) => {
+		const { args, print, filesystem, workspace } = toolbox;
 		const project = await workspace.getProject(args.name as string);
 		if (!project) {
 			print.error(`Project "${args.name}" not found.`);
@@ -53,8 +52,8 @@ const envGetCommand = command({
 		key: arg({ type: "string", required: true, description: "Variable name" }),
 	},
 
-	run: async ({ args, print, filesystem, ...toolbox }) => {
-		const { workspace } = toolbox as unknown as ToolboxExtensions;
+	run: async (toolbox) => {
+		const { args, print, filesystem, workspace } = toolbox;
 		const project = await workspace.getProject(args.name as string);
 		if (!project) {
 			print.error(`Project "${args.name}" not found.`);
@@ -107,8 +106,8 @@ const envSetCommand = command({
 		}),
 	},
 
-	run: async ({ args, flags, print, prompt, filesystem, patching, ...toolbox }) => {
-		const { workspace } = toolbox as unknown as ToolboxExtensions;
+	run: async (toolbox) => {
+		const { args, flags, print, prompt, filesystem, patching, workspace } = toolbox;
 		const project = await workspace.getProject(args.name as string);
 		if (!project) {
 			print.error(`Project "${args.name}" not found.`);
@@ -161,8 +160,8 @@ const envCopyCommand = command({
 		target: arg({ type: "string", required: true, description: "Target project" }),
 	},
 
-	run: async ({ args, print, filesystem, ...toolbox }) => {
-		const { workspace } = toolbox as unknown as ToolboxExtensions;
+	run: async (toolbox) => {
+		const { args, print, filesystem, workspace } = toolbox;
 
 		const source = await workspace.getProject(args.source as string);
 		const target = await workspace.getProject(args.target as string);

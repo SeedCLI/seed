@@ -1,8 +1,0 @@
-import { defineConfig } from "@seedcli/core";
-
-export default defineConfig({
-	dev: {
-		entry: "src/index.ts",
-		clearScreen: true,
-	},
-});

@@ -41,10 +41,6 @@ export interface SeedConfig {
 		compile?: {
 			/** Target platforms */
 			targets?: CompileTarget[];
-			/** Glob patterns to embed into binary */
-			embed?: string[];
-			/** Explicit asset mappings */
-			assets?: Array<{ src: string; dest: string }>;
 			/** Compile to bytecode for faster startup */
 			bytecode?: boolean;
 			/** Generate linked sourcemaps */

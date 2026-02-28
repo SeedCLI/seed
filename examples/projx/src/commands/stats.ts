@@ -1,4 +1,3 @@
-import type { ToolboxExtensions } from "@seedcli/core";
 import { command } from "@seedcli/core";
 import type { ProjectInfo } from "../types.js";
 
@@ -6,8 +5,8 @@ export const statsCommand = command({
 	name: "stats",
 	description: "Show workspace statistics",
 
-	run: async ({ print, filesystem, ...toolbox }) => {
-		const { workspace } = toolbox as unknown as ToolboxExtensions;
+	run: async (toolbox) => {
+		const { print, filesystem, workspace } = toolbox;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");

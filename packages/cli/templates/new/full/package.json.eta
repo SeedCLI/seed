@@ -1,0 +1,25 @@
+{
+	"name": "<%= it.name %>",
+	"version": "<%= it.version %>",
+	"description": "<%= it.description %>",
+	"type": "module",
+	"bin": {
+		"<%= it.name %>": "./src/index.ts"
+	},
+	"scripts": {
+		"dev": "bun --watch src/index.ts",
+		"build": "seed build",
+		"compile": "seed build --compile --outfile <%= it.name %>",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@seedcli/core": "^<%= it.seedcliVersion %>"
+	},
+	"devDependencies": {
+		"@seedcli/cli": "^<%= it.seedcliVersion %>",
+		"@seedcli/testing": "^<%= it.seedcliVersion %>",
+		"@types/bun": "latest",
+		"typescript": "^5.9.0"
+	}
+}

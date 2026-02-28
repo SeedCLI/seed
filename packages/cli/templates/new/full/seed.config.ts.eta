@@ -1,0 +1,18 @@
+import { defineConfig } from "@seedcli/core";
+
+export default defineConfig({
+	// Development server options
+	dev: {
+		entry: "src/index.ts",
+		clearScreen: true,
+	},
+
+	// Build configuration
+	// build: {
+	//   entry: "src/index.ts",
+	//   outDir: "dist",
+	// },
+
+	// Plugin directories to scan
+	// pluginDirs: ["./plugins"],
+});

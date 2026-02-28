@@ -1,0 +1,14 @@
+import { definePlugin } from "@seedcli/core";
+import helloCommand from "./commands/hello.js";
+import { exampleExtension } from "./extensions/example.js";
+
+// Re-export types so consumers get ToolboxExtensions augmentation
+export type {} from "./types.js";
+
+export default definePlugin({
+	name: "<%= it.name %>",
+	version: "<%= it.version %>",
+	description: "<%= it.description %>",
+	commands: [helloCommand],
+	extensions: [exampleExtension],
+});

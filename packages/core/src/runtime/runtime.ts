@@ -109,13 +109,16 @@ export class Runtime {
 		}
 
 		// ─── Graceful shutdown handling ───
-		const cleanup = () => {
-			// Reset cursor visibility in case a spinner hid it
+		const cleanupSigint = () => {
 			process.stdout.write("\x1B[?25h");
-			process.exit(130);
+			process.exit(130); // 128 + SIGINT(2)
 		};
-		process.once("SIGINT", cleanup);
-		process.once("SIGTERM", cleanup);
+		const cleanupSigterm = () => {
+			process.stdout.write("\x1B[?25h");
+			process.exit(143); // 128 + SIGTERM(15)
+		};
+		process.once("SIGINT", cleanupSigint);
+		process.once("SIGTERM", cleanupSigterm);
 
 		try {
 			// ─── Auto-detect version from package.json if not explicitly set ───
@@ -141,7 +144,12 @@ export class Runtime {
 				return;
 			}
 
-			if (this.config.helpEnabled && (raw.includes("--help") || raw.includes("-h"))) {
+			const dashDashHelpIdx = raw.indexOf("--");
+			const argsBeforeSep = dashDashHelpIdx === -1 ? raw : raw.slice(0, dashDashHelpIdx);
+			if (
+				this.config.helpEnabled &&
+				(argsBeforeSep.includes("--help") || argsBeforeSep.includes("-h"))
+			) {
 				const withoutHelp = raw.filter((a) => a !== "--help" && a !== "-h");
 				if (withoutHelp.length === 0) {
 					await this.initPlugins();
@@ -203,9 +211,11 @@ export class Runtime {
 			}
 
 			// ─── Handle per-command --help ───
+			const cmdDashDash = result.argv.indexOf("--");
+			const cmdArgsBeforeSep = cmdDashDash === -1 ? result.argv : result.argv.slice(0, cmdDashDash);
 			if (
 				this.config.helpEnabled &&
-				(result.argv.includes("--help") || result.argv.includes("-h"))
+				(cmdArgsBeforeSep.includes("--help") || cmdArgsBeforeSep.includes("-h"))
 			) {
 				const helpText = renderCommandHelp(result.command, {
 					brand: this.config.brand,
@@ -220,8 +230,8 @@ export class Runtime {
 		} catch (err) {
 			await this.handleError(err, raw);
 		} finally {
-			process.removeListener("SIGINT", cleanup);
-			process.removeListener("SIGTERM", cleanup);
+			process.removeListener("SIGINT", cleanupSigint);
+			process.removeListener("SIGTERM", cleanupSigterm);
 		}
 	}
 

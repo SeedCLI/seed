@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-describe("<%= name %> CLI", () => {
+describe("<%= it.name %> CLI", () => {
 	test("hello command runs", async () => {
 		const proc = Bun.spawn(["bun", "run", "src/index.ts", "hello"], {
 			stdout: "pipe",

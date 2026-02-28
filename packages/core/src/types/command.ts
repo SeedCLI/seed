@@ -96,5 +96,10 @@ export function command<
 			`Invalid command name "${config.name}". Command names must be lowercase alphanumeric with hyphens (e.g., "deploy", "db-migrate").`,
 		);
 	}
+	if (!config.run && (!config.subcommands || config.subcommands.length === 0)) {
+		console.warn(
+			`[seedcli] Warning: command "${config.name}" has no "run" handler or "subcommands". It will do nothing when executed.`,
+		);
+	}
 	return config as unknown as Command;
 }

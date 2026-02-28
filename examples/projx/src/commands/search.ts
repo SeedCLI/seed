@@ -1,4 +1,3 @@
-import type { ToolboxExtensions } from "@seedcli/core";
 import { arg, command, flag } from "@seedcli/core";
 
 export const searchCommand = command({
@@ -22,8 +21,8 @@ export const searchCommand = command({
 		}),
 	},
 
-	run: async ({ args, flags, print, system, strings, ...toolbox }) => {
-		const { workspace } = toolbox as unknown as ToolboxExtensions;
+	run: async (toolbox) => {
+		const { args, flags, print, system, strings, workspace } = toolbox;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");

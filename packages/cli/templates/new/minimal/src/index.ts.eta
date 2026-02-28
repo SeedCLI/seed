@@ -1,0 +1,19 @@
+#!/usr/bin/env bun
+
+import { build, command } from "@seedcli/core";
+
+const hello = command({
+	name: "hello",
+	description: "Say hello",
+	run: async ({ print }) => {
+		print.info("Hello from <%= it.name %>!");
+	},
+});
+
+const cli = build("<%= it.name %>")
+	.command(hello)
+	.help()
+	.version("<%= it.version %>")
+	.create();
+
+await cli.run();

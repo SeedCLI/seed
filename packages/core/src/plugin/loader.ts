@@ -37,8 +37,30 @@ export async function loadPlugin(source: string | PluginConfig): Promise<PluginC
 }
 
 /**
- * Load multiple plugins in parallel.
+ * Load multiple plugins in parallel. Reports all errors at once rather than
+ * failing on the first missing plugin.
  */
 export async function loadPlugins(sources: Array<string | PluginConfig>): Promise<PluginConfig[]> {
-	return Promise.all(sources.map(loadPlugin));
+	const results = await Promise.allSettled(sources.map(loadPlugin));
+	const errors: Error[] = [];
+	const loaded: PluginConfig[] = [];
+
+	for (const result of results) {
+		if (result.status === "fulfilled") {
+			loaded.push(result.value);
+		} else {
+			errors.push(
+				result.reason instanceof Error ? result.reason : new Error(String(result.reason)),
+			);
+		}
+	}
+
+	if (errors.length > 0) {
+		if (errors.length === 1) {
+			throw errors[0];
+		}
+		throw new PluginLoadError(errors.map((e) => e.message).join("\n\n"), "multiple");
+	}
+
+	return loaded;
 }

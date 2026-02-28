@@ -1,6 +1,6 @@
 import { basename, join } from "node:path";
 import { load } from "@seedcli/config";
-import type { SeedConfig } from "@seedcli/core";
+import type { CompileTarget, SeedConfig } from "@seedcli/core";
 import { command, flag } from "@seedcli/core";
 import { exists } from "@seedcli/filesystem";
 import { colors, error, info, success } from "@seedcli/print";
@@ -157,7 +157,7 @@ async function bundleMode(
 		let totalSize = 0;
 		for (const output of result.outputs) {
 			totalSize += output.size;
-			info(`  ${output.path.split("/").pop()} — ${formatSize(output.size)}`);
+			info(`  ${basename(output.path)} — ${formatSize(output.size)}`);
 		}
 		info(`  ${colors.bold("Total:")} ${formatSize(totalSize)}`);
 	}
@@ -207,6 +207,44 @@ async function compileMode(
 		};
 	},
 ): Promise<void> {
+	// ─── Validate Bun version (--format=esm requires Bun 1.3.9+) ───
+	const [major, minor, patch] = Bun.version.split(".").map(Number);
+	if (major < 1 || (major === 1 && minor < 3) || (major === 1 && minor === 3 && patch < 9)) {
+		error(
+			`seed build --compile requires Bun >= 1.3.9 (found ${Bun.version}). Please upgrade: bun upgrade`,
+		);
+		process.exitCode = 1;
+		return;
+	}
+
+	// ─── Validate compile targets ───
+	if (flags.target) {
+		const validTargets: CompileTarget[] = [
+			"bun-linux-x64",
+			"bun-linux-x64-baseline",
+			"bun-linux-x64-modern",
+			"bun-linux-arm64",
+			"bun-linux-x64-musl",
+			"bun-linux-x64-musl-baseline",
+			"bun-linux-arm64-musl",
+			"bun-darwin-x64",
+			"bun-darwin-x64-baseline",
+			"bun-darwin-arm64",
+			"bun-windows-x64",
+			"bun-windows-x64-baseline",
+			"bun-windows-x64-modern",
+			"bun-windows-arm64",
+		];
+		const requested = flags.target.split(",").map((t) => t.trim());
+		const invalid = requested.filter((t) => !validTargets.includes(t as CompileTarget));
+		if (invalid.length > 0) {
+			error(`Invalid compile target${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`);
+			info(`Valid targets: ${validTargets.join(", ")}`);
+			process.exitCode = 1;
+			return;
+		}
+	}
+
 	// ─── Step 1: Bundle TS → single JS file via Bun.build() API ───
 	const outdir = flags.outdir ?? join(cwd, "dist");
 	const bundledFilename = basename(entryPath).replace(/\.(mts|tsx?|cts)$/, ".js");

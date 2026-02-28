@@ -2,12 +2,13 @@ import { join } from "node:path";
 import { arg, command, flag } from "@seedcli/core";
 import { exists, readJson } from "@seedcli/filesystem";
 import { create, detect } from "@seedcli/package-manager";
-import { error, info, muted, spin, success, warning } from "@seedcli/print";
-import { confirm, input } from "@seedcli/prompt";
+import { error, info, muted, newline, spin, success, warning } from "@seedcli/print";
+import { input, select } from "@seedcli/prompt";
 import { kebabCase } from "@seedcli/strings";
+import { exec } from "@seedcli/system";
 import { directory } from "@seedcli/template";
 
-const TEMPLATES_DIR = join(import.meta.dir, "..", "..", "templates");
+const TEMPLATES_DIR = join(import.meta.dir, "..", "..", "templates", "new");
 const PKG_PATH = join(import.meta.dir, "..", "..", "package.json");
 
 export const newCommand = command({
@@ -23,9 +24,15 @@ export const newCommand = command({
 			alias: "s",
 			description: "Skip dependency installation",
 		}),
+		skipGit: flag({
+			type: "boolean",
+			default: false,
+			description: "Skip git initialization",
+		}),
 		skipPrompts: flag({
 			type: "boolean",
 			default: false,
+			alias: "y",
 			description: "Use defaults for all prompts",
 		}),
 	},
@@ -39,17 +46,22 @@ export const newCommand = command({
 			return;
 		}
 
+		let template: "full" | "minimal" | "plugin" = "full";
 		let description = "A CLI built with Seed CLI";
-		let includeExamples = true;
 
 		if (!flags.skipPrompts) {
+			template = await select<"full" | "minimal" | "plugin">({
+				message: "Template:",
+				choices: [
+					{ name: "Full (recommended)", value: "full" },
+					{ name: "Minimal (bare bones)", value: "minimal" },
+					{ name: "Plugin (reusable plugin package)", value: "plugin" },
+				],
+			});
+
 			description = await input({
 				message: "Description:",
 				default: description,
-			});
-			includeExamples = await confirm({
-				message: "Include example command?",
-				default: true,
 			});
 		}
 
@@ -73,23 +85,50 @@ export const newCommand = command({
 		const safeDescription = description
 			.replace(/\\/g, "\\\\")
 			.replace(/"/g, '\\"')
-			.replace(/\n/g, "\\n");
+			.replace(/\n/g, "\\n")
+			.replace(/\r/g, "\\r")
+			.replace(/\t/g, "\\t");
 
-		await directory({
-			source: join(TEMPLATES_DIR, "project"),
-			target: targetDir,
-			props: {
-				name,
-				description: safeDescription,
-				includeExamples,
-				version: "0.1.0",
-				seedcliVersion,
-			},
-			rename: { gitignore: ".gitignore" },
-		});
+		try {
+			await directory({
+				source: join(TEMPLATES_DIR, template),
+				target: targetDir,
+				props: {
+					name,
+					description: safeDescription,
+					includeExamples: template === "full",
+					version: "0.1.0",
+					seedcliVersion,
+				},
+				rename: { gitignore: ".gitignore" },
+			});
+		} catch (err) {
+			spinner.fail("Failed to scaffold project");
+			// Clean up partial scaffold
+			try {
+				const { rm } = await import("node:fs/promises");
+				await rm(targetDir, { recursive: true, force: true });
+			} catch {
+				// Ignore cleanup errors
+			}
+			throw err;
+		}
 
 		spinner.succeed("Project scaffolded");
 
+		// Git init
+		if (!flags.skipGit) {
+			try {
+				await exec("git init", { cwd: targetDir });
+				await exec("git add -A", { cwd: targetDir });
+				await exec('git commit -m "Initial commit"', { cwd: targetDir });
+				success("Git repository initialized");
+			} catch {
+				muted("Skipped git init (git not available)");
+			}
+		}
+
+		// Install dependencies
 		if (!flags.skipInstall) {
 			const pm = await detect(targetDir);
 			const manager = await create(pm, targetDir);
@@ -103,11 +142,27 @@ export const newCommand = command({
 			}
 		}
 
-		success(`\nProject "${name}" created!`);
-		info(`\n  cd ${name}`);
-		info("  bun run dev");
-		info("  bun run src/index.ts hello");
-		muted(`\n  To use "${name}" as a global command:`);
-		info("  bun link\n");
+		// Done
+		newline();
+		success(`Project "${name}" created!`);
+		newline();
+		muted("  Next steps:\n");
+		info(`  cd ${name}`);
+
+		if (template === "plugin") {
+			info("  bun test");
+			muted(`\n  To use this plugin in a CLI:\n`);
+			info(`  import plugin from "${name}";`);
+			info("");
+			info('  const cli = build("my-cli")');
+			info("    .plugin(plugin)");
+			info("    .create();");
+		} else {
+			info("  bun run dev");
+			info("  bun run src/index.ts --help");
+			muted(`\n  To use "${name}" as a global command:\n`);
+			info("  bun link");
+		}
+		newline();
 	},
 });

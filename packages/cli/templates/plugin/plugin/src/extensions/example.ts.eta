@@ -1,0 +1,20 @@
+import { defineExtension } from "@seedcli/core";
+
+export const exampleExtension = defineExtension({
+	name: "<%= it.name %>",
+	description: "Example extension for <%= it.name %>",
+
+	setup: (toolbox) => {
+		// Built-in toolbox modules are fully typed
+		toolbox.print.muted("[<%= it.name %>] extension loaded");
+
+		// Attach your extension to the toolbox (typed via src/types.d.ts)
+		toolbox.<%= it.name.replace(/-/g, "_").replace(/^(\d)/, "_$1") %> = {
+			greet: (name: string) => `Hello from <%= it.name %>, ${name}!`,
+		};
+	},
+
+	teardown: () => {
+		// Clean up resources if needed
+	},
+});

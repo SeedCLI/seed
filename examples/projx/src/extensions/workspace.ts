@@ -74,7 +74,7 @@ export const workspaceExtension = defineExtension({
 			return projects.find((p) => p.name === name) ?? null;
 		};
 
-		(toolbox as unknown as Record<string, unknown>).workspace = {
+		toolbox.workspace = {
 			config,
 			projectsDir,
 			getProjects,

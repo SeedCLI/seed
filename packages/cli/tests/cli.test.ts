@@ -120,6 +120,7 @@ describe("seed new", () => {
 				"test-app",
 				"--skipPrompts",
 				"--skipInstall",
+				"--skipGit",
 			],
 			{
 				stdout: "pipe",
