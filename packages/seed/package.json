@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/seed",
-	"version": "0.1.25",
+	"version": "1.0.0",
 	"description": "Umbrella re-export of all Seed CLI modules",
 	"type": "module",
 	"license": "MIT",
