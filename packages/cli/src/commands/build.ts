@@ -184,6 +184,38 @@ const polyfillPlugin: BunPlugin = {
 	},
 };
 
+/**
+ * Convert static `import` declarations to `require()` calls so they work
+ * inside an async IIFE wrapper. Node.js built-ins externalized by
+ * Bun.build() remain as `import` statements in the bundled output.
+ */
+function convertImportsToRequire(content: string): string {
+	// Named: import{a as b, c}from"mod" → var{a: b, c}=require("mod")
+	content = content.replace(
+		/import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']\s*;?/g,
+		(_, imports: string, mod: string) => {
+			const converted = imports.replace(/\s+as\s+/g, ":");
+			return `var{${converted}}=require("${mod}")`;
+		},
+	);
+	// Namespace: import * as X from "mod" → var X=require("mod")
+	content = content.replace(
+		/import\s*\*\s*as\s+(\w+)\s*from\s*["']([^"']+)["']\s*;?/g,
+		(_, name: string, mod: string) => `var ${name}=require("${mod}")`,
+	);
+	// Default: import X from "mod" → var X=require("mod")
+	content = content.replace(
+		/import\s+(\w+)\s*from\s*["']([^"']+)["']\s*;?/g,
+		(_, name: string, mod: string) => `var ${name}=require("${mod}")`,
+	);
+	// Side-effect: import "mod" → require("mod")
+	content = content.replace(
+		/import\s*["']([^"']+)["']\s*;?/g,
+		(_, mod: string) => `require("${mod}")`,
+	);
+	return content;
+}
+
 async function compileMode(
 	entryPath: string,
 	cwd: string,
@@ -231,14 +263,14 @@ async function compileMode(
 		return;
 	}
 
-	// Wrap the bundled output in an async IIFE so top-level `await` is valid.
-	// `bun build --compile` re-parses the file and rejects top-level await
-	// even in ESM. The bundled output has no import/export statements
-	// (everything is inlined), so wrapping in an IIFE is safe.
+	// Prepare bundled output for `bun build --compile` which rejects top-level await.
+	// 1. Strip shebang (invalid inside wrapper)
+	// 2. Convert static `import` declarations to `require()` (imports can't go inside IIFE)
+	// 3. Wrap in async IIFE so `await` is valid
 	const bundledEntry = join(outdir, bundledFilename);
 	let bundledContent = await Bun.file(bundledEntry).text();
-	// Strip shebang — it becomes a syntax error inside the IIFE wrapper
 	bundledContent = bundledContent.replace(/^#!.*\n?/, "");
+	bundledContent = convertImportsToRequire(bundledContent);
 	await Bun.write(bundledEntry, `(async()=>{${bundledContent}})();`);
 
 	// ─── Step 2: Compile pre-bundled JS → standalone binary ───
