@@ -184,38 +184,6 @@ const polyfillPlugin: BunPlugin = {
 	},
 };
 
-/**
- * Convert static `import` declarations to `require()` calls so they work
- * inside an async IIFE wrapper. Node.js built-ins externalized by
- * Bun.build() remain as `import` statements in the bundled output.
- */
-function convertImportsToRequire(content: string): string {
-	// Named: import{a as b, c}from"mod" → var{a: b, c}=require("mod")
-	content = content.replace(
-		/import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']\s*;?/g,
-		(_, imports: string, mod: string) => {
-			const converted = imports.replace(/\s+as\s+/g, ":");
-			return `var{${converted}}=require("${mod}")`;
-		},
-	);
-	// Namespace: import * as X from "mod" → var X=require("mod")
-	content = content.replace(
-		/import\s*\*\s*as\s+(\w+)\s*from\s*["']([^"']+)["']\s*;?/g,
-		(_, name: string, mod: string) => `var ${name}=require("${mod}")`,
-	);
-	// Default: import X from "mod" → var X=require("mod")
-	content = content.replace(
-		/import\s+(\w+)\s*from\s*["']([^"']+)["']\s*;?/g,
-		(_, name: string, mod: string) => `var ${name}=require("${mod}")`,
-	);
-	// Side-effect: import "mod" → require("mod")
-	content = content.replace(
-		/import\s*["']([^"']+)["']\s*;?/g,
-		(_, mod: string) => `require("${mod}")`,
-	);
-	return content;
-}
-
 async function compileMode(
 	entryPath: string,
 	cwd: string,
@@ -239,10 +207,43 @@ async function compileMode(
 		};
 	},
 ): Promise<void> {
+	// ─── Step 1: Wrap entry to eliminate top-level await ───
+	// `bun build --compile` doesn't support top-level await. The generated
+	// entry (.mts) has clean line-by-line structure:
+	//   1. imports (must stay at top level)
+	//   2. registerModule() calls
+	//   3. user code (may contain `await`)
+	// We wrap section 3 in an async IIFE before bundling.
+	const content = await Bun.file(entryPath).text();
+	const lines = content.split("\n");
+
+	let splitIdx = 0;
+	let inMultiLineImport = false;
+	for (let i = 0; i < lines.length; i++) {
+		const trimmed = lines[i].trim();
+		if (inMultiLineImport) {
+			splitIdx = i + 1;
+			if (/from\s+["']/.test(trimmed)) inMultiLineImport = false;
+		} else if (/^\s*import\s/.test(trimmed)) {
+			splitIdx = i + 1;
+			const isSideEffect = /^\s*import\s+["']/.test(trimmed);
+			inMultiLineImport = !isSideEffect && !/from\s+["']/.test(trimmed);
+		} else if (/^\s*registerModule\s*\(/.test(trimmed)) {
+			splitIdx = i + 1;
+		} else if (trimmed === "" && splitIdx === i) {
+			// Skip blank lines between imports/registrations
+			splitIdx = i + 1;
+		}
+	}
+
+	const importSection = lines.slice(0, splitIdx).join("\n");
+	const codeSection = lines.slice(splitIdx).join("\n");
+	await Bun.write(entryPath, `${importSection}\n(async () => {\n${codeSection}\n})();\n`);
+
+	// ─── Step 2: Bundle TS → single JS file via Bun.build() API ───
 	const outdir = flags.outdir ?? join(cwd, "dist");
 	const bundledFilename = basename(entryPath).replace(/\.(mts|tsx?|cts)$/, ".js");
 
-	// ─── Step 1: Bundle TS → single JS file via Bun.build() API ───
 	info(`${colors.cyan("seed build")} bundling for compile...`);
 
 	const bundleResult = await Bun.build({
@@ -263,17 +264,9 @@ async function compileMode(
 		return;
 	}
 
-	// Prepare bundled output for `bun build --compile` which rejects top-level await.
-	// 1. Strip shebang (invalid inside wrapper)
-	// 2. Convert static `import` declarations to `require()` (imports can't go inside IIFE)
-	// 3. Wrap in async IIFE so `await` is valid
 	const bundledEntry = join(outdir, bundledFilename);
-	let bundledContent = await Bun.file(bundledEntry).text();
-	bundledContent = bundledContent.replace(/^#!.*\n?/, "");
-	bundledContent = convertImportsToRequire(bundledContent);
-	await Bun.write(bundledEntry, `(async()=>{${bundledContent}})();`);
 
-	// ─── Step 2: Compile pre-bundled JS → standalone binary ───
+	// ─── Step 3: Compile pre-bundled JS → standalone binary ───
 	const targets = flags.target ? flags.target.split(",").map((t) => t.trim()) : [undefined];
 	const hasMultipleTargets = targets.length > 1;
 
@@ -282,7 +275,9 @@ async function compileMode(
 
 		if (flags.splitting) {
 			// Splitting requires --outdir instead of --outfile
-			const splitOutdir = flags.outfile ? join(cwd, flags.outfile) : outdir;
+			const splitOutdir = flags.outfile
+				? join(cwd, flags.outfile)
+				: (flags.outdir ?? join(cwd, "dist"));
 			args.push("--outdir", splitOutdir);
 		} else if (flags.outfile) {
 			let outfile = flags.outfile;
