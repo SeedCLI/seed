@@ -23,7 +23,7 @@
 		"@seedcli/patching": "workspace:*",
 		"@seedcli/config": "workspace:*",
 		"@seedcli/ui": "workspace:*",
-		"@seedcli/toolbox": "workspace:*",
+		"@seedcli/seed": "workspace:*",
 		"@seedcli/testing": "workspace:*"
 	}
 }

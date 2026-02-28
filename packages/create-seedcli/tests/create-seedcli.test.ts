@@ -153,16 +153,16 @@ describe("create-seedcli templates", () => {
 		expect(indexTs).toContain('"my-plugin"');
 		expect(indexTs).toContain('export type {} from "./types.js"');
 
-		// Check types.d.ts contains ToolboxExtensions augmentation
+		// Check types.d.ts contains SeedExtensions augmentation
 		const typesTs = await Bun.file(join(targetDir, "src/types.d.ts")).text();
-		expect(typesTs).toContain("ToolboxExtensions");
+		expect(typesTs).toContain("SeedExtensions");
 		expect(typesTs).toContain('declare module "@seedcli/core"');
 
 		// Check extension contains defineExtension without declare module
 		const extensionTs = await Bun.file(join(targetDir, "src/extensions/example.ts")).text();
 		expect(extensionTs).toContain("defineExtension");
 		expect(extensionTs).not.toContain("declare module");
-		expect(extensionTs).toContain("toolbox.print");
+		expect(extensionTs).toContain("seed.print");
 
 		// Ensure no Eta syntax remains
 		const files = [

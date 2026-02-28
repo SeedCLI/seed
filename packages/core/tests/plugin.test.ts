@@ -674,21 +674,21 @@ describe("Runtime with plugins", () => {
 		expect(order).toContain("command");
 	});
 
-	test("extension setup can modify toolbox", async () => {
+	test("extension setup can modify seed", async () => {
 		let captured: Record<string, unknown> = {};
 
 		const runtime = build("mycli")
 			.extension({
 				name: "auth",
-				setup: (toolbox) => {
-					(toolbox as Record<string, unknown>).auth = { token: "abc123" };
+				setup: (seed) => {
+					(seed as Record<string, unknown>).auth = { token: "abc123" };
 				},
 			})
 			.command(
 				command({
 					name: "check",
-					run: async (toolbox) => {
-						captured = toolbox as unknown as Record<string, unknown>;
+					run: async (seed) => {
+						captured = seed as unknown as Record<string, unknown>;
 					},
 				}),
 			)

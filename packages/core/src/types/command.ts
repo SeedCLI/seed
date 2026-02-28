@@ -1,10 +1,10 @@
 import type { ArgDef, FlagDef, InferArgs, InferFlags } from "./args.js";
-import type { Toolbox } from "./toolbox.js";
+import type { Seed } from "./seed.js";
 
 // ─── Middleware ───
 
 export type Middleware = (
-	toolbox: Toolbox<Record<string, unknown>, Record<string, unknown>>,
+	seed: Seed<Record<string, unknown>, Record<string, unknown>>,
 	next: () => Promise<void>,
 ) => Promise<void> | void;
 
@@ -39,7 +39,7 @@ export interface CommandConfig<
 	middleware?: Middleware[];
 
 	/** The command handler */
-	run?: (toolbox: Toolbox<InferArgs<TArgs>, InferFlags<TFlags>>) => Promise<void> | void;
+	run?: (seed: Seed<InferArgs<TArgs>, InferFlags<TFlags>>) => Promise<void> | void;
 }
 
 /**
@@ -54,9 +54,7 @@ export interface Command {
 	flags?: Record<string, FlagDef>;
 	subcommands?: Command[];
 	middleware?: Middleware[];
-	run?: (
-		toolbox: Toolbox<Record<string, unknown>, Record<string, unknown>>,
-	) => Promise<void> | void;
+	run?: (seed: Seed<Record<string, unknown>, Record<string, unknown>>) => Promise<void> | void;
 }
 
 // ─── Command Factory ───

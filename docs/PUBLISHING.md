@@ -145,7 +145,7 @@ The publish script runs in CI and handles:
 ```
 strings → semver → patching → completions → print → prompt →
 filesystem → system → config → http → template → package-manager →
-ui → core → testing → toolbox → cli → create-seedcli
+ui → core → testing → seed → cli → create-seedcli
 ```
 
 ### Skip behavior

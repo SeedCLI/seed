@@ -1,6 +1,6 @@
 # @seedcli/core — Core Runtime
 
-> The heart of Seed CLI. Handles CLI builder, command routing, argument parsing, lifecycle, and toolbox assembly.
+> The heart of Seed CLI. Handles CLI builder, command routing, argument parsing, lifecycle, and seed assembly.
 
 **Package**: `@seedcli/core`
 **Phase**: 1 (Foundation)
@@ -16,9 +16,9 @@ The core package is the foundational runtime that every Seed CLI application dep
 2. **Command System** — Define, route, and execute commands
 3. **Argument Parser** — Type-safe argument and flag parsing
 4. **Plugin Loader** — Discover, load, and register plugins
-5. **Extension Registry** — Manage toolbox extensions
+5. **Extension Registry** — Manage seed extensions
 6. **Config Resolver** — Load and merge config files
-7. **Toolbox Assembly** — Wire all modules into the toolbox
+7. **Seed Assembly** — Wire all modules into the seed context
 8. **Lifecycle Hooks** — onReady, onError, middleware
 
 ---
@@ -32,7 +32,7 @@ packages/core/
 │   ├── index.ts              # Public API exports
 │   ├── runtime/
 │   │   ├── builder.ts        # Fluent CLI builder (build().src().command()...create())
-│   │   └── runtime.ts        # CLI runtime engine (execution loop, toolbox assembly, lifecycle)
+│   │   └── runtime.ts        # CLI runtime engine (execution loop, seed assembly, lifecycle)
 │   ├── command/
 │   │   ├── router.ts          # Command routing & fuzzy matching
 │   │   ├── parser.ts          # Argument/option parser (on node:util parseArgs)
@@ -47,7 +47,7 @@ packages/core/
 │   │   └── auto-discover.ts   # .src() auto-discovery of commands/extensions
 │   └── types/
 │       ├── index.ts           # Re-export all types
-│       ├── toolbox.ts         # Toolbox interface + ToolboxExtensions
+│       ├── seed.ts            # Seed interface + SeedExtensions
 │       ├── command.ts         # Command, Arg, Flag type definitions
 │       ├── args.ts            # arg(), flag() factory functions
 │       ├── extension.ts       # Extension types + defineExtension
@@ -95,7 +95,7 @@ export { discover, discoverCommands, discoverExtensions } from "./discovery/auto
 
 // Types
 export type {
-  Toolbox, ToolboxExtensions,
+  Seed, SeedExtensions,
   Command, CommandConfig, Middleware,
   ArgDef, FlagDef, InferArgs, InferFlags,
   PluginConfig, ExtensionConfig,
@@ -255,7 +255,7 @@ Enable shell completion support. Adds a `completions` command with:
 #### `.debug()`
 
 Enable `--debug` and `--verbose` global flags. When enabled:
-- `toolbox.meta.debug` is `true` when `--debug`, `--verbose`, or `DEBUG=1` is passed
+- `seed.meta.debug` is `true` when `--debug`, `--verbose`, or `DEBUG=1` is passed
 - The flags are automatically stripped from argv before command parsing
 - Commands can use `meta.debug` for verbose logging
 
@@ -280,24 +280,24 @@ interface ConfigOptions {
 Add global middleware that runs before every command.
 
 ```ts
-.middleware(async (toolbox, next) => {
+.middleware(async (seed, next) => {
   const start = Date.now();
   await next();
-  toolbox.print.debug(`Took ${Date.now() - start}ms`);
+  seed.print.debug(`Took ${Date.now() - start}ms`);
 })
 ```
 
-#### `.onReady(fn: (toolbox: Toolbox) => Promise<void> | void)`
+#### `.onReady(fn: (seed: Seed) => Promise<void> | void)`
 
 Hook that runs after all setup is complete but before command execution. Useful for analytics, telemetry, or environment checks.
 
-#### `.onError(fn: (error: Error, toolbox: Toolbox) => Promise<void> | void)`
+#### `.onError(fn: (error: Error, seed: Seed) => Promise<void> | void)`
 
 Global error handler. If not set, errors are printed with `print.error()` and `process.exit(1)`.
 
 #### `.exclude(modules: string[])`
 
-Exclude toolbox modules that aren't needed to improve startup performance.
+Exclude seed modules that aren't needed to improve startup performance.
 
 ```ts
 .exclude(["http", "template", "semver"])
@@ -474,13 +474,13 @@ Threshold: suggest if distance ≤ 3 or if the input is a prefix of a command.
 │    d. Load config files (c12)            │
 │    e. Load plugins (discover, validate)  │
 │    f. Register extensions                │
-│    g. Assemble toolbox (with caching)    │
+│    g. Assemble seed (with caching)       │
 │    h. Run onReady hooks                  │
 │    i. Route to command                   │
 │    j. Run extension setup (topo order)   │
 │    k. Run global middleware              │
 │    l. Run command middleware             │
-│    m. Execute command.run(toolbox)       │
+│    m. Execute command.run(seed)          │
 │    n. Run extension teardown (reverse)   │
 ├──────────────────────────────────────────┤
 │ 3. Cleanup                               │
@@ -492,22 +492,22 @@ Threshold: suggest if distance ≤ 3 or if the input is a prefix of a command.
 
 ---
 
-## Toolbox Assembly
+## Seed Assembly
 
-The toolbox is assembled lazily — modules are only initialized when first accessed.
+The seed context is assembled lazily — modules are only initialized when first accessed.
 
 ```ts
 // Internal implementation sketch
-function assembleToolbox(config: RuntimeConfig): Toolbox {
-  const toolbox = {} as Toolbox;
+function assembleSeed(config: RuntimeConfig): Seed {
+  const seed = {} as Seed;
 
   // Lazy module getters
-  Object.defineProperty(toolbox, "print", {
+  Object.defineProperty(seed, "print", {
     get: () => lazyLoad("@seedcli/print"),
     enumerable: true,
   });
 
-  Object.defineProperty(toolbox, "filesystem", {
+  Object.defineProperty(seed, "filesystem", {
     get: () => lazyLoad("@seedcli/filesystem"),
     enumerable: true,
   });
@@ -515,11 +515,11 @@ function assembleToolbox(config: RuntimeConfig): Toolbox {
   // ... etc for each module
 
   // Args and flags are set per-command (not lazy)
-  toolbox.args = {};
-  toolbox.flags = {};
+  seed.args = {};
+  seed.flags = {};
 
   // Meta
-  toolbox.meta = {
+  seed.meta = {
     version: config.version,
     commandName: "",
     brand: config.brand,
@@ -528,10 +528,10 @@ function assembleToolbox(config: RuntimeConfig): Toolbox {
 
   // Apply extensions
   for (const ext of config.extensions) {
-    ext.setup(toolbox);
+    ext.setup(seed);
   }
 
-  return toolbox;
+  return seed;
 }
 ```
 
@@ -710,8 +710,8 @@ test("parser infers string arg", async () => {
       command({
         name: "greet",
         args: { name: arg({ type: "string", required: true }) },
-        run: async (toolbox) => {
-          captured = toolbox.args;
+        run: async (seed) => {
+          captured = seed.args;
         },
       }),
     )

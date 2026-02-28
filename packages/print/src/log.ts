@@ -53,7 +53,7 @@ export function newline(count = 1): void {
 }
 
 /**
- * The print module object — passed to commands via the toolbox.
+ * The print module object — passed to commands via the seed context.
  */
 export const print: PrintModule = {
 	info,

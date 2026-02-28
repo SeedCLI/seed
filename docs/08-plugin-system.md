@@ -23,17 +23,17 @@ The plugin system allows CLI authors to:
 
 A **plugin** is an npm package that bundles:
 - **Commands** — CLI commands contributed to the host CLI
-- **Extensions** — Properties/methods added to the toolbox
+- **Extensions** — Properties/methods added to the seed context
 - **Templates** — Template files for file generation
 - **Defaults** — Default configuration values
 
 ### Extension
 
-An **extension** adds properties or methods to the toolbox object. Extensions are how plugins inject their functionality into the CLI's runtime.
+An **extension** adds properties or methods to the seed object. Extensions are how plugins inject their functionality into the CLI's runtime.
 
-### Toolbox Augmentation
+### Seed Augmentation
 
-Plugins can extend the TypeScript type of the toolbox via **declaration merging**, so the host CLI gets autocomplete and type checking for plugin-provided features.
+Plugins can extend the TypeScript type of the seed context via **declaration merging**, so the host CLI gets autocomplete and type checking for plugin-provided features.
 
 ---
 
@@ -67,16 +67,16 @@ const rollbackCmd = command({
 // Extension
 const deployExtension = defineExtension({
   name: "deploy",
-  setup: async (toolbox) => {
-    toolbox.deploy = {
+  setup: async (seed) => {
+    seed.deploy = {
       async toS3(bucket: string, path: string) {
-        await toolbox.system.exec(`aws s3 sync ${path} s3://${bucket}`);
+        await seed.system.exec(`aws s3 sync ${path} s3://${bucket}`);
       },
       async toVercel(projectId: string) {
-        await toolbox.system.exec(`vercel deploy --prod --token=${toolbox.config.get("vercel.token")}`);
+        await seed.system.exec(`vercel deploy --prod --token=${seed.config.get("vercel.token")}`);
       },
       async status() {
-        const result = await toolbox.http.get<DeployStatus>("https://api.deploy.com/status");
+        const result = await seed.http.get<DeployStatus>("https://api.deploy.com/status");
         return result.data;
       },
     };
@@ -119,12 +119,12 @@ This catches configuration errors early, at definition time rather than at runti
 
 ### Declaration Merging
 
-Plugins extend the toolbox type so host CLIs get full autocomplete:
+Plugins extend the seed type so host CLIs get full autocomplete:
 
 ```ts
 // @mycli/plugin-deploy/src/types.ts
 declare module "@seedcli/core" {
-  interface ToolboxExtensions {
+  interface SeedExtensions {
     deploy: {
       toS3(bucket: string, path: string): Promise<void>;
       toVercel(projectId: string): Promise<void>;
@@ -140,11 +140,11 @@ declare module "@seedcli/core" {
 // The host CLI gets full type safety
 const deploy = command({
   name: "ship",
-  run: async (toolbox) => {
-    // toolbox.deploy is fully typed!
-    await toolbox.deploy.toS3("my-bucket", "./dist");
-    const status = await toolbox.deploy.status();
-    toolbox.print.success(`Deployed! Status: ${status.url}`);
+  run: async (seed) => {
+    // seed.deploy is fully typed!
+    await seed.deploy.toS3("my-bucket", "./dist");
+    const status = await seed.deploy.status();
+    seed.print.success(`Deployed! Status: ${status.url}`);
   },
 });
 ```
@@ -239,8 +239,8 @@ interface ExtensionConfig {
   description?: string;
   dependencies?: string[];          // Other extensions this depends on
 
-  setup: (toolbox: Toolbox) => Promise<void> | void;
-  teardown?: (toolbox: Toolbox) => Promise<void> | void;  // Cleanup on exit
+  setup: (seed: Seed) => Promise<void> | void;
+  teardown?: (seed: Seed) => Promise<void> | void;  // Cleanup on exit
 }
 ```
 
@@ -255,7 +255,7 @@ This catches configuration errors early, at definition time rather than at runti
 
 ### Extension Lifecycle
 
-1. **setup()** — Called during toolbox assembly, before any command runs
+1. **setup()** — Called during seed assembly, before any command runs
 2. **teardown()** — Called during cleanup, after command completes (if defined)
 
 ### Extension Dependencies
@@ -267,12 +267,12 @@ const analyticsExtension = defineExtension({
   name: "analytics",
   dependencies: ["auth"],  // Requires auth extension to be loaded first
 
-  setup: async (toolbox) => {
-    // toolbox.auth is guaranteed to exist here
-    const token = toolbox.auth.getToken();
-    toolbox.analytics = {
+  setup: async (seed) => {
+    // seed.auth is guaranteed to exist here
+    const token = seed.auth.getToken();
+    seed.analytics = {
       track: async (event: string) => {
-        await toolbox.http.post("https://analytics.api/track", {
+        await seed.http.post("https://analytics.api/track", {
           event,
           token,
         });
@@ -304,7 +304,7 @@ Recommended npm package structure for a plugin:
 │   }
 ├── src/
 │   ├── index.ts           # definePlugin() — main export
-│   ├── types.ts           # Declaration merging for ToolboxExtensions
+│   ├── types.ts           # Declaration merging for SeedExtensions
 │   ├── commands/
 │   │   ├── deploy.ts
 │   │   └── rollback.ts
@@ -348,8 +348,8 @@ export default defineConfig({
 Accessing in commands/extensions:
 
 ```ts
-run: async (toolbox) => {
-  const region = toolbox.config.get("plugins.deploy.region");
+run: async (seed) => {
+  const region = seed.config.get("plugins.deploy.region");
   // "eu-west-1" (user override) or "us-east-1" (plugin default)
 };
 ```
@@ -545,11 +545,11 @@ ERROR: Command name conflict
 
 ### 2. Extension Name Conflicts
 
-**Scenario**: Two plugins register extensions with the same `name`, both trying to set `toolbox.deploy`.
+**Scenario**: Two plugins register extensions with the same `name`, both trying to set `seed.deploy`.
 
 **Detection**: During step 6 (register extensions), check if the extension name already exists.
 
-**Resolution**: Fail-fast. One toolbox key cannot be owned by two plugins.
+**Resolution**: Fail-fast. One seed key cannot be owned by two plugins.
 
 ```
 ERROR: Extension name conflict
@@ -595,7 +595,7 @@ ERROR: Plugin "@mycli/plugin-deploy" has an invalid export
 
 ### 5. Plugin Setup Errors (Runtime Failures)
 
-**Scenario**: An extension's `setup()` function throws during toolbox assembly.
+**Scenario**: An extension's `setup()` function throws during seed assembly.
 
 **Strategy**: Catch the error, wrap it with context, and re-throw. Do not silently swallow — the CLI author needs to know which plugin broke.
 
@@ -712,27 +712,27 @@ Priority (highest to lowest):
 DEBUG: Plugin "deploy" is already registered. Skipping duplicate.
 ```
 
-### 12. Type Safety: Duplicate ToolboxExtensions Keys
+### 12. Type Safety: Duplicate SeedExtensions Keys
 
-**Scenario**: Two plugins both use declaration merging to add the same key to `ToolboxExtensions`.
+**Scenario**: Two plugins both use declaration merging to add the same key to `SeedExtensions`.
 
 ```ts
 // plugin-deploy/types.ts
 declare module "@seedcli/core" {
-  interface ToolboxExtensions {
+  interface SeedExtensions {
     utils: { deployUtil(): void };
   }
 }
 
 // plugin-monitor/types.ts
 declare module "@seedcli/core" {
-  interface ToolboxExtensions {
+  interface SeedExtensions {
     utils: { monitorUtil(): void };  // Conflict!
   }
 }
 ```
 
-**Reality**: TypeScript will merge these interfaces, so `utils` would have **both** `deployUtil` and `monitorUtil` at the type level. But at runtime, only one plugin actually sets `toolbox.utils`, so the runtime extension conflict check (edge case #2) catches this.
+**Reality**: TypeScript will merge these interfaces, so `utils` would have **both** `deployUtil` and `monitorUtil` at the type level. But at runtime, only one plugin actually sets `seed.utils`, so the runtime extension conflict check (edge case #2) catches this.
 
 **Guidance for plugin authors**: Use unique, descriptive extension names (e.g., `deploy` not `utils`). Document this in the plugin authoring guide.
 

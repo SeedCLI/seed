@@ -22,7 +22,7 @@ export const newCommand = command({
 		}),
 	},
 
-	run: async (toolbox) => {
+	run: async (seed) => {
 		const {
 			args,
 			flags,
@@ -34,7 +34,7 @@ export const newCommand = command({
 			strings,
 			packageManager,
 			workspace,
-		} = toolbox;
+		} = seed;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");

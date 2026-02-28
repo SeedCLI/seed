@@ -146,7 +146,7 @@ describe("Runtime.run()", () => {
 		const order: string[] = [];
 
 		const runtime = build("mycli")
-			.middleware(async (_toolbox, next) => {
+			.middleware(async (_seed, next) => {
 				order.push("global-before");
 				await next();
 				order.push("global-after");
@@ -222,7 +222,7 @@ describe("Runtime.run()", () => {
 		expect(process.exitCode).toBe(1);
 	});
 
-	test("toolbox.print renders and prints directly", async () => {
+	test("seed.print renders and prints directly", async () => {
 		const runtime = build("mycli")
 			.command(
 				command({

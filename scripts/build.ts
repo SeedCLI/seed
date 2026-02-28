@@ -34,7 +34,7 @@ const packages = [
 	// Tier 2 — depends on tier 1
 	"core",
 	"testing",
-	"toolbox",
+	"seed",
 
 	// Tier 3 — depends on tier 2
 	"cli",

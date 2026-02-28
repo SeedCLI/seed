@@ -3,7 +3,7 @@
 > Simple HTTP client + OpenAPI-typed client for end-to-end type-safe API calls.
 
 **Package**: `@seedcli/http`
-**Phase**: 2 (Toolbox Complete)
+**Phase**: 2 (Seed Complete)
 **Dependencies**: `openapi-fetch` (optional peer dependency for OpenAPI mode)
 
 ---
@@ -141,11 +141,11 @@ await http.download(
 );
 ```
 
-### Toolbox Import Names
+### Seed Import Names
 
-When importing HTTP functions from `@seedcli/toolbox`, the standalone methods are prefixed to avoid name collisions with other modules (e.g., `patching.patch`):
+When importing HTTP functions from `@seedcli/seed`, the standalone methods are prefixed to avoid name collisions with other modules (e.g., `patching.patch`):
 
-| `@seedcli/http` | `@seedcli/toolbox` |
+| `@seedcli/http` | `@seedcli/seed` |
 |---|---|
 | `get()` | `httpGet()` |
 | `post()` | `httpPost()` |

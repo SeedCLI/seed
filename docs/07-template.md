@@ -3,7 +3,7 @@
 > File generation from templates using Eta (TypeScript, 3x faster than EJS).
 
 **Package**: `@seedcli/template`
-**Phase**: 2 (Toolbox Complete)
+**Phase**: 2 (Seed Complete)
 **Dependencies**: `eta`
 
 ---

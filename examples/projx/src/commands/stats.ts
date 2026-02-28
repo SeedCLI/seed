@@ -5,8 +5,8 @@ export const statsCommand = command({
 	name: "stats",
 	description: "Show workspace statistics",
 
-	run: async (toolbox) => {
-		const { print, filesystem, workspace } = toolbox;
+	run: async (seed) => {
+		const { print, filesystem, workspace } = seed;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");

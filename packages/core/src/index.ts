@@ -61,7 +61,7 @@ export type {
 	CompileTarget,
 	// Extension
 	ExtensionConfig,
-	ExtensionToolbox,
+	ExtensionSeed,
 	FlagDef,
 	FlagType,
 	InferArgs,
@@ -73,10 +73,10 @@ export type {
 	PrintModule,
 	ResolveArgType,
 	ResolveFlagType,
+	// Seed
+	Seed,
 	SeedConfig,
+	SeedExtensions,
 	StringsModule,
-	// Toolbox
-	Toolbox,
-	ToolboxExtensions,
 } from "./types/index.js";
 export { definePlugin } from "./types/plugin.js";

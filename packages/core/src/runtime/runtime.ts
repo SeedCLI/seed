@@ -14,7 +14,7 @@ import { topoSort } from "../plugin/topo-sort.js";
 import { validateSeedcliVersion } from "../plugin/validator.js";
 import type { Command } from "../types/command.js";
 import type { ExtensionConfig } from "../types/extension.js";
-import type { Toolbox } from "../types/toolbox.js";
+import type { Seed } from "../types/seed.js";
 import type { BuilderConfig } from "./builder.js";
 
 /**
@@ -377,18 +377,12 @@ export class Runtime {
 		// Parse args and flags
 		const parsed = parse(argv, cmd);
 
-		// Assemble toolbox
-		const toolbox = await this.assembleToolbox(
-			parsed.args,
-			parsed.flags,
-			cmd.name,
-			rawArgv,
-			parsed.argv,
-		);
+		// Assemble seed
+		const seed = await this.assembleSeed(parsed.args, parsed.flags, cmd.name, rawArgv, parsed.argv);
 
 		// Run onReady
 		if (this.config.onReady) {
-			await this.config.onReady(toolbox as Toolbox);
+			await this.config.onReady(seed as Seed);
 		}
 
 		// ─── Run extension setup (topological order) ───
@@ -398,7 +392,7 @@ export class Runtime {
 
 		try {
 			for (const ext of sorted) {
-				await this.runExtensionSetup(ext, toolbox);
+				await this.runExtensionSetup(ext, seed);
 				setupCompleted.push(ext);
 			}
 
@@ -406,9 +400,9 @@ export class Runtime {
 			const allMiddleware = [...this.config.middleware, ...(cmd.middleware ?? [])];
 
 			if (allMiddleware.length > 0) {
-				await this.runMiddleware(allMiddleware, toolbox, async () => {
+				await this.runMiddleware(allMiddleware, seed, async () => {
 					if (cmd.run) {
-						await cmd.run(toolbox);
+						await cmd.run(seed);
 					} else if (cmd.subcommands && cmd.subcommands.length > 0 && this.config.helpEnabled) {
 						// Container command with no run handler — show help
 						const helpText = renderCommandHelp(cmd, {
@@ -419,7 +413,7 @@ export class Runtime {
 					}
 				});
 			} else if (cmd.run) {
-				await cmd.run(toolbox);
+				await cmd.run(seed);
 			} else if (cmd.subcommands && cmd.subcommands.length > 0 && this.config.helpEnabled) {
 				// Container command with no run handler — show help
 				const helpText = renderCommandHelp(cmd, {
@@ -433,7 +427,7 @@ export class Runtime {
 			for (const ext of [...setupCompleted].reverse()) {
 				if (ext.teardown) {
 					try {
-						await ext.teardown(toolbox);
+						await ext.teardown(seed);
 					} catch (err) {
 						// Log teardown errors but don't throw — ensure all teardowns run
 						console.warn(
@@ -447,11 +441,11 @@ export class Runtime {
 
 	private async runExtensionSetup(
 		ext: ExtensionConfig,
-		toolbox: Toolbox<Record<string, unknown>, Record<string, unknown>>,
+		seed: Seed<Record<string, unknown>, Record<string, unknown>>,
 	): Promise<void> {
 		const timeout = DEFAULT_SETUP_TIMEOUT;
 
-		const setupPromise = Promise.resolve(ext.setup(toolbox));
+		const setupPromise = Promise.resolve(ext.setup(seed));
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const timeoutPromise = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => {
@@ -482,7 +476,7 @@ export class Runtime {
 
 	private async runMiddleware(
 		middleware: typeof this.config.middleware,
-		toolbox: Toolbox<Record<string, unknown>, Record<string, unknown>>,
+		seed: Seed<Record<string, unknown>, Record<string, unknown>>,
 		final: () => Promise<void>,
 	): Promise<void> {
 		let index = 0;
@@ -491,7 +485,7 @@ export class Runtime {
 		const next = async (): Promise<void> => {
 			if (index < middleware.length) {
 				const fn = middleware[index++];
-				await fn(toolbox, next);
+				await fn(seed, next);
 			} else if (!finalCalled) {
 				finalCalled = true;
 				await final();
@@ -501,13 +495,13 @@ export class Runtime {
 		await next();
 	}
 
-	private async assembleToolbox(
+	private async assembleSeed(
 		args: Record<string, unknown>,
 		flags: Record<string, unknown>,
 		commandName: string,
 		rawArgv?: string[],
 		positionals?: string[],
-	): Promise<Toolbox<Record<string, unknown>, Record<string, unknown>>> {
+	): Promise<Seed<Record<string, unknown>, Record<string, unknown>>> {
 		const excluded = new Set(this.config.excludeModules ?? []);
 
 		const raw = rawArgv ?? process.argv.slice(2);
@@ -515,7 +509,7 @@ export class Runtime {
 			this.config.debugEnabled &&
 			(raw.includes("--debug") || raw.includes("--verbose") || process.env.DEBUG === "1");
 
-		const toolbox = {
+		const seed = {
 			args,
 			flags,
 			parameters: {
@@ -529,12 +523,12 @@ export class Runtime {
 				brand: this.config.brand,
 				debug: isDebug,
 			},
-		} as Toolbox<Record<string, unknown>, Record<string, unknown>>;
+		} as Seed<Record<string, unknown>, Record<string, unknown>>;
 
-		// [toolbox key, package name, named export to extract]
+		// [seed key, package name, named export to extract]
 		// When a named export is specified, that export is used instead of the
 		// full module namespace. This is needed when the module's namespace
-		// contains raw functions whose signatures differ from the toolbox
+		// contains raw functions whose signatures differ from the seed
 		// interface (e.g. @seedcli/print exports table() returning string,
 		// but PrintModule.table() returns void because it logs automatically).
 		const modules: Array<[string, string, string?]> = [
@@ -555,7 +549,7 @@ export class Runtime {
 		const loadableModules: Array<[string, string, string?]> = [];
 		for (const [name, pkg, namedExport] of modules) {
 			if (excluded.has(name)) {
-				Object.defineProperty(toolbox, name, {
+				Object.defineProperty(seed, name, {
 					get: () => {
 						throw new Error(
 							`The "${name}" module was excluded from this CLI. To use it, remove "${name}" from the .exclude() call in your CLI builder.`,
@@ -568,7 +562,7 @@ export class Runtime {
 				// Check instance cache first (sync fast path)
 				const cacheKey = `${pkg}:${namedExport ?? ""}`;
 				if (this.moduleCache.has(cacheKey)) {
-					(toolbox as unknown as Record<string, unknown>)[name] = this.moduleCache.get(cacheKey);
+					(seed as unknown as Record<string, unknown>)[name] = this.moduleCache.get(cacheKey);
 				} else {
 					loadableModules.push([name, pkg, namedExport]);
 				}
@@ -592,7 +586,7 @@ export class Runtime {
 					const resolved = namedExport ? mod[namedExport] : mod;
 					const cacheKey = `${pkg}:${namedExport ?? ""}`;
 					this.moduleCache.set(cacheKey, resolved);
-					(toolbox as unknown as Record<string, unknown>)[name] = resolved;
+					(seed as unknown as Record<string, unknown>)[name] = resolved;
 				} else {
 					// Module not installed — skip silently
 					// But warn about unexpected errors (not MODULE_NOT_FOUND)
@@ -622,7 +616,7 @@ export class Runtime {
 			}
 		}
 
-		return toolbox;
+		return seed;
 	}
 
 	private extractCompletionInfo(): CompletionInfo {
@@ -788,8 +782,8 @@ export class Runtime {
 		if (this.config.onError) {
 			try {
 				const commandName = raw?.[0] ?? "";
-				const toolbox = await this.assembleToolbox({}, {}, commandName, raw);
-				await this.config.onError(error, toolbox as Toolbox);
+				const seed = await this.assembleSeed({}, {}, commandName, raw);
+				await this.config.onError(error, seed as Seed);
 				// Set exitCode if onError handler didn't explicitly set one
 				if (process.exitCode === undefined || process.exitCode === 0) {
 					process.exitCode = 1;

@@ -1,4 +1,4 @@
-# Remaining Toolbox Modules
+# Remaining Seed Modules
 
 > Patching, Strings, Semver, Package Manager, Config, Completions, UI.
 

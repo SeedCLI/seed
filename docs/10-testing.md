@@ -17,7 +17,7 @@ Provides a testing toolkit for CLI applications built with Seed CLI. Designed to
 - **Config mocking** — Override config values for tests
 - **System mocking** — Mock shell commands and their output
 - **Filesystem mocking** — Isolated temp directories for file operations
-- **`mockToolbox()`** — Create isolated toolbox for unit-testing commands
+- **`mockSeed()`** — Create isolated seed context for unit-testing commands
 - **Snapshot testing** — Snapshot CLI output for regression testing
 
 ---
@@ -31,7 +31,7 @@ packages/testing/
 │   ├── index.ts           # Public API
 │   ├── runner.ts          # createTestCli — run commands, capture output
 │   ├── mock.ts            # Mock factories (prompt, config, system, filesystem)
-│   ├── mock-toolbox.ts    # Mock toolbox for unit-testing commands
+│   ├── mock-seed.ts       # Mock seed context for unit-testing commands
 │   ├── snapshot.ts        # Output snapshot helpers
 │   └── types.ts           # Shared types
 └── tests/
@@ -45,7 +45,7 @@ packages/testing/
 ```ts
 export { createTestCli, type TestCliBuilder, type TestResult } from "./runner";
 export { mockPrompt, mockConfig, mockSystem, mockFilesystem } from "./mock";
-export { mockToolbox, type MockToolboxOptions } from "./mock-toolbox";
+export { mockSeed, type MockSeedOptions } from "./mock-seed";
 ```
 
 ---
@@ -252,26 +252,26 @@ const result = await createTestCli(cli)
 
 ---
 
-## Mock Toolbox
+## Mock Seed
 
-Create a mock `Toolbox` for unit-testing individual commands without a full runtime:
+Create a mock `Seed` context for unit-testing individual commands without a full runtime:
 
 ```ts
-import { mockToolbox } from "@seedcli/testing";
+import { mockSeed } from "@seedcli/testing";
 
 test("greet command", async () => {
-  const toolbox = mockToolbox({
+  const seed = mockSeed({
     args: { name: "Alice" },
     flags: { loud: true },
   });
-  await greetCommand.run(toolbox);
+  await greetCommand.run(seed);
 });
 ```
 
 ### Options
 
 ```ts
-interface MockToolboxOptions {
+interface MockSeedOptions {
   args?: Record<string, unknown>;
   flags?: Record<string, unknown>;
   commandName?: string;
@@ -280,7 +280,7 @@ interface MockToolboxOptions {
 }
 ```
 
-All toolbox modules (`print`, `prompt`, `filesystem`, etc.) are stubbed with no-op implementations:
+All seed modules (`print`, `prompt`, `filesystem`, etc.) are stubbed with no-op implementations:
 - `print.*` methods are no-ops
 - `print.colors` returns identity functions (`colors.red("text")` → `"text"`)
 - `print.spin()` returns a mock spinner

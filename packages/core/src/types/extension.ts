@@ -1,14 +1,14 @@
-import type { Toolbox } from "./toolbox.js";
+import type { Seed } from "./seed.js";
 
 /**
- * The toolbox type exposed to extensions.
+ * The seed type exposed to extensions.
  * Extensions run before any command, so args/flags are not available.
- * All core modules (print, filesystem, etc.) and ToolboxExtensions are fully typed.
+ * All core modules (print, filesystem, etc.) and SeedExtensions are fully typed.
  */
-export type ExtensionToolbox = Omit<Toolbox, "args" | "flags">;
+export type ExtensionSeed = Omit<Seed, "args" | "flags">;
 
 /**
- * Extension configuration — defines how a plugin extends the toolbox.
+ * Extension configuration — defines how a plugin extends the seed context.
  */
 export interface ExtensionConfig {
 	/** Extension name (must be unique across all plugins) */
@@ -20,11 +20,11 @@ export interface ExtensionConfig {
 	/** Other extensions this depends on (resolved via topological sort) */
 	dependencies?: string[];
 
-	/** Called during toolbox assembly, before any command runs */
-	setup: (toolbox: ExtensionToolbox) => Promise<void> | void;
+	/** Called during seed assembly, before any command runs */
+	setup: (seed: ExtensionSeed) => Promise<void> | void;
 
 	/** Called during cleanup, after command completes */
-	teardown?: (toolbox: ExtensionToolbox) => Promise<void> | void;
+	teardown?: (seed: ExtensionSeed) => Promise<void> | void;
 }
 
 /**
@@ -33,8 +33,8 @@ export interface ExtensionConfig {
  * ```ts
  * const authExtension = defineExtension({
  *   name: "auth",
- *   setup: async (toolbox) => {
- *     toolbox.auth = { getToken: () => "..." };
+ *   setup: async (seed) => {
+ *     seed.auth = { getToken: () => "..." };
  *   },
  * });
  * ```
@@ -47,7 +47,7 @@ export function defineExtension(config: ExtensionConfig): ExtensionConfig {
 	}
 	if (typeof config.setup !== "function") {
 		throw new Error(
-			`Extension "${config.name}" is missing a setup function. Provide setup in defineExtension({ setup: (toolbox) => { ... } }).`,
+			`Extension "${config.name}" is missing a setup function. Provide setup in defineExtension({ setup: (seed) => { ... } }).`,
 		);
 	}
 	return config;

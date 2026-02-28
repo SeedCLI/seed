@@ -23,8 +23,8 @@ export const openCommand = command({
 		}),
 	},
 
-	run: async (toolbox) => {
-		const { args, flags, print, system, workspace } = toolbox;
+	run: async (seed) => {
+		const { args, flags, print, system, workspace } = seed;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");

@@ -185,7 +185,7 @@ export interface GenerateBuildEntryResult {
 /**
  * Find which @seedcli/* runtime modules are installed in node_modules.
  *
- * The runtime's assembleToolbox() dynamically imports these modules, which the
+ * The runtime's assembleSeed() dynamically imports these modules, which the
  * bundler can't trace. We include all installed @seedcli/* packages so the
  * compiled binary has everything it needs — they're always transitive deps
  * of @seedcli/core, so users don't need to declare them explicitly.
@@ -209,7 +209,7 @@ async function getUsedSeedcliModules(cwd: string): Promise<string[]> {
 	const used: string[] = [];
 	for (const pkg of seedcliPackages) {
 		// Include all @seedcli/* packages found in node_modules.
-		// These are framework runtime modules loaded dynamically by assembleToolbox().
+		// These are framework runtime modules loaded dynamically by assembleSeed().
 		// They're always transitive deps of @seedcli/core, so if installed, include them —
 		// regardless of whether the user listed them in their own package.json.
 		const modPath = join(cwd, "node_modules", ...pkg.split("/"));
@@ -253,7 +253,7 @@ export async function generateBuildEntry(
 	const importLines: string[] = [];
 
 	// ─── Force-include @seedcli/* runtime modules ───
-	// The runtime's assembleToolbox() uses dynamic imports that the compiler can't trace.
+	// The runtime's assembleSeed() uses dynamic imports that the compiler can't trace.
 	// We import them statically and register them so the runtime can find them.
 	const usedModules = await getUsedSeedcliModules(cwd);
 	const moduleRegistrations: string[] = [];

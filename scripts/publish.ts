@@ -49,7 +49,7 @@ const allPackages = [
 	"ui", // depends on print
 	"core",
 	"testing",
-	"toolbox",
+	"seed",
 	"cli",
 	"create-seedcli",
 ];

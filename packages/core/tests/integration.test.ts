@@ -157,7 +157,7 @@ describe("Middleware error propagation", () => {
 		let caughtError: Error | null = null;
 
 		const runtime = build("testcli")
-			.middleware(async (_toolbox, _next) => {
+			.middleware(async (_seed, _next) => {
 				throw new Error("middleware exploded");
 			})
 			.onError((err) => {
@@ -187,7 +187,7 @@ describe("Middleware error propagation", () => {
 
 	test("middleware that throws without onError sets exitCode", async () => {
 		const runtime = build("testcli")
-			.middleware(async (_toolbox, _next) => {
+			.middleware(async (_seed, _next) => {
 				throw new Error("middleware failure");
 			})
 			.command(
@@ -405,7 +405,7 @@ describe("Extension timeout", () => {
 // ─── 6. registerModule() ───
 
 describe("registerModule()", () => {
-	test("registered module is accessible on the toolbox", async () => {
+	test("registered module is accessible on the seed", async () => {
 		const fakeModule = {
 			greet: (name: string) => `Hello, ${name}!`,
 			version: "0.1.0",
@@ -422,8 +422,8 @@ describe("registerModule()", () => {
 			.command(
 				command({
 					name: "check",
-					run: async (toolbox) => {
-						capturedStrings = toolbox.strings;
+					run: async (seed) => {
+						capturedStrings = seed.strings;
 					},
 				}),
 			)
@@ -467,8 +467,8 @@ describe("registerModule()", () => {
 			.command(
 				command({
 					name: "check-print",
-					run: async (toolbox) => {
-						capturedPrint = toolbox.print;
+					run: async (seed) => {
+						capturedPrint = seed.print;
 					},
 				}),
 			)

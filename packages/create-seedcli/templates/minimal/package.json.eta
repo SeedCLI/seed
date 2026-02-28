@@ -11,12 +11,16 @@
 		"test": "bun test",
 		"build": "seed build",
 		"compile": "seed build --compile --outfile <%= it.name %>",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"format": "biome format --write .",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@seedcli/core": "^<%= it.seedcliVersion %>"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "^2.4.4",
 		"@seedcli/cli": "^<%= it.seedcliVersion %>",
 		"@types/bun": "latest",
 		"typescript": "^5.9.0"

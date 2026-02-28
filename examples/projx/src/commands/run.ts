@@ -9,8 +9,8 @@ export const runCommand = command({
 		script: arg({ type: "string", required: true, description: "Script to run" }),
 	},
 
-	run: async (toolbox) => {
-		const { args, print, packageManager, workspace } = toolbox;
+	run: async (seed) => {
+		const { args, print, packageManager, workspace } = seed;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");

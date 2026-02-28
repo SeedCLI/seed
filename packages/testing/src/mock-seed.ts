@@ -1,6 +1,6 @@
-import type { Toolbox } from "@seedcli/core";
+import type { Seed } from "@seedcli/core";
 
-export interface MockToolboxOptions {
+export interface MockSeedOptions {
 	args?: Record<string, unknown>;
 	flags?: Record<string, unknown>;
 	commandName?: string;
@@ -9,7 +9,7 @@ export interface MockToolboxOptions {
 }
 
 /**
- * Create a mock Toolbox with sensible defaults for testing commands
+ * Create a mock Seed context with sensible defaults for testing commands
  * in isolation without needing a full Runtime.
  *
  * All module methods are no-ops by default; override specific properties
@@ -17,16 +17,16 @@ export interface MockToolboxOptions {
  *
  * @example
  * ```ts
- * const toolbox = mockToolbox({
+ * const seed = mockSeed({
  *   args: { name: "hello" },
  *   flags: { verbose: true },
  * });
- * await myCommand.run(toolbox);
+ * await myCommand.run(seed);
  * ```
  */
-export function mockToolbox(
-	options: MockToolboxOptions = {},
-): Toolbox<Record<string, unknown>, Record<string, unknown>> {
+export function mockSeed(
+	options: MockSeedOptions = {},
+): Seed<Record<string, unknown>, Record<string, unknown>> {
 	const {
 		args = {},
 		flags = {},
@@ -140,5 +140,5 @@ export function mockToolbox(
 		patching: new Proxy({} as never, {
 			get: () => () => Promise.resolve(false),
 		}),
-	} as unknown as Toolbox<Record<string, unknown>, Record<string, unknown>>;
+	} as unknown as Seed<Record<string, unknown>, Record<string, unknown>>;
 }

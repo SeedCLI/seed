@@ -23,8 +23,8 @@ export const listCommand = command({
 		}),
 	},
 
-	run: async (toolbox) => {
-		const { flags, print, strings, workspace } = toolbox;
+	run: async (seed) => {
+		const { flags, print, strings, workspace } = seed;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");

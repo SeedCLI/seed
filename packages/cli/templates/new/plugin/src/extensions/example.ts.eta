@@ -4,12 +4,12 @@ export const exampleExtension = defineExtension({
 	name: "<%= it.name %>",
 	description: "Example extension for <%= it.name %>",
 
-	setup: (toolbox) => {
-		// Built-in toolbox modules are fully typed
-		toolbox.print.muted("[<%= it.name %>] extension loaded");
+	setup: (seed) => {
+		// Built-in seed modules are fully typed
+		seed.print.muted("[<%= it.name %>] extension loaded");
 
-		// Attach your extension to the toolbox (typed via src/types.d.ts)
-		toolbox.<%= it.name.replace(/-/g, "_").replace(/^(\d)/, "_$1") %> = {
+		// Attach your extension to the seed context (typed via src/types.d.ts)
+		seed.<%= it.name.replace(/-/g, "_").replace(/^(\d)/, "_$1") %> = {
 			greet: (name: string) => `Hello from <%= it.name %>, ${name}!`,
 		};
 	},

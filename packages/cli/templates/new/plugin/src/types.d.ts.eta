@@ -1,7 +1,7 @@
 import type {} from "@seedcli/core";
 
 declare module "@seedcli/core" {
-	interface ToolboxExtensions {
+	interface SeedExtensions {
 		<%= it.name.replace(/-/g, "_").replace(/^(\d)/, "_$1") %>: {
 			greet(name: string): string;
 		};

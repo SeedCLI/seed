@@ -15,7 +15,7 @@ import type { TemplateModule } from "@seedcli/template";
  * Example (in a plugin's types.ts):
  * ```ts
  * declare module "@seedcli/core" {
- *   interface ToolboxExtensions {
+ *   interface SeedExtensions {
  *     deploy: {
  *       toS3(bucket: string, path: string): Promise<void>;
  *     };
@@ -24,16 +24,16 @@ import type { TemplateModule } from "@seedcli/template";
  * ```
  */
 // biome-ignore lint/suspicious/noEmptyInterface: Must be an interface for declaration merging by plugins
-export interface ToolboxExtensions {}
+export interface SeedExtensions {}
 
-// ─── Toolbox Interface ───
+// ─── Seed Interface ───
 
 /**
- * The toolbox is the main object passed to every command's `run` function.
+ * The seed object is the main context passed to every command's `run` function.
  * It provides access to all framework modules and per-command typed args/flags.
  */
-export interface Toolbox<TArgs = Record<string, never>, TFlags = Record<string, never>>
-	extends ToolboxExtensions {
+export interface Seed<TArgs = Record<string, never>, TFlags = Record<string, never>>
+	extends SeedExtensions {
 	// Per-command (typed from command definition)
 	args: TArgs;
 	flags: TFlags;

@@ -21,8 +21,8 @@ export const searchCommand = command({
 		}),
 	},
 
-	run: async (toolbox) => {
-		const { args, flags, print, system, strings, workspace } = toolbox;
+	run: async (seed) => {
+		const { args, flags, print, system, strings, workspace } = seed;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");

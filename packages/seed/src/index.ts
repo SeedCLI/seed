@@ -32,16 +32,16 @@ export type {
 	Command,
 	CommandConfig,
 	ExtensionConfig,
-	ExtensionToolbox,
+	ExtensionSeed,
 	FlagDef,
 	InferArgs,
 	InferFlags,
 	Middleware,
 	PluginConfig,
 	RunConfig,
+	Seed,
 	SeedConfig,
-	Toolbox,
-	ToolboxExtensions,
+	SeedExtensions,
 } from "@seedcli/core";
 export {
 	arg,
@@ -308,12 +308,12 @@ export {
 // Testing
 export type {
 	Interceptor,
-	MockToolboxOptions,
+	MockSeedOptions,
 	TestCliBuilder,
 	TestCliOptions,
 	TestResult,
 } from "@seedcli/testing";
-export { createInterceptor, createTestCli, mockToolbox } from "@seedcli/testing";
+export { createInterceptor, createTestCli, mockSeed } from "@seedcli/testing";
 // UI
 export type { HeaderOptions, ListOptions, StatusState } from "@seedcli/ui";
 export {

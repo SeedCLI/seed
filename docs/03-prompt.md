@@ -3,7 +3,7 @@
 > Type-safe interactive prompts for CLI applications.
 
 **Package**: `@seedcli/prompt`
-**Phase**: 2 (Toolbox Complete)
+**Phase**: 2 (Seed Complete)
 **Dependencies**: `@inquirer/prompts`
 
 ---

@@ -28,9 +28,9 @@ const cli = build("projx")
 	.command(statsCommand)
 	.help()
 	.completions()
-	.onError(async (error, toolbox) => {
-		toolbox.print.error(error.message);
-		toolbox.print.muted("Run projx --help for usage information.");
+	.onError(async (error, seed) => {
+		seed.print.error(error.message);
+		seed.print.muted("Run projx --help for usage information.");
 		process.exitCode = 1;
 	})
 	.create();

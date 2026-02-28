@@ -48,7 +48,7 @@ packages/
 ├── package-manager/ # Package manager detection and commands
 ├── completions/     # Shell completion generation
 ├── testing/         # Test utilities (createTestCli, mocks)
-├── toolbox/         # Umbrella re-export of all modules
+├── seed/            # Umbrella re-export of all modules
 ├── ui/              # Terminal UI components
 ├── cli/             # Scaffolding CLI (seed command)
 └── create-seedcli/  # bun create seedcli / npx create-seedcli
@@ -141,7 +141,7 @@ chore: bump dependencies
 3. Add `tsconfig.json` extending the root
 4. Add `tsconfig.build.json` for compilation
 5. Add the path alias to the root `tsconfig.json`
-6. Export from `@seedcli/toolbox` if appropriate
+6. Export from `@seedcli/seed` if appropriate
 7. Add to the build order in `scripts/build.ts`
 
 ## Reporting Bugs

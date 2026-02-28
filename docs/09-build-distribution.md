@@ -52,7 +52,7 @@ bun add -g @seedcli/cli
 
 | Package | What | How It's Installed |
 |---|---|---|
-| `@seedcli/core` | Runtime library (builder, toolbox, types) | `bun add @seedcli/core` in project |
+| `@seedcli/core` | Runtime library (builder, seed, types) | `bun add @seedcli/core` in project |
 | `@seedcli/cli` | Dev tooling (`seed init`, `seed build`, `seed dev`) | `bun add -g @seedcli/cli` globally |
 | `@seedcli/print` | Print module | Auto-included via `@seedcli/core` |
 | `@seedcli/prompt` | Prompt module | Auto-included via `@seedcli/core` |

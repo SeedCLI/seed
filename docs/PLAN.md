@@ -14,7 +14,7 @@
 - [3. Architecture Overview](#3-architecture-overview)
 - [4. Monorepo Structure](#4-monorepo-structure)
 - [5. Core Runtime](#5-core-runtime)
-- [6. Toolbox Modules](#6-toolbox-modules)
+- [6. Seed Modules](#6-seed-modules)
 - [7. Plugin System](#7-plugin-system)
 - [8. CLI Builder API](#8-cli-builder-api)
 - [9. Command System](#9-command-system)
@@ -32,7 +32,7 @@ Each section has a dedicated deep-dive document:
 
 | Doc | Description |
 |---|---|
-| [01-core-runtime.md](./01-core-runtime.md) | Core runtime: builder API, arg parser, command router, lifecycle, toolbox assembly |
+| [01-core-runtime.md](./01-core-runtime.md) | Core runtime: builder API, arg parser, command router, lifecycle, seed assembly |
 | [02-print.md](./02-print.md) | Print module: logging, colors, spinner, table, box, figlet, tree, progress |
 | [03-prompt.md](./03-prompt.md) | Prompt module: input, select, multiselect, form, autocomplete, type inference |
 | [04-filesystem.md](./04-filesystem.md) | Filesystem: read, write, copy, move, find, path helpers, temp dirs |
@@ -42,7 +42,7 @@ Each section has a dedicated deep-dive document:
 | [08-plugin-system.md](./08-plugin-system.md) | Plugin system: definePlugin, extensions, type safety, loading |
 | [09-build-distribution.md](./09-build-distribution.md) | Build: npm packages, binary compilation, dev mode, CI/CD |
 | [10-testing.md](./10-testing.md) | Testing: createTestCli, mocking, snapshots |
-| [11-remaining-modules.md](./11-remaining-modules.md) | Patching, strings, semver, package-manager, config, completions, UI |
+| [11-remaining-modules.md](./11-remaining-modules.md) | Remaining seed modules: patching, strings, semver, package-manager, config, completions, UI |
 | [12-type-safety.md](./12-type-safety.md) | Type safety: inference strategy, conditional types, declaration merging |
 | [13-implementation-phases.md](./13-implementation-phases.md) | Phases: week-by-week breakdown with concrete deliverables |
 | [PUBLISHING.md](./PUBLISHING.md) | Publishing guide: how to bump versions and publish to npm via GitHub Actions |
@@ -158,7 +158,7 @@ Everything is composable. Commands, extensions, plugins — all are plain object
 │  └────┬────┘  └────┬─────┘  └────────┬───────────┘  │
 │       │             │                  │              │
 │  ┌────▼─────────────▼──────────────────▼───────────┐ │
-│  │                  TOOLBOX                          │ │
+│  │                SEED CONTEXT                       │ │
 │  │  ┌──────────┬──────────┬──────────┬──────────┐  │ │
 │  │  │  print   │filesystem│  system  │  http    │  │ │
 │  │  ├──────────┼──────────┼──────────┼──────────┤  │ │
@@ -224,16 +224,16 @@ seedcli/
 │   │   │   ├── config/
 │   │   │   │   ├── resolver.ts  # Config file resolution (via c12)
 │   │   │   │   └── types.ts     # Config types
-│   │   │   ├── toolbox/
-│   │   │   │   └── toolbox.ts   # Toolbox assembly
+│   │   │   ├── seed/
+│   │   │   │   └── seed.ts      # Seed context assembly
 │   │   │   └── types/
 │   │   │       └── index.ts     # Shared type definitions
 │   │   └── tests/
 │   │
-│   ├── toolbox/                 # @seedcli/toolbox  (umbrella re-export)
+│   ├── seed/                    # @seedcli/seed  (umbrella re-export)
 │   │   ├── package.json
 │   │   └── src/
-│   │       └── index.ts         # Re-exports all toolbox modules
+│   │       └── index.ts         # Re-exports all seed modules
 │   │
 │   ├── print/                   # @seedcli/print
 │   │   ├── package.json
@@ -347,7 +347,7 @@ seedcli/
 │   │   └── src/
 │   │       ├── index.ts
 │   │       ├── runner.ts        # CLI test runner (leverages bun:test)
-│   │       ├── mock.ts          # Mock toolbox, prompts, filesystem
+│   │       ├── mock.ts          # Mock seed context, prompts, filesystem
 │   │       └── snapshot.ts      # Output snapshot testing
 │   │
 │   ├── completions/             # @seedcli/completions
@@ -405,8 +405,8 @@ seedcli/
   ├── @seedcli/ui
   └── @seedcli/completions
 
-@seedcli/toolbox (umbrella — re-exports all above)
-  └── @seedcli/core (+ all toolbox modules)
+@seedcli/seed (umbrella — re-exports all above)
+  └── @seedcli/core (+ all seed modules)
 
 @seedcli/testing
   └── @seedcli/core
@@ -416,7 +416,7 @@ seedcli/
 
 ```ts
 // Mode 1: All-in-one (easiest)
-import { build, command } from "@seedcli/toolbox";
+import { build, command } from "@seedcli/seed";
 
 // Mode 2: Core + specific modules (tree-shakeable)
 import { build } from "@seedcli/core";
@@ -464,10 +464,10 @@ const cli = build("mycli")
   .config({ configName: "mycli" }) // Searches for mycli.config.ts, .myclirc, etc.
 
   // Lifecycle hooks
-  .onReady((toolbox) => {
+  .onReady((seed) => {
     /* runs after setup, before command */
   })
-  .onError((error, toolbox) => {
+  .onError((error, seed) => {
     /* global error handler */
   })
 
@@ -485,10 +485,10 @@ await cli.run();
 3. Load config files (via c12)
 4. Load plugins (discover, validate, register)
 5. Register extensions (from plugins + inline)
-6. Assemble toolbox
+6. Assemble seed context
 7. Route to matching command (fuzzy matching for suggestions)
 8. Execute middleware chain (if any)
-9. Execute command.run(toolbox)
+9. Execute command.run(seed)
 10. Cleanup & exit
 ```
 
@@ -542,9 +542,9 @@ const deploy = command({
 
 ---
 
-## 6. Toolbox Modules
+## 6. Seed Modules
 
-Each toolbox module is a standalone package that can be used independently or as part of the toolbox injected into commands.
+Each seed module is a standalone package that can be used independently or as part of the seed context injected into commands.
 
 ### 6.1 Print (`@seedcli/print`)
 
@@ -999,7 +999,7 @@ export default definePlugin({
   // Commands contributed by this plugin
   commands: [deployCommand, rollbackCommand],
 
-  // Extensions added to the toolbox
+  // Extensions added to the seed context
   extensions: [deployExtension],
 
   // Templates bundled with this plugin
@@ -1033,7 +1033,7 @@ const cli = build("mycli")
 
 ### 7.3 Extensions
 
-Extensions add properties/methods to the toolbox:
+Extensions add properties/methods to the seed context:
 
 ```ts
 import { defineExtension } from "@seedcli/core";
@@ -1041,9 +1041,9 @@ import { defineExtension } from "@seedcli/core";
 export const deployExtension = defineExtension({
   name: "deploy",
 
-  setup: async (toolbox) => {
-    // Add to toolbox
-    toolbox.deploy = {
+  setup: async (seed) => {
+    // Add to seed context
+    seed.deploy = {
       async toS3(bucket: string) {
         /* ... */
       },
@@ -1057,12 +1057,12 @@ export const deployExtension = defineExtension({
 
 ### 7.4 Plugin Type Safety
 
-Plugins can extend the toolbox types via declaration merging:
+Plugins can extend the seed context types via declaration merging:
 
 ```ts
 // @mycli/plugin-deploy/src/types.ts
 declare module "@seedcli/core" {
-  interface ToolboxExtensions {
+  interface SeedExtensions {
     deploy: {
       toS3(bucket: string): Promise<void>;
       toVercel(project: string): Promise<void>;
@@ -1094,7 +1094,7 @@ declare module "@seedcli/core" {
 | `.middleware(fn)`      | Add command middleware                       |
 | `.onReady(fn)`         | Hook: runs after setup, before command       |
 | `.onError(fn)`         | Hook: global error handler                   |
-| `.exclude(modules)`    | Exclude toolbox modules (for perf)           |
+| `.exclude(modules)`    | Exclude seed modules (for perf)              |
 | `.create()`            | Finalize and create the runtime              |
 
 ### 8.2 `run()` — Quick Start
@@ -1140,8 +1140,8 @@ export const hello = command({
     times: flag({ type: "number", default: 1, description: "Repeat count" }),
   },
 
-  run: async (toolbox) => {
-    const { args, flags, print, prompt } = toolbox;
+  run: async (seed) => {
+    const { args, flags, print, prompt } = seed;
     const name = args.name ?? (await prompt.input("What is your name?"));
 
     for (let i = 0; i < flags.times; i++) {
@@ -1188,13 +1188,13 @@ export const db = command({
 ```ts
 import { middleware } from "@seedcli/core";
 
-const requireAuth = middleware(async (toolbox, next) => {
-  const token = toolbox.config.get("auth.token");
+const requireAuth = middleware(async (seed, next) => {
+  const token = seed.config.get("auth.token");
   if (!token) {
-    toolbox.print.error("Not authenticated. Run `mycli login` first.");
+    seed.print.error("Not authenticated. Run `mycli login` first.");
     process.exit(1);
   }
-  toolbox.auth = { token };
+  seed.auth = { token };
   await next();
 });
 
@@ -1238,12 +1238,12 @@ const cmd = command({
 });
 ```
 
-### 10.2 Typed Toolbox
+### 10.2 Typed Seed Context
 
-The toolbox object is fully typed, including plugin extensions:
+The seed context object is fully typed, including plugin extensions:
 
 ```ts
-interface Toolbox<TArgs = {}, TFlags = {}> {
+interface Seed<TArgs = {}, TFlags = {}> {
   // Core — typed per-command
   args: TArgs;
   flags: TFlags;
@@ -1269,8 +1269,8 @@ interface Toolbox<TArgs = {}, TFlags = {}> {
   [key: string]: unknown;
 }
 
-// ToolboxExtensions interface — plugins extend this
-interface ToolboxExtensions {}
+// SeedExtensions interface — plugins extend this
+interface SeedExtensions {}
 ```
 
 ### 10.3 Typed Config
@@ -1493,7 +1493,7 @@ test("help output matches snapshot", async () => {
 | Type-safe args     | No          | No      | Partial    | **Full inference**          |
 | Dependencies       | ~15         | 0       | Few        | **Bun-first + best libs**   |
 | Plugin system      | Dir-based   | No      | Package    | **Package-based**           |
-| Toolbox            | 12 modules  | Limited | 4 packages | **15+ modules**             |
+| Seed modules       | 12 modules  | Limited | 4 packages | **15+ modules**             |
 | Binary compile     | No          | No      | Yes        | **Yes (multi-target)**      |
 | Shell completions  | No          | No      | Yes        | **Yes (4 shells)**          |
 | Testing utils      | No          | No      | Yes        | **Yes (bun:test)**          |
@@ -1543,9 +1543,9 @@ Summary of all resolved technical decisions:
 - [ ] Basic help and version generation
 - [ ] Minimal working example in `examples/minimal/`
 
-### Phase 2 — Toolbox Complete (Weeks 4-6)
+### Phase 2 — Seed Modules Complete (Weeks 4-6)
 
-**Goal**: Full toolbox parity with Gluegun + extras.
+**Goal**: Full seed module parity with Gluegun + extras.
 
 - [ ] `@seedcli/prompt` — Interactive prompts (@inquirer/prompts)
 - [ ] `@seedcli/http` — HTTP client (Bun fetch wrapper + openapi-fetch integration)
@@ -1554,7 +1554,7 @@ Summary of all resolved technical decisions:
 - [ ] `@seedcli/semver` — Semver utilities
 - [ ] `@seedcli/config` — Config file loading (c12)
 - [ ] `@seedcli/package-manager` — PM detection + operations
-- [ ] `@seedcli/toolbox` — Umbrella re-export package
+- [ ] `@seedcli/seed` — Umbrella re-export package
 - [ ] Enhanced `@seedcli/print` — custom table, box (boxen), figlet, tree
 
 ### Phase 3 — Plugin System & DX (Weeks 7-9)

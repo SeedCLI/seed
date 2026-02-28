@@ -30,7 +30,7 @@
 			"@seedcli/testing": ["./packages/testing/src/index.ts"],
 			"@seedcli/completions": ["./packages/completions/src/index.ts"],
 			"@seedcli/ui": ["./packages/ui/src/index.ts"],
-			"@seedcli/toolbox": ["./packages/toolbox/src/index.ts"],
+			"@seedcli/seed": ["./packages/seed/src/index.ts"],
 			"@seedcli/cli": ["./packages/cli/src/index.ts"]
 		}
 	},

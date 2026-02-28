@@ -21,7 +21,7 @@
 - [x] **`@seedcli/core` — Package Setup & Core Types**
   - Package structure with `src/` directories
   - Entry point (`src/index.ts`) with placeholder exports
-  - Basic types: `Command`, `Toolbox`, `ArgDef`, `FlagDef`
+  - Basic types: `Command`, `Seed`, `ArgDef`, `FlagDef`
 
 ### Week 2: Command System & Arg Parser
 
@@ -113,9 +113,9 @@
 
 ---
 
-## Phase 2 — Toolbox Complete (Weeks 4-6)
+## Phase 2 — Seed Modules Complete (Weeks 4-6)
 
-**Goal**: Full toolbox parity with Gluegun plus extras.
+**Goal**: Full seed module parity with Gluegun plus extras.
 
 ### Week 4: Prompt, HTTP, Template
 
@@ -165,7 +165,7 @@
   - `run()` — script execution
   - Command mapping for bun/npm/yarn/pnpm
 
-### Week 6: Enhanced Print, Toolbox Umbrella
+### Week 6: Enhanced Print, Seed Umbrella
 
 - [x] **`@seedcli/print` — Phase 2**
   - Custom table renderer (Unicode, alignment, colored headers, truncation)
@@ -176,9 +176,9 @@
   - `divider()` — section dividers
   - `progress()` — progress bar
 
-- [x] **`@seedcli/toolbox`**
+- [x] **`@seedcli/seed`**
   - Umbrella package that re-exports all modules
-  - Single import: `import { build, command, print, ... } from "@seedcli/toolbox"`
+  - Single import: `import { build, command, print, ... } from "@seedcli/seed"`
 
 - [ ] **Full-featured example** (`examples/full-featured/`)
 
@@ -193,7 +193,7 @@
 ✔ @seedcli/config — multi-format config loading via c12
 ✔ @seedcli/package-manager — PM detection and operations
 ✔ @seedcli/print (enhanced) — table, box, figlet, tree, progress
-✔ @seedcli/toolbox — umbrella package
+✔ @seedcli/seed — umbrella package
 ✔ examples/full-featured/
 ```
 
@@ -255,9 +255,9 @@
   - **Topological sort** for dependency ordering (`core/src/plugin/topo-sort.ts`)
     - Registration order as tiebreaker within same dependency level
     - Cycle detection → fail-fast with cycle path in error message
-  - `setup()` lifecycle — called during toolbox assembly, before command runs
+  - `setup()` lifecycle — called during seed context assembly, before command runs
   - `teardown()` lifecycle — called during cleanup, after command completes
-  - Toolbox augmentation via `ToolboxExtensions` declaration merging
+  - Seed context augmentation via `SeedExtensions` declaration merging
 
 - [x] **Extension error handling**
   - Missing dependency detection → error with guidance
@@ -295,7 +295,7 @@
   - `seed generate extension <name>` — generate extension file
   - `seed generate plugin <name>` — generate plugin scaffold
     - Includes `package.json` with `peerDependencies` and `seedcli` marker
-    - Includes `types.ts` with `ToolboxExtensions` declaration merging template
+    - Includes `types.ts` with `SeedExtensions` declaration merging template
     - Includes `commands/`, `extensions/`, `templates/` directory structure
 
 - [x] **Project templates**
@@ -508,10 +508,10 @@ Completed as part of the production readiness audit:
 - [x] **Extension timeout fix** — `clearTimeout` prevents memory leaks on successful setup
 - [x] **onError context** — Error handler receives command name for better error context
 - [x] **`--debug`/`--verbose` flags** — Built-in debug mode via `.debug()` builder method
-- [x] **Module import caching** — `assembleToolbox()` caches resolved modules across runs
+- [x] **Module import caching** — `assembleSeed()` caches resolved modules across runs
 - [x] **Alias conflict detection** — Full cross-check of command names against aliases in plugin registry
 - [x] **Semver `diff()` and `compare()`** — Missing functions added to @seedcli/semver
-- [x] **`mockToolbox()` utility** — Added to @seedcli/testing for unit-testing commands
+- [x] **`mockSeed()` utility** — Added to @seedcli/testing for unit-testing commands
 - [x] **Build entry generation** — `seed build` resolves `.src()` and `.plugins()` to static imports for bundler/compiler
 - [x] **`registerModule()` pattern** — Compiled binaries pre-register @seedcli/* modules for runtime resolution
 - [x] **Shebang handling** — Build entry generator skips `#!/usr/bin/env bun` lines when inserting imports

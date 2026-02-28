@@ -14,7 +14,7 @@
 	},
 	"dependencies": {
 		"@seedcli/core": "latest",
-		"@seedcli/toolbox": "latest"
+		"@seedcli/seed": "latest"
 	},
 	"devDependencies": {
 		"@seedcli/testing": "latest",

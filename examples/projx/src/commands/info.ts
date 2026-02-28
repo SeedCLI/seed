@@ -8,8 +8,8 @@ export const infoCommand = command({
 		name: arg({ type: "string", required: true, description: "Project name" }),
 	},
 
-	run: async (toolbox) => {
-		const { args, print, system, semver, workspace } = toolbox;
+	run: async (seed) => {
+		const { args, print, system, semver, workspace } = seed;
 
 		if (!workspace?.config) {
 			print.error("Workspace not initialized. Run `projx init` first.");

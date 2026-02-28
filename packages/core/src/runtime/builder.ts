@@ -2,7 +2,7 @@ import type { HelpOptions } from "../command/help.js";
 import type { Command, Middleware } from "../types/command.js";
 import type { ExtensionConfig } from "../types/extension.js";
 import type { PluginConfig } from "../types/plugin.js";
-import type { Toolbox } from "../types/toolbox.js";
+import type { Seed } from "../types/seed.js";
 import { Runtime } from "./runtime.js";
 
 // ─── Builder Options ───
@@ -27,8 +27,8 @@ export interface BuilderConfig {
 	versionEnabled: boolean;
 	completionsEnabled: boolean;
 	debugEnabled: boolean;
-	onReady?: (toolbox: Toolbox) => Promise<void> | void;
-	onError?: (error: Error, toolbox: Toolbox) => Promise<void> | void;
+	onReady?: (seed: Seed) => Promise<void> | void;
+	onError?: (error: Error, seed: Seed) => Promise<void> | void;
 }
 
 // ─── Builder ───
@@ -148,12 +148,12 @@ export class Builder {
 		return this;
 	}
 
-	onReady(fn: (toolbox: Toolbox) => Promise<void> | void): this {
+	onReady(fn: (seed: Seed) => Promise<void> | void): this {
 		this.cfg.onReady = fn;
 		return this;
 	}
 
-	onError(fn: (error: Error, toolbox: Toolbox) => Promise<void> | void): this {
+	onError(fn: (error: Error, seed: Seed) => Promise<void> | void): this {
 		this.cfg.onError = fn;
 		return this;
 	}

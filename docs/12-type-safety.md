@@ -12,8 +12,8 @@
 Seed CLI achieves end-to-end type safety through:
 
 1. **Inferred argument types** — `arg()` and `flag()` definitions produce precise types
-2. **Typed toolbox** — Every module is fully typed with generics
-3. **Declaration merging** — Plugins extend the toolbox type
+2. **Typed seed context** — Every module is fully typed with generics
+3. **Declaration merging** — Plugins extend the seed context type
 4. **Typed config** — `defineConfig()` provides autocomplete for config files
 5. **Typed prompts** — Select/multiselect return union types from choices
 
@@ -148,7 +148,7 @@ function command<
   flags?: TFlags;
   subcommands?: Command[];
   middleware?: Middleware[];
-  run: (toolbox: Toolbox<InferArgs<TArgs>, InferFlags<TFlags>>) => Promise<void> | void;
+  run: (seed: Seed<InferArgs<TArgs>, InferFlags<TFlags>>) => Promise<void> | void;
 }): Command;
 ```
 
@@ -156,12 +156,12 @@ This is how the `run` function gets fully typed `args` and `flags` without any m
 
 ---
 
-## 2. Typed Toolbox
+## 2. Typed Seed Context
 
 ### Base Interface
 
 ```ts
-interface Toolbox<TArgs = {}, TFlags = {}> {
+interface Seed<TArgs = {}, TFlags = {}> {
   // Per-command (typed from command definition)
   args: TArgs;
   flags: TFlags;
@@ -210,12 +210,12 @@ interface PrintModule {
 
 ### The Pattern
 
-Plugins extend the toolbox via TypeScript's declaration merging:
+Plugins extend the seed context via TypeScript's declaration merging:
 
 ```ts
 // Plugin package: @mycli/plugin-deploy/src/types.ts
 declare module "@seedcli/core" {
-  interface ToolboxExtensions {
+  interface SeedExtensions {
     deploy: {
       toS3(bucket: string, path: string): Promise<void>;
       toVercel(projectId: string): Promise<void>;
@@ -225,23 +225,23 @@ declare module "@seedcli/core" {
 }
 ```
 
-### How It Connects to Toolbox
+### How It Connects to Seed
 
 ```ts
-// In @seedcli/core/src/types/toolbox.ts
+// In @seedcli/core/src/types/seed.ts
 
 // Empty interface — plugins extend this
-export interface ToolboxExtensions {}
+export interface SeedExtensions {}
 
-// The actual Toolbox includes extensions
-export interface Toolbox<TArgs = {}, TFlags = {}> extends ToolboxExtensions {
+// The actual Seed includes extensions
+export interface Seed<TArgs = {}, TFlags = {}> extends SeedExtensions {
   args: TArgs;
   flags: TFlags;
   // ... other modules
 }
 ```
 
-When a plugin's type file is in scope (via tsconfig or import), the `ToolboxExtensions` interface is automatically extended, and all commands get access to the new properties.
+When a plugin's type file is in scope (via tsconfig or import), the `SeedExtensions` interface is automatically extended, and all commands get access to the new properties.
 
 ---
 
@@ -326,11 +326,11 @@ The `const` type parameter ensures the array literal is inferred as a tuple, ena
 |---|---|---|
 | `arg({ type, required, choices })` | Arg value type | Conditional types + generics |
 | `flag({ type, default, choices })` | Flag value type | Conditional types + generics |
-| `command({ args, flags, run })` | Toolbox args/flags in run | Generic propagation |
+| `command({ args, flags, run })` | Seed args/flags in run | Generic propagation |
 | `prompt.select(msg, choices)` | Return type as union | `const` type parameter |
 | `prompt.multiselect(msg, choices)` | Return type as union array | `const` type parameter |
 | `defineConfig({...})` | Config shape | Identity function + generics |
-| `ToolboxExtensions` | Plugin properties on toolbox | Declaration merging |
+| `SeedExtensions` | Plugin properties on seed context | Declaration merging |
 | `config.load<T>(name)` | Config value type | Explicit generic |
 | `filesystem.readJson<T>(path)` | Parsed JSON type | Explicit generic |
 | `http.get<T>(url)` | Response data type | Explicit generic |

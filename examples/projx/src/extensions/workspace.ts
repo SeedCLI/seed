@@ -2,7 +2,7 @@ import { defineExtension } from "@seedcli/core";
 import type { ProjectInfo, ProjxConfig } from "../types.js";
 
 declare module "@seedcli/core" {
-	interface ToolboxExtensions {
+	interface SeedExtensions {
 		workspace: {
 			config: ProjxConfig | null;
 			projectsDir: string | null;
@@ -16,8 +16,8 @@ export const workspaceExtension = defineExtension({
 	name: "workspace",
 	description: "Loads ~/.projxrc.json and provides workspace helpers",
 
-	setup: async (toolbox) => {
-		const { filesystem } = toolbox;
+	setup: async (seed) => {
+		const { filesystem } = seed;
 		const homedir = process.env.HOME || process.env.USERPROFILE || "~";
 		const configPath = filesystem.path.join(homedir, ".projxrc.json");
 
@@ -74,7 +74,7 @@ export const workspaceExtension = defineExtension({
 			return projects.find((p) => p.name === name) ?? null;
 		};
 
-		toolbox.workspace = {
+		seed.workspace = {
 			config,
 			projectsDir,
 			getProjects,

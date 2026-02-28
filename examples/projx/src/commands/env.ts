@@ -8,8 +8,8 @@ const envListCommand = command({
 		name: arg({ type: "string", required: true, description: "Project name" }),
 	},
 
-	run: async (toolbox) => {
-		const { args, print, filesystem, workspace } = toolbox;
+	run: async (seed) => {
+		const { args, print, filesystem, workspace } = seed;
 		const project = await workspace.getProject(args.name as string);
 		if (!project) {
 			print.error(`Project "${args.name}" not found.`);
@@ -52,8 +52,8 @@ const envGetCommand = command({
 		key: arg({ type: "string", required: true, description: "Variable name" }),
 	},
 
-	run: async (toolbox) => {
-		const { args, print, filesystem, workspace } = toolbox;
+	run: async (seed) => {
+		const { args, print, filesystem, workspace } = seed;
 		const project = await workspace.getProject(args.name as string);
 		if (!project) {
 			print.error(`Project "${args.name}" not found.`);
@@ -106,8 +106,8 @@ const envSetCommand = command({
 		}),
 	},
 
-	run: async (toolbox) => {
-		const { args, flags, print, prompt, filesystem, patching, workspace } = toolbox;
+	run: async (seed) => {
+		const { args, flags, print, prompt, filesystem, patching, workspace } = seed;
 		const project = await workspace.getProject(args.name as string);
 		if (!project) {
 			print.error(`Project "${args.name}" not found.`);
@@ -160,8 +160,8 @@ const envCopyCommand = command({
 		target: arg({ type: "string", required: true, description: "Target project" }),
 	},
 
-	run: async (toolbox) => {
-		const { args, print, filesystem, workspace } = toolbox;
+	run: async (seed) => {
+		const { args, print, filesystem, workspace } = seed;
 
 		const source = await workspace.getProject(args.source as string);
 		const target = await workspace.getProject(args.target as string);
