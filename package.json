@@ -1,6 +1,6 @@
 {
 	"name": "seedcli",
-	"version": "0.1.19",
+	"version": "0.1.20",
 	"description": "Batteries-included, modular, TypeScript-first CLI framework powered by Bun",
 	"license": "MIT",
 	"author": "Rully Ardiansyah <rully@dreamshive.io>",
