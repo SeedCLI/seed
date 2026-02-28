@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/semver",
-	"version": "0.1.22",
+	"version": "0.1.23",
 	"description": "Semantic versioning utilities: parse, compare, satisfies, increment",
 	"type": "module",
 	"license": "MIT",

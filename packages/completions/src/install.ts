@@ -1,3 +1,4 @@
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { bash } from "./bash.js";
@@ -6,8 +7,6 @@ import { fish } from "./fish.js";
 import { powershell } from "./powershell.js";
 import type { CompletionInfo, ShellType } from "./types.js";
 import { zsh } from "./zsh.js";
-
-const { appendFile, mkdir } = await import("node:fs/promises");
 
 const GENERATORS: Record<ShellType, (info: CompletionInfo) => string> = {
 	bash,
@@ -57,7 +56,6 @@ export async function install(
 
 	// Check if completions are already installed — update if so
 	try {
-		const { readFile, writeFile } = await import("node:fs/promises");
 		const content = await readFile(rcPath, "utf-8");
 		const startIdx = content.indexOf(markerStart);
 		if (startIdx !== -1) {

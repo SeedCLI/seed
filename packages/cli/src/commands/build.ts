@@ -207,40 +207,7 @@ async function compileMode(
 		};
 	},
 ): Promise<void> {
-	// ─── Step 1: Wrap entry to eliminate top-level await ───
-	// `bun build --compile` doesn't support top-level await. The generated
-	// entry (.mts) has clean line-by-line structure:
-	//   1. imports (must stay at top level)
-	//   2. registerModule() calls
-	//   3. user code (may contain `await`)
-	// We wrap section 3 in an async IIFE before bundling.
-	const content = await Bun.file(entryPath).text();
-	const lines = content.split("\n");
-
-	let splitIdx = 0;
-	let inMultiLineImport = false;
-	for (let i = 0; i < lines.length; i++) {
-		const trimmed = lines[i].trim();
-		if (inMultiLineImport) {
-			splitIdx = i + 1;
-			if (/from\s+["']/.test(trimmed)) inMultiLineImport = false;
-		} else if (/^\s*import\s/.test(trimmed)) {
-			splitIdx = i + 1;
-			const isSideEffect = /^\s*import\s+["']/.test(trimmed);
-			inMultiLineImport = !isSideEffect && !/from\s+["']/.test(trimmed);
-		} else if (/^\s*registerModule\s*\(/.test(trimmed)) {
-			splitIdx = i + 1;
-		} else if (trimmed === "" && splitIdx === i) {
-			// Skip blank lines between imports/registrations
-			splitIdx = i + 1;
-		}
-	}
-
-	const importSection = lines.slice(0, splitIdx).join("\n");
-	const codeSection = lines.slice(splitIdx).join("\n");
-	await Bun.write(entryPath, `${importSection}\n(async () => {\n${codeSection}\n})();\n`);
-
-	// ─── Step 2: Bundle TS → single JS file via Bun.build() API ───
+	// ─── Step 1: Bundle TS → single JS file via Bun.build() API ───
 	const outdir = flags.outdir ?? join(cwd, "dist");
 	const bundledFilename = basename(entryPath).replace(/\.(mts|tsx?|cts)$/, ".js");
 
@@ -266,12 +233,14 @@ async function compileMode(
 
 	const bundledEntry = join(outdir, bundledFilename);
 
-	// ─── Step 3: Compile pre-bundled JS → standalone binary ───
+	// ─── Step 2: Compile pre-bundled JS → standalone binary ───
+	// We use --format=esm which natively supports top-level await (TLA)
+	// and is compatible with --bytecode (Bun 1.3.9+).
 	const targets = flags.target ? flags.target.split(",").map((t) => t.trim()) : [undefined];
 	const hasMultipleTargets = targets.length > 1;
 
 	for (const target of targets) {
-		const args = ["bun", "build", bundledEntry, "--compile"];
+		const args = ["bun", "build", bundledEntry, "--compile", "--format=esm"];
 
 		if (flags.splitting) {
 			// Splitting requires --outdir instead of --outfile
