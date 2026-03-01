@@ -10,19 +10,19 @@
 
 ```bash
 # 1. Bump version in root package.json
-#    Edit package.json: "version": "0.1.11"
+#    Edit package.json: "version": "1.1.0"
 
 # 2. Sync all sub-package versions
 bun scripts/update-packages.ts
 
 # 3. Commit and push
 git add -A
-git commit -m "Bump version to 0.1.11"
+git commit -m "Bump version to 1.1.0"
 git push
 
 # 4. Create and push tag → triggers publish
-git tag v0.1.11
-git push origin v0.1.11
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 ---
@@ -43,9 +43,9 @@ git push origin v0.1.11
 
 | Tag Format | What It Publishes |
 |---|---|
-| `v0.1.11` | **All 17 packages** at the framework version |
-| `create-seedcli@0.1.13` | **Only** `create-seedcli` at version 0.1.13 |
-| `cli@0.1.11` | **Only** `@seedcli/cli` at version 0.1.11 |
+| `v1.1.0` | **All 17 packages** at the framework version |
+| `create-seedcli@1.1.0` | **Only** `create-seedcli` at version 1.1.0 |
+| `cli@1.1.0` | **Only** `@seedcli/cli` at version 1.1.0 |
 
 ---
 
@@ -59,7 +59,7 @@ Edit `package.json` at the repo root:
 
 ```json
 {
-  "version": "0.1.11"
+  "version": "1.1.0"
 }
 ```
 
@@ -77,15 +77,15 @@ This updates `version` in every `packages/*/package.json` to match the root vers
 
 ```bash
 git add -A
-git commit -m "Bump version to 0.1.11"
+git commit -m "Bump version to 1.1.0"
 git push
 ```
 
 ### 4. Create and push tag
 
 ```bash
-git tag v0.1.11
-git push origin v0.1.11
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 This triggers the GitHub Actions workflow. Monitor progress at:
@@ -95,7 +95,7 @@ This triggers the GitHub Actions workflow. Monitor progress at:
 
 ```bash
 npm view @seedcli/core version
-# Should output: 0.1.11
+# Should output: 1.1.0
 ```
 
 ---
@@ -110,7 +110,7 @@ Edit `packages/create-seedcli/package.json`:
 
 ```json
 {
-  "version": "0.1.13"
+  "version": "1.1.0"
 }
 ```
 
@@ -118,15 +118,15 @@ Edit `packages/create-seedcli/package.json`:
 
 ```bash
 git add packages/create-seedcli/package.json
-git commit -m "Bump create-seedcli to 0.1.13"
+git commit -m "Bump create-seedcli to 1.1.0"
 git push
 ```
 
 ### 3. Create and push tag
 
 ```bash
-git tag create-seedcli@0.1.13
-git push origin create-seedcli@0.1.13
+git tag create-seedcli@1.1.0
+git push origin create-seedcli@1.1.0
 ```
 
 ---
@@ -135,7 +135,7 @@ git push origin create-seedcli@0.1.13
 
 The publish script runs in CI and handles:
 
-1. **Resolves `workspace:*`** dependencies → `^frameworkVersion` (e.g., `^0.1.11`)
+1. **Resolves `workspace:*`** dependencies → `^frameworkVersion` (e.g., `^1.0.0`)
 2. **Swaps exports/main/types/bin** from `src/*.ts` → `dist/*.js` for npm consumption
 3. **Publishes** each package with `npm publish --access public --provenance`
 4. **Restores** all `package.json` files to their development state (always, even on failure)
@@ -179,8 +179,8 @@ bun scripts/update-packages.ts
 
 ```bash
 # Delete the old tag locally and remotely
-git tag -d v0.1.11
-git push origin :refs/tags/v0.1.11
+git tag -d v1.1.0
+git push origin :refs/tags/v1.1.0
 
 # Fix the issue, commit, push
 git add -A
@@ -188,8 +188,8 @@ git commit -m "Fix: <description>"
 git push
 
 # Re-create and push tag
-git tag v0.1.11
-git push origin v0.1.11
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 ### Package already published
