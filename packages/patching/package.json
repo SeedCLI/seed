@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/patching",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "File patching: text replacement, insertion, JSON patching",
 	"type": "module",
 	"license": "MIT",

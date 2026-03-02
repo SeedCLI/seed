@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/completions",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Shell completion generation for bash, zsh, and fish",
 	"type": "module",
 	"license": "MIT",
