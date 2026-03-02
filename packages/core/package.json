@@ -54,7 +54,8 @@
 		"@seedcli/semver": "workspace:*",
 		"@seedcli/strings": "workspace:*",
 		"@seedcli/system": "workspace:*",
-		"@seedcli/template": "workspace:*"
+		"@seedcli/template": "workspace:*",
+		"@seedcli/ui": "workspace:*"
 	},
 	"devDependencies": {}
 }

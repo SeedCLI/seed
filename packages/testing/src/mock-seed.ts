@@ -140,5 +140,15 @@ export function mockSeed(
 		patching: new Proxy({} as never, {
 			get: () => () => Promise.resolve(false),
 		}),
+
+		// ── UI (no-op stubs) ──
+		ui: new Proxy({} as never, {
+			get: () => () => "",
+		}),
+
+		// ── Completions (no-op stubs) ──
+		completions: new Proxy({} as never, {
+			get: () => () => "",
+		}),
 	} as unknown as Seed<Record<string, unknown>, Record<string, unknown>>;
 }

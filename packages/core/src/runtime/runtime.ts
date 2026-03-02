@@ -543,6 +543,8 @@ export class Runtime {
 			["packageManager", "@seedcli/package-manager"],
 			["config", "@seedcli/config"],
 			["patching", "@seedcli/patching"],
+			["ui", "@seedcli/ui"],
+			["completions", "@seedcli/completions"],
 		];
 
 		// Separate excluded modules (sync) from loadable modules (potentially async)

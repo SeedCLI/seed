@@ -55,6 +55,8 @@ export interface Seed<TArgs = Record<string, never>, TFlags = Record<string, nev
 	packageManager: PackageManagerModule;
 	config: ConfigModule;
 	patching: PatchingModule;
+	ui: typeof import("@seedcli/ui");
+	completions: typeof import("@seedcli/completions");
 
 	// Runtime info
 	meta: {
