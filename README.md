@@ -14,8 +14,10 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/SeedCLI/seed/actions/workflows/ci.yml"><img src="https://github.com/SeedCLI/seed/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://www.npmjs.com/package/@seedcli/core"><img src="https://img.shields.io/npm/v/@seedcli/core?label=release&color=blue" alt="npm version" /></a>
   <a href="https://github.com/SeedCLI/seed/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SeedCLI/seed" alt="license" /></a>
+  <a href="https://www.npmjs.com/package/@seedcli/core"><img src="https://img.shields.io/npm/dm/@seedcli/core?label=downloads&color=green" alt="downloads" /></a>
   <a href="https://github.com/SeedCLI/seed/stargazers"><img src="https://img.shields.io/github/stars/SeedCLI/seed" alt="stars" /></a>
 </p>
 
