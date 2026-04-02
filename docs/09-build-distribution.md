@@ -501,6 +501,8 @@ jobs:
         with:
           node-version: 24
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - run: pnpm install
       - run: seed build --compile --target=${{ matrix.target }}
       - uses: actions/upload-artifact@v4

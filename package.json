@@ -12,6 +12,7 @@
 	"engines": {
 		"node": ">=24.0.0"
 	},
+	"packageManager": "pnpm@10.26.2",
 	"private": true,
 	"scripts": {
 		"build": "node --import tsx scripts/build.ts",
