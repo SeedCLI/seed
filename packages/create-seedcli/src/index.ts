@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import { join } from "node:path";
 import { exists } from "@seedcli/filesystem";
@@ -9,8 +9,8 @@ import { kebabCase } from "@seedcli/strings";
 import { exec } from "@seedcli/system";
 import { directory } from "@seedcli/template";
 
-const TEMPLATES_DIR = join(import.meta.dir, "..", "templates");
-const PKG_PATH = join(import.meta.dir, "..", "package.json");
+const TEMPLATES_DIR = join(import.meta.dirname, "..", "templates");
+const PKG_PATH = join(import.meta.dirname, "..", "package.json");
 
 async function getVersions(): Promise<{ version: string; frameworkVersion: string }> {
 	const { readJson } = await import("@seedcli/filesystem");
@@ -28,7 +28,7 @@ async function getVersions(): Promise<{ version: string; frameworkVersion: strin
 		frameworkVersion = version;
 	} else if (dep.startsWith("workspace:")) {
 		const rootPkg = await readJson<{ version: string }>(
-			join(import.meta.dir, "..", "..", "..", "package.json"),
+			join(import.meta.dirname, "..", "..", "..", "package.json"),
 		);
 		frameworkVersion = rootPkg.version;
 	} else {
@@ -110,7 +110,7 @@ function printUsage() {
   create-seedcli v${VERSION}
 
   Usage:
-    bun create seedcli <project-name> [options]
+    npx create-seedcli <project-name> [options]
     npx create-seedcli <project-name> [options]
 
   Options:
@@ -198,7 +198,7 @@ async function main() {
 			installSpinner.succeed("Dependencies installed");
 		} catch {
 			installSpinner.fail("Failed to install dependencies");
-			warning("Run `bun install` manually in the project directory");
+			warning("Run `npm install` manually in the project directory");
 		}
 	}
 
@@ -210,7 +210,7 @@ async function main() {
 	info(`  cd ${options.name}`);
 
 	if (options.template === "plugin") {
-		info("  bun test");
+		info("  npm test");
 		muted(`\n  To use this plugin in a CLI:\n`);
 		info(`  import plugin from "${options.name}";`);
 		info("");
@@ -218,10 +218,10 @@ async function main() {
 		info(`    .plugin(plugin)`);
 		info(`    .create();`);
 	} else {
-		info("  bun run dev");
-		info(`  bun run src/index.ts --help`);
+		info("  npm run dev");
+		info(`  npx tsx src/index.ts --help`);
 		muted(`\n  To use "${options.name}" as a global command:\n`);
-		info("  bun link");
+		info("  npm link");
 	}
 	newline();
 }

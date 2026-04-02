@@ -1,13 +1,14 @@
-import { readdir, stat } from "node:fs/promises";
+import { readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative } from "node:path";
+import { globSync } from "tinyglobby";
 
 /**
  * Scans the user's entry file and source directory to generate a build-ready
  * entry file with all dynamic imports resolved to static imports.
  *
  * Problem:
- *   `.src(import.meta.dir)` uses runtime filesystem scanning + dynamic imports
- *   to discover commands/extensions. Bun's bundler/compiler can't trace these.
+ *   `.src(import.meta.dirname)` uses runtime filesystem scanning + dynamic imports
+ *   to discover commands/extensions. The bundler/compiler can't trace these.
  *
  * Solution:
  *   Read the entry file, detect `.src(...)`, scan the directories, and rewrite
@@ -90,8 +91,9 @@ async function scanPluginDir(dir: string, matching?: string): Promise<string[]> 
 		if (!entry.isDirectory()) continue;
 
 		if (matching) {
-			const glob = new Bun.Glob(matching);
-			if (!glob.match(entry.name)) continue;
+			// Use tinyglobby's globSync to match directory names against the pattern
+			const matches = globSync(matching, { cwd: dir, onlyDirectories: true });
+			if (!matches.includes(entry.name)) continue;
 		}
 
 		plugins.push(join(dir, entry.name));
@@ -116,11 +118,22 @@ function varName(prefix: string, filePath: string): string {
 }
 
 /**
- * Detect .src() call in the entry source and extract the directory expression.
- * Returns the line that contains .src(...) or null.
+ * Detect .src() call in the entry source (ignoring comments).
+ * Returns true if a non-commented .src(...) call is found.
  */
 function detectSrcCall(source: string): boolean {
-	return /\.src\s*\(/.test(source);
+	const regex = /\.src\s*\(/g;
+	for (const match of source.matchAll(regex)) {
+		const lineStart = source.lastIndexOf("\n", match.index) + 1;
+		const lineBeforeMatch = source.slice(lineStart, match.index);
+		const trimmed = lineBeforeMatch.trimStart();
+		// Skip matches inside single-line comments, block comment lines, or JSDoc
+		if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) {
+			continue;
+		}
+		return true;
+	}
+	return false;
 }
 
 /**
@@ -183,43 +196,14 @@ export interface GenerateBuildEntryResult {
 }
 
 /**
- * Find which @seedcli/* runtime modules are installed in node_modules.
+ * @seedcli/* runtime module injection is no longer needed here.
  *
- * The runtime's assembleSeed() dynamically imports these modules, which the
- * bundler can't trace. We include all installed @seedcli/* packages so the
- * compiled binary has everything it needs — they're always transitive deps
- * of @seedcli/core, so users don't need to declare them explicitly.
+ * Since the Node.js 24 migration, @seedcli/core statically imports all
+ * built-in modules and registers them in builtinModuleRegistry at module
+ * load time. The bundler traces these through @seedcli/core's own imports,
+ * so the old heuristic of scanning node_modules/ for installed packages
+ * (which broke under pnpm's strict layout) is removed.
  */
-async function getUsedSeedcliModules(cwd: string): Promise<string[]> {
-	const seedcliPackages = [
-		"@seedcli/print",
-		"@seedcli/prompt",
-		"@seedcli/filesystem",
-		"@seedcli/system",
-		"@seedcli/http",
-		"@seedcli/template",
-		"@seedcli/strings",
-		"@seedcli/semver",
-		"@seedcli/package-manager",
-		"@seedcli/config",
-		"@seedcli/patching",
-		"@seedcli/completions",
-	];
-
-	const used: string[] = [];
-	for (const pkg of seedcliPackages) {
-		// Include all @seedcli/* packages found in node_modules.
-		// These are framework runtime modules loaded dynamically by assembleSeed().
-		// They're always transitive deps of @seedcli/core, so if installed, include them —
-		// regardless of whether the user listed them in their own package.json.
-		const modPath = join(cwd, "node_modules", ...pkg.split("/"));
-		if (await isDirectory(modPath)) {
-			used.push(pkg);
-		}
-	}
-
-	return used;
-}
 
 /**
  * Generate a build-ready entry file that replaces dynamic discovery with static imports.
@@ -238,7 +222,7 @@ export async function generateBuildEntry(
 	entryPath: string,
 	cwd: string,
 ): Promise<GenerateBuildEntryResult | null> {
-	const source = await Bun.file(entryPath).text();
+	const source = await readFile(entryPath, "utf-8");
 	const entryDir = dirname(entryPath);
 
 	const hasSrc = detectSrcCall(source);
@@ -252,42 +236,14 @@ export async function generateBuildEntry(
 	// Collect all import lines to inject at the top
 	const importLines: string[] = [];
 
-	// ─── Force-include @seedcli/* runtime modules ───
-	// The runtime's assembleSeed() uses dynamic imports that the compiler can't trace.
-	// We import them statically and register them so the runtime can find them.
-	const usedModules = await getUsedSeedcliModules(cwd);
+	// ─── @seedcli/* runtime modules ───
+	// No longer injected here. @seedcli/core statically imports and registers
+	// all built-in modules, so the bundler traces them automatically.
 	const moduleRegistrations: string[] = [];
-	let needsRegisterModule = false;
-	for (const mod of usedModules) {
-		const alias = `_mod_${mod.replace("@seedcli/", "").replace(/-/g, "_")}`;
-		importLines.push(`import * as ${alias} from "${mod}";`);
-		moduleRegistrations.push(`registerModule("${mod}", ${alias});`);
-		needsRegisterModule = true;
-	}
-	if (needsRegisterModule) {
-		// Add registerModule import if not already importing from @seedcli/core
-		if (source.includes('from "@seedcli/core"') || source.includes("from '@seedcli/core'")) {
-			// Need to add registerModule to the existing value import (not `import type`)
-			// Use negative lookahead to skip type-only imports
-			const valueImportRegex = /import\s+(?!type\s)\{([\s\S]*?)\}\s*from\s*["']@seedcli\/core["']/;
-			if (valueImportRegex.test(generated)) {
-				generated = generated.replace(valueImportRegex, (match, imports: string) => {
-					if (imports.includes("registerModule")) return match;
-					const trimmed = imports.trimEnd().replace(/,\s*$/, "");
-					return `import {${trimmed}, registerModule } from "@seedcli/core"`;
-				});
-			} else {
-				// Only type imports exist — add a separate value import
-				importLines.unshift('import { registerModule } from "@seedcli/core";');
-			}
-		} else {
-			importLines.unshift('import { registerModule } from "@seedcli/core";');
-		}
-	}
 
 	// ─── Handle .src() ───
 	if (hasSrc) {
-		// The src dir is typically import.meta.dir (the entry file's directory)
+		// The src dir is typically import.meta.dirname (the entry file's directory)
 		// or a relative path. For build, we resolve it relative to the entry file.
 		const srcDir = entryDir;
 		const scanned = await scanSrcDir(srcDir);
@@ -460,13 +416,12 @@ export async function generateBuildEntry(
 		generated = lines.join("\n");
 	}
 
-	// Write the temp entry as .mts so `bun build --compile` treats it as ESM.
+	// Write the temp entry as .mts so the compiler treats it as ESM.
 	// Without this, projects without "type": "module" in package.json would
-	// fail on top-level await (bun build uses package.json for module detection,
-	// unlike bun run which treats all .ts as ESM).
+	// fail on top-level await.
 	const tempName = basename(entryPath).replace(/\.(tsx?|mts|cts)$/, ".mts");
 	const tempPath = join(entryDir, `.seed-build-${tempName}`);
-	await Bun.write(tempPath, generated);
+	await writeFile(tempPath, generated, "utf-8");
 
 	return {
 		content: generated,

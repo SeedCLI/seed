@@ -10,7 +10,7 @@
 		"isolatedModules": true,
 		"verbatimModuleSyntax": true,
 		"noEmit": true,
-		"types": ["@types/bun"]
+		"types": ["node"]
 	},
 	"include": ["src/**/*.ts"],
 	"exclude": ["node_modules", "dist"]

@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, vi, test } from "vitest";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { build, command } from "../src/index.js";
 import {
 	ExtensionCycleError,
@@ -240,7 +240,7 @@ describe("validatePeerDependencies", () => {
 		try {
 			validatePeerDependencies(plugin, new Map());
 		} catch (err) {
-			expect((err as Error).message).toContain("bun add");
+			expect((err as Error).message).toContain("npm install");
 		}
 	});
 });
@@ -424,7 +424,7 @@ describe("loadPlugin", () => {
 		} catch (err) {
 			const msg = (err as Error).message;
 			expect(msg).toContain("not found");
-			expect(msg).toContain("bun add");
+			expect(msg).toContain("npm install");
 		}
 	});
 });
@@ -476,16 +476,16 @@ describe("Builder plugin methods", () => {
 // ─── Runtime integration ───
 
 describe("Runtime with plugins", () => {
-	let logSpy: ReturnType<typeof mock>;
-	let errorSpy: ReturnType<typeof mock>;
+	let logSpy: ReturnType<typeof vi.fn>;
+	let errorSpy: ReturnType<typeof vi.fn>;
 	let origLog: typeof console.log;
 	let origError: typeof console.error;
 
 	beforeEach(() => {
 		origLog = console.log;
 		origError = console.error;
-		logSpy = mock();
-		errorSpy = mock();
+		logSpy = vi.fn();
+		errorSpy = vi.fn();
 		console.log = logSpy;
 		console.error = errorSpy;
 	});
@@ -703,7 +703,8 @@ describe("Runtime with plugins", () => {
 		const tmpDir = await mkdtemp(join(tmpdir(), "seedcli-plugins-"));
 
 		const pluginDir = join(tmpDir, "mycli-plugin-test");
-		await Bun.write(
+		await mkdir(pluginDir, { recursive: true });
+		await writeFile(
 			join(pluginDir, "index.ts"),
 			`
 			export default {
@@ -712,6 +713,7 @@ describe("Runtime with plugins", () => {
 				commands: [],
 			};
 			`,
+			"utf-8",
 		);
 
 		const runtime = build("mycli")
@@ -741,8 +743,8 @@ describe("Host-vs-plugin command conflict", () => {
 	beforeEach(() => {
 		origLog = console.log;
 		origError = console.error;
-		console.log = mock();
-		console.error = mock();
+		console.log = vi.fn();
+		console.error = vi.fn();
 	});
 
 	afterEach(() => {

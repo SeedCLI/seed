@@ -13,7 +13,7 @@
 		"verbatimModuleSyntax": true,
 		"resolveJsonModule": true,
 		"noEmit": true,
-		"types": ["bun-types"],
+		"types": ["node"],
 		"paths": {
 			"@seedcli/core": ["./packages/core/src/index.ts"],
 			"@seedcli/print": ["./packages/print/src/index.ts"],
@@ -30,6 +30,9 @@
 			"@seedcli/testing": ["./packages/testing/src/index.ts"],
 			"@seedcli/completions": ["./packages/completions/src/index.ts"],
 			"@seedcli/ui": ["./packages/ui/src/index.ts"],
+			"@seedcli/tui-core": ["./packages/tui-core/src/index.ts"],
+			"@seedcli/tui": ["./packages/tui/src/index.ts"],
+			"@seedcli/tui-vue": ["./packages/tui-vue/src/index.ts"],
 			"@seedcli/seed": ["./packages/seed/src/index.ts"],
 			"@seedcli/cli": ["./packages/cli/src/index.ts"]
 		}

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { build } from "@seedcli/core";
 import { createTestCli } from "@seedcli/testing";
 import plugin from "../src/index.js";

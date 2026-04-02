@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, vi, test } from "vitest";
 import { arg, build, command, flag } from "../src/index.js";
 
 describe("build() — Builder", () => {
@@ -21,16 +21,16 @@ describe("build() — Builder", () => {
 });
 
 describe("Runtime.run()", () => {
-	let logSpy: ReturnType<typeof mock>;
-	let errorSpy: ReturnType<typeof mock>;
+	let logSpy: ReturnType<typeof vi.fn>;
+	let errorSpy: ReturnType<typeof vi.fn>;
 	let origLog: typeof console.log;
 	let origError: typeof console.error;
 
 	beforeEach(() => {
 		origLog = console.log;
 		origError = console.error;
-		logSpy = mock();
-		errorSpy = mock();
+		logSpy = vi.fn();
+		errorSpy = vi.fn();
 		console.log = logSpy;
 		console.error = errorSpy;
 	});
@@ -269,16 +269,16 @@ describe("Runtime.run()", () => {
 });
 
 describe("Runtime.run() — --debug/--verbose stripping respects -- separator", () => {
-	let logSpy: ReturnType<typeof mock>;
-	let errorSpy: ReturnType<typeof mock>;
+	let logSpy: ReturnType<typeof vi.fn>;
+	let errorSpy: ReturnType<typeof vi.fn>;
 	let origLog: typeof console.log;
 	let origError: typeof console.error;
 
 	beforeEach(() => {
 		origLog = console.log;
 		origError = console.error;
-		logSpy = mock();
-		errorSpy = mock();
+		logSpy = vi.fn();
+		errorSpy = vi.fn();
 		console.log = logSpy;
 		console.error = errorSpy;
 	});

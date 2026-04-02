@@ -4,13 +4,13 @@
 
 **Package**: `@seedcli/system`
 **Phase**: 1 (Foundation)
-**Dependencies**: None (pure Bun APIs — `Bun.spawn`, `Bun.$`)
+**Dependencies**: `execa`
 
 ---
 
 ## Overview
 
-Provides a clean API for running shell commands, checking executables, getting system info, and interacting with the OS. Leverages Bun Shell (`Bun.$`) and `Bun.spawn()` for maximum performance.
+Provides a clean API for running shell commands, checking executables, getting system info, and interacting with the OS. Uses `execa` for process execution and its `$` tagged template for shell commands.
 
 ---
 
@@ -21,7 +21,7 @@ packages/system/
 ├── package.json
 ├── src/
 │   ├── index.ts          # Public API
-│   ├── exec.ts           # Run shell commands (Bun.spawn / Bun.$)
+│   ├── exec.ts           # Run shell commands (execa / execa $)
 │   ├── which.ts          # Find executables in PATH
 │   ├── info.ts           # OS/platform/arch info
 │   ├── open.ts           # Open URLs/files in default app
@@ -41,7 +41,7 @@ packages/system/
 interface SystemModule {
   // Command execution
   exec(command: string, options?: ExecOptions): Promise<ExecResult>;
-  shell: typeof Bun.$;
+  shell: typeof $;  // execa $ tagged template
 
   // Executables
   which(name: string): Promise<string | undefined>;
@@ -108,7 +108,7 @@ const result = await system.exec("echo hello", { trim: false });
 
 **Implementation choices:**
 
-- `stream: false` (default) → Uses `Bun.spawn()`, captures output, returns `ExecResult`
+- `stream: false` (default) → Uses `execa`, captures output, returns `ExecResult`
 - `stream: true` → Pipes stdout/stderr directly to terminal in real-time
 - `throwOnError: true` (default) → Throws `ExecError` if exit code ≠ 0
 
@@ -118,7 +118,7 @@ const result = await system.exec("git log --oneline -5");
 console.log(result.stdout);
 
 // Stream in real-time
-await system.exec("bun test", { stream: true });
+await system.exec("pnpm test", { stream: true });
 
 // With timeout
 const result = await system.exec("long-running-task", { timeout: 30000 });
@@ -130,15 +130,15 @@ if (result.exitCode !== 0) {
 }
 
 // Custom cwd and env
-const result = await system.exec("bun install", {
+const result = await system.exec("pnpm install", {
   cwd: "./my-project",
   env: { NODE_ENV: "production" },
 });
 ```
 
-### `shell` — Bun Shell Template Literal
+### `shell` — execa `$` Tagged Template
 
-Direct access to Bun Shell for template literal commands:
+Direct access to `execa`'s `$` tagged template for shell commands:
 
 ```ts
 const branch = await system.shell`git branch --show-current`;
@@ -160,8 +160,8 @@ Find an executable in PATH. Returns the full path or `undefined`.
 const gitPath = await system.which("git");
 // "/usr/bin/git" or undefined
 
-const bunPath = await system.which("bun");
-// "/Users/user/.bun/bin/bun" or undefined
+const nodePath = await system.which("node");
+// "/usr/local/bin/node" or undefined
 ```
 
 ### `whichOrThrow(name)`
@@ -177,7 +177,7 @@ try {
 }
 ```
 
-**Implementation**: Uses `Bun.which()` (Bun built-in).
+**Implementation**: Uses `node:child_process` `execFileSync` with `which`/`where` or a lightweight `which` package.
 
 ---
 

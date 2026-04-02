@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { directory } from "../src/directory.js";
@@ -55,7 +55,7 @@ describe("generate", () => {
 
 	test("generates file from template", async () => {
 		const templatePath = join(dir, "template.txt");
-		await Bun.write(templatePath, "Hello, <%= name %>!");
+		await writeFile(templatePath, "Hello, <%= name %>!");
 
 		const targetPath = join(dir, "output", "result.txt");
 		const result = await generate({
@@ -65,7 +65,7 @@ describe("generate", () => {
 		});
 
 		expect(result).toBe(targetPath);
-		const content = await Bun.file(targetPath).text();
+		const content = await readFile(targetPath, "utf-8");
 		expect(content).toBe("Hello, World!");
 	});
 });
@@ -86,8 +86,9 @@ describe("directory scaffold", () => {
 		const target = join(dir, "output");
 
 		// Create template directory
-		await Bun.write(join(source, "readme.md.eta"), "# <%= name %>\n<%= description %>");
-		await Bun.write(join(source, "config.json"), '{"name": "static"}');
+		await mkdir(source, { recursive: true });
+		await writeFile(join(source, "readme.md.eta"), "# <%= name %>\n<%= description %>");
+		await writeFile(join(source, "config.json"), '{"name": "static"}');
 
 		const created = await directory({
 			source,
@@ -96,9 +97,9 @@ describe("directory scaffold", () => {
 		});
 
 		expect(created.length).toBe(2);
-		const readme = await Bun.file(join(target, "readme.md")).text();
+		const readme = await readFile(join(target, "readme.md"), "utf-8");
 		expect(readme).toBe("# MyProject\nA test project");
-		const config = await Bun.file(join(target, "config.json")).text();
+		const config = await readFile(join(target, "config.json"), "utf-8");
 		expect(config).toBe('{"name": "static"}');
 	});
 
@@ -106,7 +107,8 @@ describe("directory scaffold", () => {
 		const source = join(dir, "templates");
 		const target = join(dir, "output");
 
-		await Bun.write(join(source, "__name__.ts.eta"), "export const name = '<%= name %>';");
+		await mkdir(source, { recursive: true });
+		await writeFile(join(source, "__name__.ts.eta"), "export const name = '<%= name %>';");
 
 		const created = await directory({
 			source,
@@ -115,7 +117,7 @@ describe("directory scaffold", () => {
 		});
 
 		expect(created.length).toBe(1);
-		const content = await Bun.file(join(target, "myModule.ts")).text();
+		const content = await readFile(join(target, "myModule.ts"), "utf-8");
 		expect(content).toBe("export const name = 'myModule';");
 	});
 
@@ -123,8 +125,9 @@ describe("directory scaffold", () => {
 		const source = join(dir, "templates");
 		const target = join(dir, "output");
 
-		await Bun.write(join(source, "keep.txt"), "keep");
-		await Bun.write(join(source, "skip.log"), "skip");
+		await mkdir(source, { recursive: true });
+		await writeFile(join(source, "keep.txt"), "keep");
+		await writeFile(join(source, "skip.log"), "skip");
 
 		const created = await directory({
 			source,

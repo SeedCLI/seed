@@ -1,0 +1,44 @@
+{
+	"name": "@seedcli/tui",
+	"version": "1.0.0",
+	"description": "TUI module for Seed CLI: interactive terminal apps with components and theming",
+	"type": "module",
+	"license": "MIT",
+	"author": "Rully Ardiansyah <rully@dreamshive.io>",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/SeedCLI/seed",
+		"directory": "packages/tui"
+	},
+	"homepage": "https://seedcli.dev",
+	"keywords": [
+		"cli",
+		"tui",
+		"terminal",
+		"ui",
+		"components",
+		"interactive"
+	],
+	"engines": {
+		"node": ">=24.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": [
+		"dist",
+		"LICENSE"
+	],
+	"dependencies": {
+		"@seedcli/tui-core": "workspace:*",
+		"@seedcli/print": "workspace:*"
+	}
+}

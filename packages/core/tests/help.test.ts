@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { renderCommandHelp, renderGlobalHelp } from "../src/command/help.js";
 import { arg, command, flag } from "../src/index.js";
 

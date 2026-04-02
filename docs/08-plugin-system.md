@@ -94,7 +94,7 @@ export default definePlugin({
 
   commands: [deployCmd, rollbackCmd],
   extensions: [deployExtension],
-  templates: import.meta.dir + "/templates",
+  templates: import.meta.dirname + "/templates",
 
   defaults: {
     region: "us-east-1",
@@ -214,7 +214,7 @@ const cli = build("mycli")
 ### Plugin Resolution
 
 ```ts
-// npm package: resolves via Bun's module resolution
+// npm package: resolves via Node.js module resolution
 .plugin("@mycli/plugin-deploy")
 // → import("@mycli/plugin-deploy")
 
@@ -490,7 +490,7 @@ ERROR: Plugin "deploy-aws" requires Seed CLI >=2.0.0
   Required by plugin:       >=2.0.0
 
   Upgrade Seed CLI:
-    bun update @seedcli/core
+    pnpm update @seedcli/core
 ```
 
 ```
@@ -499,7 +499,7 @@ ERROR: Plugin "deploy-aws" requires peer plugin "auth" ^1.0.0
   Plugin "auth" is not installed.
 
   Install the required plugin:
-    bun add @mycli/plugin-auth
+    pnpm add @mycli/plugin-auth
 ```
 
 ```
@@ -509,7 +509,7 @@ WARNING: Plugin "deploy-aws" requires peer plugin "auth" ^2.0.0
   Required by "deploy-aws":  ^2.0.0
 
   Upgrade the plugin:
-    bun update @mycli/plugin-auth
+    pnpm update @mycli/plugin-auth
 ```
 
 ### Behavior When `seedcli` Is Omitted
@@ -569,7 +569,7 @@ ERROR: Plugin "@mycli/plugin-deploy" not found
   Could not resolve the module "@mycli/plugin-deploy".
 
   Make sure it's installed:
-    bun add @mycli/plugin-deploy
+    pnpm add @mycli/plugin-deploy
 
   Or if it's a local plugin, check the path exists:
     ./plugins/my-plugin → /Users/you/project/plugins/my-plugin
@@ -738,9 +738,9 @@ declare module "@seedcli/core" {
 
 ### 13. Plugin Compatibility with Binary Compilation
 
-**Scenario**: A CLI using plugins is compiled to a single binary via `bun build --compile`. Dynamic `import()` of plugins won't work at runtime because npm packages aren't embedded.
+**Scenario**: A CLI using plugins is compiled to a single binary. Dynamic `import()` of plugins won't work at runtime because npm packages aren't embedded.
 
-**Strategy**: During `seed build --compile`, resolve all plugins at build time and inline them statically:
+**Strategy**: During `seed build`, resolve all plugins at build time and inline them statically:
 
 1. Scan `.plugin()` calls in the entry file
 2. Resolve each plugin to its file path

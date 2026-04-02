@@ -1,5 +1,6 @@
 import { stat } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { glob } from "tinyglobby";
 import type { Command } from "../types/command.js";
 import type { ExtensionConfig } from "../types/extension.js";
 
@@ -95,10 +96,13 @@ export async function discoverCommands(baseDir: string): Promise<Command[]> {
 
 	if (!(await isDir(commandsDir))) return [];
 
-	const glob = new Bun.Glob("**/*.ts");
+	const matches = await glob(["**/*.ts"], {
+		cwd: commandsDir,
+		onlyFiles: true,
+	});
 	const files: string[] = [];
 
-	for await (const match of glob.scan({ cwd: commandsDir, onlyFiles: true })) {
+	for (const match of matches) {
 		// Normalize to forward slashes (glob may return backslashes on Windows)
 		const normalized = match.replaceAll("\\", "/");
 		const parts = normalized.split("/");
@@ -226,10 +230,13 @@ export async function discoverExtensions(baseDir: string): Promise<ExtensionConf
 
 	if (!(await isDir(extensionsDir))) return [];
 
-	const glob = new Bun.Glob("*.ts");
+	const extMatches = await glob(["*.ts"], {
+		cwd: extensionsDir,
+		onlyFiles: true,
+	});
 	const extensions: ExtensionConfig[] = [];
 
-	for await (const match of glob.scan({ cwd: extensionsDir, onlyFiles: true })) {
+	for (const match of extMatches) {
 		if (shouldSkip(match)) continue;
 
 		const fullPath = join(extensionsDir, match);

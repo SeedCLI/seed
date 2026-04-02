@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { Eta } from "eta";
 import type { RenderOptions } from "./types.js";
@@ -23,8 +23,7 @@ export async function renderFile(
 ): Promise<string> {
 	let content: string;
 	try {
-		const file = Bun.file(filePath);
-		content = await file.text();
+		content = await readFile(filePath, "utf-8");
 	} catch (err) {
 		throw new Error(`Template file not found: "${filePath}"`, { cause: err });
 	}
@@ -42,6 +41,6 @@ export async function render(options: RenderOptions): Promise<string> {
 	const { source, target, props } = options;
 	const content = await renderString(source, props);
 	await mkdir(dirname(target), { recursive: true });
-	await Bun.write(target, content);
+	await writeFile(target, content);
 	return target;
 }

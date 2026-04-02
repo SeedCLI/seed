@@ -1,16 +1,16 @@
 # @seedcli/filesystem — File System Operations
 
-> Cross-platform filesystem operations powered by Bun's native APIs.
+> Cross-platform filesystem operations powered by Node.js.
 
 **Package**: `@seedcli/filesystem`
 **Phase**: 1 (Foundation)
-**Dependencies**: None (pure Bun APIs)
+**Dependencies**: `tinyglobby`
 
 ---
 
 ## Overview
 
-Provides a clean, typed API for all filesystem operations. Uses Bun's native `Bun.file()`, `Bun.write()`, and `node:fs/promises` for full cross-platform support. Zero external dependencies.
+Provides a clean, typed API for all filesystem operations. Uses `readFile` and `writeFile` from `node:fs/promises` for full cross-platform support.
 
 ---
 
@@ -98,7 +98,7 @@ interface FilesystemModule {
 
 ### `read(path, encoding?)`
 
-Read file as string. Uses `Bun.file(path).text()`.
+Read file as string. Uses `readFile` from `node:fs/promises`.
 
 ```ts
 const content = await filesystem.read("README.md");
@@ -119,7 +119,7 @@ const pkg = await filesystem.readJson<PackageJson>("package.json");
 // pkg.name is typed as string
 ```
 
-**Implementation**: `JSON.parse(await Bun.file(path).text())`
+**Implementation**: `JSON.parse(await readFile(path, "utf-8"))`
 
 ### `readYaml<T>(path)`
 
@@ -127,7 +127,7 @@ Read and parse YAML file. Uses a lightweight YAML parser (we'll evaluate `yaml` 
 
 ### `readToml<T>(path)`
 
-Read and parse TOML file. Bun has built-in TOML support via `Bun.TOML.parse()`.
+Read and parse TOML file. Uses a TOML parser (e.g., `smol-toml`).
 
 ---
 
@@ -141,7 +141,7 @@ Write string or Buffer to file. Creates parent directories automatically.
 await filesystem.write("output/report.txt", "Hello World");
 ```
 
-**Implementation**: `await Bun.write(path, content)` with `ensureDir` for parent.
+**Implementation**: `await writeFile(path, content)` from `node:fs/promises` with `ensureDir` for parent.
 
 ### `writeJson(path, data, options?)`
 
@@ -201,7 +201,7 @@ await filesystem.move("src/temp/", "src/output/");
 
 ### `find(dir, options?)`
 
-Find files matching glob patterns. Uses Bun's `Bun.Glob`.
+Find files matching glob patterns. Uses `tinyglobby`.
 
 ```ts
 interface FindOptions {

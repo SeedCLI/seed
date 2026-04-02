@@ -3,6 +3,20 @@ import { stat as fsStat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CompletionInfo } from "@seedcli/completions";
+import * as completionsModule from "@seedcli/completions";
+import * as configModule from "@seedcli/config";
+import * as filesystemModule from "@seedcli/filesystem";
+import * as httpModule from "@seedcli/http";
+import * as packageManagerModule from "@seedcli/package-manager";
+import * as patchingModule from "@seedcli/patching";
+import * as printModule from "@seedcli/print";
+import * as promptModule from "@seedcli/prompt";
+import * as semverModule from "@seedcli/semver";
+import * as stringsModule from "@seedcli/strings";
+import * as systemModule from "@seedcli/system";
+import * as templateModule from "@seedcli/template";
+import * as tuiModule from "@seedcli/tui";
+import * as uiModule from "@seedcli/ui";
 import { renderCommandHelp, renderGlobalHelp } from "../command/help.js";
 import { ParseError, parse } from "../command/parser.js";
 import { route } from "../command/router.js";
@@ -64,18 +78,35 @@ const DEFAULT_SETUP_TIMEOUT = 10_000;
  * 6. Run command handler
  * 7. Run extensions teardown (reverse order)
  */
+const builtinModuleRegistry = new Map<string, unknown>([
+	["@seedcli/completions", completionsModule],
+	["@seedcli/config", configModule],
+	["@seedcli/filesystem", filesystemModule],
+	["@seedcli/http", httpModule],
+	["@seedcli/package-manager", packageManagerModule],
+	["@seedcli/patching", patchingModule],
+	["@seedcli/print", printModule],
+	["@seedcli/prompt", promptModule],
+	["@seedcli/semver", semverModule],
+	["@seedcli/strings", stringsModule],
+	["@seedcli/system", systemModule],
+	["@seedcli/template", templateModule],
+	["@seedcli/tui", tuiModule],
+	["@seedcli/ui", uiModule],
+]);
+
 /**
- * Pre-register modules so compiled binaries can resolve them
- * without dynamic `await import()`. Called by the generated build entry.
+ * Override a framework-owned Seed module at runtime.
  *
- * ```ts
- * import * as print from "@seedcli/print";
- * registerModule("@seedcli/print", print);
- * ```
+ * Passing `undefined` removes the override and restores the built-in module.
  */
 const moduleRegistry = new Map<string, unknown>();
 
 export function registerModule(name: string, mod: unknown): void {
+	if (mod === undefined) {
+		moduleRegistry.delete(name);
+		return;
+	}
 	moduleRegistry.set(name, mod);
 }
 
@@ -341,14 +372,16 @@ export class Runtime {
 			},
 		);
 		const pluginPaths: string[] = [];
-		// Compile glob once outside the loop instead of per entry
-		const glob = matching ? new Bun.Glob(matching) : undefined;
+		// Compile glob pattern to RegExp once outside the loop instead of per entry
+		const globRegex = matching
+			? new RegExp(`^${matching.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".")}$`)
+			: undefined;
 
 		for (const entry of entries) {
 			if (typeof entry === "string") continue;
 
 			if (!entry.isDirectory()) {
-				// Check if it's a symlink to a directory (e.g. from `bun link`)
+				// Check if it's a symlink to a directory (e.g. from `npm link`)
 				if (entry.isSymbolicLink()) {
 					try {
 						const resolved = await fsStat(join(resolvedDir, entry.name));
@@ -361,7 +394,7 @@ export class Runtime {
 				}
 			}
 
-			if (glob && !glob.match(entry.name)) continue;
+			if (globRegex && !globRegex.test(entry.name)) continue;
 
 			pluginPaths.push(resolve(resolvedDir, entry.name));
 		}
@@ -544,11 +577,10 @@ export class Runtime {
 			["config", "@seedcli/config"],
 			["patching", "@seedcli/patching"],
 			["ui", "@seedcli/ui"],
+			["tui", "@seedcli/tui"],
 			["completions", "@seedcli/completions"],
 		];
 
-		// Separate excluded modules (sync) from loadable modules (potentially async)
-		const loadableModules: Array<[string, string, string?]> = [];
 		for (const [name, pkg, namedExport] of modules) {
 			if (excluded.has(name)) {
 				Object.defineProperty(seed, name, {
@@ -566,55 +598,31 @@ export class Runtime {
 				if (this.moduleCache.has(cacheKey)) {
 					(seed as unknown as Record<string, unknown>)[name] = this.moduleCache.get(cacheKey);
 				} else {
-					loadableModules.push([name, pkg, namedExport]);
-				}
-			}
-		}
+					const mod = moduleRegistry.has(pkg)
+						? moduleRegistry.get(pkg)
+						: builtinModuleRegistry.get(pkg);
+					if (mod === undefined) {
+						if (isDebug) {
+							console.warn(`[seedcli] Failed to load built-in module ${pkg}`);
+						}
+						continue;
+					}
 
-		// Load uncached modules in parallel for faster cold starts
-		if (loadableModules.length > 0) {
-			const results = await Promise.allSettled(
-				loadableModules.map(async ([, pkg]) => {
-					const registered = moduleRegistry.get(pkg);
-					return registered ?? (await import(pkg));
-				}),
-			);
-
-			for (let i = 0; i < loadableModules.length; i++) {
-				const [name, pkg, namedExport] = loadableModules[i];
-				const result = results[i];
-				if (result.status === "fulfilled") {
-					const mod = result.value;
-					const resolved = namedExport ? mod[namedExport] : mod;
-					const cacheKey = `${pkg}:${namedExport ?? ""}`;
+					const resolved = namedExport
+						? (mod as Record<string, unknown>)[namedExport]
+						: mod;
 					this.moduleCache.set(cacheKey, resolved);
 					(seed as unknown as Record<string, unknown>)[name] = resolved;
-				} else {
-					// Module not installed — skip silently
-					// But warn about unexpected errors (not MODULE_NOT_FOUND)
-					const err = result.reason;
-					const isModuleNotFound =
-						err instanceof Error &&
-						("code" in err ? (err as { code: string }).code === "ERR_MODULE_NOT_FOUND" : false);
-					if (!isModuleNotFound && isDebug) {
-						console.warn(
-							`[seedcli] Failed to load ${pkg}: ${err instanceof Error ? err.message : String(err)}`,
-						);
-					}
 				}
 			}
 		}
 
 		// Enable debug logging on the print module when debug mode is active
 		if (isDebug && !excluded.has("print")) {
-			try {
-				const printPkg = (moduleRegistry.get("@seedcli/print") ??
-					(await import("@seedcli/print"))) as Record<string, unknown>;
-				if (typeof printPkg.setDebugMode === "function") {
-					(printPkg.setDebugMode as (enabled: boolean) => void)(true);
-				}
-			} catch {
-				// Print module not installed — skip
+			const printPkg = (moduleRegistry.get("@seedcli/print") ??
+				builtinModuleRegistry.get("@seedcli/print")) as Record<string, unknown> | undefined;
+			if (typeof printPkg?.setDebugMode === "function") {
+				(printPkg.setDebugMode as (enabled: boolean) => void)(true);
 			}
 		}
 

@@ -2,7 +2,7 @@
 
 > How to bump versions and publish Seed CLI packages to npm.
 
-**IMPORTANT**: Publishing is done exclusively via **GitHub Actions**. Never publish locally with `npm publish` or `bun scripts/publish.ts` — the npm token is stored as a GitHub secret (`NPM_TOKEN`), not locally.
+**IMPORTANT**: Publishing is done exclusively via **GitHub Actions**. Never publish locally with `npm publish` or `node --import tsx scripts/publish.ts` — the npm token is stored as a GitHub secret (`NPM_TOKEN`), not locally.
 
 ---
 
@@ -13,7 +13,7 @@
 #    Edit package.json: "version": "1.1.0"
 
 # 2. Sync all sub-package versions
-bun scripts/update-packages.ts
+node --import tsx scripts/update-packages.ts
 
 # 3. Commit and push
 git add -A
@@ -66,7 +66,7 @@ Edit `package.json` at the repo root:
 ### 2. Sync sub-package versions
 
 ```bash
-bun scripts/update-packages.ts
+node --import tsx scripts/update-packages.ts
 ```
 
 This updates `version` in every `packages/*/package.json` to match the root version.
@@ -151,7 +151,7 @@ ui → core → testing → seed → cli → create-seedcli
 ### Skip behavior
 
 - Already-published versions are **skipped** automatically (no error)
-- Missing `dist/` directory causes a **failure** (run `bun run build` first)
+- Missing `dist/` directory causes a **failure** (run `pnpm run build` first)
 
 ---
 
@@ -160,7 +160,7 @@ ui → core → testing → seed → cli → create-seedcli
 Reads the version from root `package.json` and updates all `packages/*/package.json` to match.
 
 ```bash
-bun scripts/update-packages.ts
+node --import tsx scripts/update-packages.ts
 ```
 
 ---
@@ -171,9 +171,9 @@ bun scripts/update-packages.ts
 
 1. Check the Actions tab for the failing step
 2. Common issues:
-   - **Lint errors**: Run `bun run lint:fix` locally, commit, re-push
+   - **Lint errors**: Run `pnpm run lint:fix` locally, commit, re-push
    - **Test failures**: Fix tests locally, commit, push, delete old tag, re-create and push
-   - **Build errors**: Run `bun run build` locally to reproduce
+   - **Build errors**: Run `pnpm run build` locally to reproduce
 
 ### Re-publishing after a failed tag
 

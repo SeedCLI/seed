@@ -7,9 +7,12 @@
 	"bin": {
 		"<%= it.name %>": "src/index.ts"
 	},
+	"engines": {
+		"node": ">=24.0.0"
+	},
 	"scripts": {
-		"dev": "bun src/index.ts",
-		"test": "bun test",
+		"dev": "node --import tsx src/index.ts",
+		"test": "vitest run",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -18,7 +21,6 @@
 	},
 	"devDependencies": {
 		"@seedcli/testing": "latest",
-		"bun-types": "latest",
 		"typescript": "^5.0.0"
 	}
 }

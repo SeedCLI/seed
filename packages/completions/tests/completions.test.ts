@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { bash } from "../src/bash.js";
 import { detect } from "../src/detect.js";
 import { fish } from "../src/fish.js";

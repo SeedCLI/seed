@@ -13,7 +13,7 @@
 		"verbatimModuleSyntax": true,
 		"rootDir": "src",
 		"outDir": "dist",
-		"types": ["@types/bun"]
+		"types": ["node"]
 	},
 	"include": ["src/**/*.ts"],
 	"exclude": ["**/*.test.ts"]

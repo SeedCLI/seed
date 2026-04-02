@@ -1,3 +1,4 @@
+import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { HttpError } from "./errors.js";
@@ -30,14 +31,16 @@ export async function download(
 
 	if (!options?.onProgress) {
 		// Fast path: stream to disk without progress tracking
-		const file = Bun.file(dest);
-		const writer = file.writer();
+		const writer = createWriteStream(dest);
 		const reader = response.body.getReader();
 		try {
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
-				writer.write(value);
+				const ok = writer.write(value);
+				if (!ok) {
+					await new Promise<void>((resolve) => writer.once("drain", resolve));
+				}
 			}
 		} catch (error) {
 			// Clean up partial file on error
@@ -51,7 +54,7 @@ export async function download(
 		} finally {
 			reader.releaseLock();
 			try {
-				await writer.end();
+				await new Promise<void>((resolve, reject) => writer.end((err?: Error | null) => err ? reject(err) : resolve()));
 			} catch {
 				// Prevent writer.end() from masking the original error
 			}
@@ -62,8 +65,7 @@ export async function download(
 	// Stream to disk with progress reporting
 	let transferred = 0;
 	const startTime = Date.now();
-	const file = Bun.file(dest);
-	const writer = file.writer();
+	const writer = createWriteStream(dest);
 
 	const reader = response.body.getReader();
 	try {
@@ -71,7 +73,10 @@ export async function download(
 			const { done, value } = await reader.read();
 			if (done) break;
 
-			writer.write(value);
+			const ok = writer.write(value);
+			if (!ok) {
+				await new Promise<void>((resolve) => writer.once("drain", resolve));
+			}
 			transferred += value.length;
 
 			const elapsed = (Date.now() - startTime) / 1000;
@@ -96,7 +101,7 @@ export async function download(
 	} finally {
 		reader.releaseLock();
 		try {
-			await writer.end();
+			await new Promise<void>((resolve, reject) => writer.end((err?: Error | null) => err ? reject(err) : resolve()));
 		} catch {
 			// Prevent writer.end() from masking the original error
 		}

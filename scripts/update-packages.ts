@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node --import tsx
 
 /**
  * Update all package.json files with publishing metadata.
@@ -8,7 +8,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const ROOT = join(import.meta.dir, "..");
+const ROOT = join(import.meta.dirname, "..");
 const rootPkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
 const VERSION: string = rootPkg.version;
 
@@ -28,17 +28,17 @@ const descriptions: Record<string, string> = {
 	patching: "File patching: text replacement, insertion, JSON patching",
 	semver: "Semantic versioning utilities: parse, compare, satisfies, increment",
 	config: "Configuration loading with c12 (supports .ts, .js, .json, .yaml)",
-	"package-manager": "Package manager detection and commands (bun, npm, yarn, pnpm)",
+	"package-manager": "Package manager detection and commands (npm, yarn, pnpm)",
 	completions: "Shell completion generation for bash, zsh, and fish",
 	testing: "Testing utilities: createTestCli, mock prompts, mock config, mock system",
 	seed: "Umbrella re-export of all Seed CLI modules",
 	ui: "Terminal UI components: header, status indicators, list formatting",
 	cli: "Scaffolding CLI for creating and managing Seed CLI projects",
-	"create-seedcli": "Scaffold a new Seed CLI project — works with bun create, npx, and npm create",
+	"create-seedcli": "Scaffold a new Seed CLI project — works with npx, pnpm create, and npm create",
 };
 
 const keywords: Record<string, string[]> = {
-	core: ["cli", "framework", "command", "args", "parser", "bun", "typescript"],
+	core: ["cli", "framework", "command", "args", "parser", "node", "typescript"],
 	print: ["cli", "terminal", "print", "table", "spinner", "colors", "box", "ascii"],
 	prompt: ["cli", "prompt", "interactive", "input", "select", "inquirer"],
 	filesystem: ["cli", "filesystem", "file", "directory", "read", "write", "copy"],
@@ -49,13 +49,13 @@ const keywords: Record<string, string[]> = {
 	patching: ["cli", "patching", "patch", "file", "replace", "insert"],
 	semver: ["cli", "semver", "version", "semantic", "compare"],
 	config: ["cli", "config", "configuration", "c12", "typescript"],
-	"package-manager": ["cli", "package-manager", "npm", "yarn", "pnpm", "bun"],
+	"package-manager": ["cli", "package-manager", "npm", "yarn", "pnpm", "node"],
 	completions: ["cli", "completions", "bash", "zsh", "fish", "shell"],
-	testing: ["cli", "testing", "test", "mock", "bun-test"],
+	testing: ["cli", "testing", "test", "mock", "vitest"],
 	seed: ["cli", "seed", "utilities", "framework"],
 	ui: ["cli", "ui", "terminal", "header", "status", "list"],
-	cli: ["cli", "scaffold", "create", "generate", "seed", "bun"],
-	"create-seedcli": ["cli", "scaffold", "create", "seed", "bun", "npx", "typescript"],
+	cli: ["cli", "scaffold", "create", "generate", "seed", "node"],
+	"create-seedcli": ["cli", "scaffold", "create", "seed", "node", "npx", "typescript"],
 };
 
 const packagesDir = join(ROOT, "packages");
@@ -88,8 +88,8 @@ for (const dir of dirs) {
 	pkg.author = AUTHOR;
 	pkg.repository = { type: "git", url: REPO, directory: `packages/${dir}` };
 	pkg.homepage = HOMEPAGE;
-	pkg.keywords = keywords[dir] ?? ["cli", "seed", "bun"];
-	pkg.engines = { bun: ">=1.3.0" };
+	pkg.keywords = keywords[dir] ?? ["cli", "seed", "node"];
+	pkg.engines = { node: ">=24.0.0" };
 
 	// Publish config
 	if (isScoped) {

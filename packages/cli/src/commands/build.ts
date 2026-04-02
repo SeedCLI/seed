@@ -1,12 +1,19 @@
+import { execFile } from "node:child_process";
+import { createRequire } from "node:module";
 import { basename, join } from "node:path";
+import { readFile, stat } from "node:fs/promises";
+import { promisify } from "node:util";
 import { load } from "@seedcli/config";
 import type { CompileTarget, SeedConfig } from "@seedcli/core";
 import { command, flag } from "@seedcli/core";
 import { exists } from "@seedcli/filesystem";
 import { colors, error, info, success } from "@seedcli/print";
-import type { BunPlugin } from "bun";
 import { cleanupBuildEntry, generateBuildEntry } from "../utils/generate-build-entry.js";
 import { resolveEntry } from "../utils/resolve-entry.js";
+
+const execFileAsync = promisify(execFile);
+const require = createRequire(import.meta.url);
+const HAKOBU_BIN_SUBPATH = "@hakobu/hakobu/lib-es5/bin.js";
 
 function formatSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -14,9 +21,70 @@ function formatSize(bytes: number): string {
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+export async function resolveHakobuBin(cwd: string): Promise<string> {
+	const projectBin = join(cwd, "node_modules", "@hakobu", "hakobu", "lib-es5", "bin.js");
+	if (await exists(projectBin)) {
+		return projectBin;
+	}
+
+	try {
+		const projectRequire = createRequire(join(cwd, "package.json"));
+		return projectRequire.resolve(HAKOBU_BIN_SUBPATH);
+	} catch {
+		// Fall through.
+	}
+
+	try {
+		const projectRequire = createRequire(join(cwd, "package.json"));
+		const cliPkgPath = projectRequire.resolve("@seedcli/cli/package.json");
+		const cliRequire = createRequire(cliPkgPath);
+		return cliRequire.resolve(HAKOBU_BIN_SUBPATH);
+	} catch {
+		// Fall through.
+	}
+
+	try {
+		return require.resolve(HAKOBU_BIN_SUBPATH);
+	} catch {
+		throw new Error(
+			"Hakobu build backend is not installed. Add @seedcli/cli or @hakobu/hakobu to this project first.",
+		);
+	}
+}
+
+export function resolveNodeRuntime(execPath = process.execPath): string {
+	const binary = execPath.split(/[/\\]/).at(-1)?.toLowerCase() ?? "";
+	return binary === "node" || binary === "node.exe" ? execPath : "node";
+}
+
+async function runHakobu(cwd: string, args: string[]): Promise<void> {
+	const nodeRuntime = resolveNodeRuntime();
+	const hakobuBin = await resolveHakobuBin(cwd);
+
+	try {
+		await execFileAsync(
+			nodeRuntime,
+			[hakobuBin, ...args],
+			{
+				cwd,
+				env: { ...process.env, NODE_NO_WARNINGS: "1" },
+			},
+		);
+	} catch (err) {
+		const error = err as NodeJS.ErrnoException;
+		if (error.code === "ENOENT" && nodeRuntime === "node") {
+			throw new Error(
+				"Node.js 24+ is required to run the Hakobu build backend from a standalone Seed binary.",
+				{ cause: err },
+			);
+		}
+		throw err;
+	}
+}
+
 export const buildCommand = command({
 	name: "build",
-	description: "Bundle or compile your CLI",
+	description: "Build your CLI with Hakobu",
 	flags: {
 		compile: flag({ type: "boolean", description: "Compile to standalone binary" }),
 		outfile: flag({ type: "string", alias: "o", description: "Output file path" }),
@@ -24,9 +92,9 @@ export const buildCommand = command({
 		target: flag({ type: "string", description: "Compile targets (comma-separated)" }),
 		minify: flag({ type: "boolean", description: "Minify output" }),
 		sourcemap: flag({ type: "boolean", description: "Generate sourcemaps" }),
-		bytecode: flag({ type: "boolean", description: "Bytecode compilation for faster startup" }),
 		splitting: flag({ type: "boolean", description: "Enable code splitting" }),
 		analyze: flag({ type: "boolean", description: "Show bundle size analysis" }),
+		external: flag({ type: "string", description: "Keep module(s) external (comma-separated, repeatable)" }),
 	},
 	run: async ({ flags }) => {
 		const cwd = process.cwd();
@@ -78,20 +146,22 @@ export const buildCommand = command({
 		}
 
 		// Merge config-file defaults with CLI flags (CLI flags take precedence)
+		const cliExternal = flags.external ? flags.external.split(",").map((e: string) => e.trim()) : [];
+		const configExternal = buildConfig?.external ?? [];
 		const mergedFlags = {
 			compile: flags.compile,
 			outfile: flags.outfile,
 			outdir: flags.outdir ?? buildConfig?.bundle?.outdir,
+			outdirExplicit: !!flags.outdir,
 			target: flags.target ?? buildConfig?.compile?.targets?.join(","),
 			minify: flags.minify ?? buildConfig?.bundle?.minify,
 			sourcemap:
 				flags.sourcemap ??
 				(flags.compile ? buildConfig?.compile?.sourcemap : buildConfig?.bundle?.sourcemap),
-			bytecode: flags.bytecode ?? buildConfig?.compile?.bytecode,
 			splitting: flags.splitting ?? buildConfig?.compile?.splitting,
 			define: buildConfig?.compile?.define,
-			windows: buildConfig?.compile?.windows,
 			analyze: flags.analyze,
+			external: [...new Set([...configExternal, ...cliExternal])],
 		};
 
 		try {
@@ -119,234 +189,200 @@ async function bundleMode(
 		sourcemap?: boolean;
 		splitting?: boolean;
 		analyze?: boolean;
+		external?: string[];
 	},
 ): Promise<void> {
 	const outdir = flags.outdir ?? join(cwd, "dist");
+	const outputName = basename(originalEntryPath).replace(/\.(tsx?|mts|cts)$/, ".js");
+	const outputPath = join(outdir, outputName);
 
 	info(`${colors.cyan("seed build")} bundling...`);
 
-	const result = await Bun.build({
-		entrypoints: [entryPath],
-		outdir,
-		target: "bun",
-		minify: flags.minify ?? false,
-		sourcemap: flags.sourcemap ? "external" : "none",
-		splitting: flags.splitting ?? false,
-		plugins: [polyfillPlugin],
-		naming: {
-			entry: basename(originalEntryPath).replace(/\.(tsx?|mts|cts)$/, ".js"),
-		},
-	});
+	const args: string[] = [cwd, "--bundle", "--entry", entryPath, "--output", outputPath, "--target", "host"];
 
-	if (!result.success) {
-		for (const log of result.logs) {
-			error(String(log));
-		}
-		process.exitCode = 1;
-		return;
+	if (flags.minify) {
+		args.push("--minify");
 	}
 
-	for (const output of result.outputs) {
-		const size = formatSize(output.size);
-		info(`  ${colors.green("✔")} ${colors.dim(output.path)} ${colors.cyan(size)}`);
+	if (flags.sourcemap) {
+		args.push("--sourcemap");
 	}
 
-	if (flags.analyze) {
-		info("");
-		info(colors.bold("Bundle Analysis:"));
-		let totalSize = 0;
-		for (const output of result.outputs) {
-			totalSize += output.size;
-			info(`  ${basename(output.path)} — ${formatSize(output.size)}`);
+	for (const ext of flags.external ?? []) {
+		args.push("--external", ext);
+	}
+
+	await runHakobu(cwd, args);
+
+	// Report output sizes
+	try {
+		const st = await stat(outputPath);
+		const size = formatSize(st.size);
+		info(`  ${colors.green("\u2714")} ${colors.dim(outputPath)} ${colors.cyan(size)}`);
+
+		if (flags.analyze) {
+			info("");
+			info(colors.bold("Bundle Analysis:"));
+			info(`  ${basename(outputPath)} \u2014 ${formatSize(st.size)}`);
+			info(`  ${colors.bold("Total:")} ${formatSize(st.size)}`);
 		}
-		info(`  ${colors.bold("Total:")} ${formatSize(totalSize)}`);
+	} catch {
+		// If we can't stat, just report success without sizes
 	}
 
 	success("Build complete");
 }
 
-// Packages with broken ESM/CJS interop that Bun provides native equivalents for.
-// The plugin intercepts these imports and replaces them with no-op stubs.
-const POLYFILL_PACKAGES = ["node-fetch-native"];
+export function parseCompileTarget(target: string): { platform: string; arch: string } {
+	const parts = target.split("-");
+	return { platform: parts[1], arch: parts[2] };
+}
 
-const polyfillPlugin: BunPlugin = {
-	name: "seed-polyfill-shim",
-	setup(build) {
-		const filter = new RegExp(`^(${POLYFILL_PACKAGES.join("|")})(\\/.*)?$`);
-		build.onResolve({ filter }, (args) => ({
-			path: args.path,
-			namespace: "seed-polyfill",
-		}));
-		build.onLoad({ filter: /.*/, namespace: "seed-polyfill" }, () => ({
-			contents: "export default {}; export const fetch = globalThis.fetch;",
-			loader: "js",
-		}));
-	},
-};
+export async function resolveAppId(cwd: string): Promise<string> {
+	try {
+		const raw = await readFile(join(cwd, "package.json"), "utf-8");
+		const name = (JSON.parse(raw) as { name?: string }).name;
+		return name?.replace(/^@[^/]+\//, "") || "app";
+	} catch {
+		return "app";
+	}
+}
+
+export function hostPlatformName(): string {
+	switch (process.platform) {
+		case "win32":
+			return "win";
+		case "darwin":
+			return "macos";
+		default:
+			return process.platform;
+	}
+}
+
+export function compileOutputPath(
+	outdir: string,
+	targets: string[],
+	appId: string,
+): string {
+	if (targets.length === 1 && targets[0] !== "all") {
+		const target = targets[0];
+		const { platform, arch } =
+			target === "host"
+				? { platform: hostPlatformName(), arch: process.arch }
+				: parseCompileTarget(target);
+		const ext = platform === "win" ? ".exe" : "";
+		return join(outdir, `${appId}-${platform}-${arch}${ext}`);
+	}
+	return outdir;
+}
+
+export function resolveCompileOutput(opts: {
+	outfile?: string;
+	outdir: string;
+	targets: string[];
+	appId: string;
+}): string {
+	if (opts.outfile) {
+		return opts.outfile;
+	}
+	return compileOutputPath(opts.outdir, opts.targets, opts.appId);
+}
+
+export function validateCompileFlags(opts: {
+	outfile?: string;
+	outdirExplicit?: boolean;
+	targets: string[];
+}): string | null {
+	if (opts.outfile && opts.outdirExplicit) {
+		return "Cannot use both --outfile and --outdir. Use --outfile for an explicit path, or --outdir for auto-named output.";
+	}
+	const isMultiTarget = opts.targets.length > 1 || opts.targets[0] === "all";
+	if (opts.outfile && isMultiTarget) {
+		return "Cannot use --outfile with multiple compile targets. Use --outdir instead.";
+	}
+	return null;
+}
+
+export const VALID_COMPILE_TARGETS: CompileTarget[] = [
+	"node24-linux-x64",
+	"node24-linux-arm64",
+	"node24-macos-x64",
+	"node24-macos-arm64",
+	"node24-win-x64",
+	"node24-win-arm64",
+	"node24-linuxstatic-x64",
+];
 
 async function compileMode(
 	entryPath: string,
 	cwd: string,
 	flags: {
 		outdir?: string;
+		outdirExplicit?: boolean;
 		outfile?: string;
 		target?: string;
 		minify?: boolean;
-		bytecode?: boolean;
 		sourcemap?: boolean;
 		splitting?: boolean;
 		define?: Record<string, string>;
-		windows?: {
-			icon?: string;
-			hideConsole?: boolean;
-			title?: string;
-			publisher?: string;
-			version?: string;
-			description?: string;
-			copyright?: string;
-		};
+		external?: string[];
 	},
 ): Promise<void> {
-	// ─── Validate Bun version (--format=esm requires Bun 1.3.9+) ───
-	const [major, minor, patch] = Bun.version.split(".").map(Number);
-	if (major < 1 || (major === 1 && minor < 3) || (major === 1 && minor === 3 && patch < 9)) {
-		error(
-			`seed build --compile requires Bun >= 1.3.9 (found ${Bun.version}). Please upgrade: bun upgrade`,
-		);
-		process.exitCode = 1;
-		return;
-	}
-
 	// ─── Validate compile targets ───
 	if (flags.target) {
-		const validTargets: CompileTarget[] = [
-			"bun-linux-x64",
-			"bun-linux-x64-baseline",
-			"bun-linux-x64-modern",
-			"bun-linux-arm64",
-			"bun-linux-x64-musl",
-			"bun-linux-x64-musl-baseline",
-			"bun-linux-arm64-musl",
-			"bun-darwin-x64",
-			"bun-darwin-x64-baseline",
-			"bun-darwin-arm64",
-			"bun-windows-x64",
-			"bun-windows-x64-baseline",
-			"bun-windows-x64-modern",
-			"bun-windows-arm64",
-		];
 		const requested = flags.target.split(",").map((t) => t.trim());
-		const invalid = requested.filter((t) => !validTargets.includes(t as CompileTarget));
+		const invalid = requested.filter((t) => t !== "all" && !VALID_COMPILE_TARGETS.includes(t as CompileTarget));
 		if (invalid.length > 0) {
 			error(`Invalid compile target${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`);
-			info(`Valid targets: ${validTargets.join(", ")}`);
+			info(`Valid targets: ${VALID_COMPILE_TARGETS.join(", ")}, all`);
 			process.exitCode = 1;
 			return;
 		}
 	}
 
-	// ─── Step 1: Bundle TS → single JS file via Bun.build() API ───
-	const outdir = flags.outdir ?? join(cwd, "dist");
-	const bundledFilename = basename(entryPath).replace(/\.(mts|tsx?|cts)$/, ".js");
+	const targets = flags.target ? flags.target.split(",").map((t) => t.trim()) : ["host"];
 
-	info(`${colors.cyan("seed build")} bundling for compile...`);
-
-	const bundleResult = await Bun.build({
-		entrypoints: [entryPath],
-		outdir,
-		target: "bun",
-		minify: flags.minify ?? false,
-		plugins: [polyfillPlugin],
-		naming: { entry: bundledFilename },
+	// ─── Validate --outfile / --outdir interaction ───
+	const validationError = validateCompileFlags({
+		outfile: flags.outfile,
+		outdirExplicit: flags.outdirExplicit,
+		targets,
 	});
-
-	if (!bundleResult.success) {
-		for (const log of bundleResult.logs) {
-			error(String(log));
-		}
-		error("Bundle step failed");
+	if (validationError) {
+		error(validationError);
 		process.exitCode = 1;
 		return;
 	}
 
-	const bundledEntry = join(outdir, bundledFilename);
+	info(`${colors.cyan("seed build")} compiling...`);
 
-	// ─── Step 2: Compile pre-bundled JS → standalone binary ───
-	// We use --format=esm which natively supports top-level await (TLA)
-	// and is compatible with --bytecode (Bun 1.3.9+).
-	const targets = flags.target ? flags.target.split(",").map((t) => t.trim()) : [undefined];
-	const hasMultipleTargets = targets.length > 1;
+	// ─── Resolve effective Hakobu --output path ───
+	const outdir = flags.outdir ?? join(cwd, "dist");
+	const appId = flags.outfile ? "" : await resolveAppId(cwd);
+	const output = resolveCompileOutput({
+		outfile: flags.outfile,
+		outdir,
+		targets,
+		appId,
+	});
+
+	const args: string[] = [cwd, "--bundle", "--entry", entryPath, "--target", targets.join(","), "--output", output];
+
+	if (flags.minify) {
+		args.push("--minify");
+	}
+
+	if (flags.sourcemap) {
+		args.push("--sourcemap");
+	}
+
+	for (const ext of flags.external ?? []) {
+		args.push("--external", ext);
+	}
+
+	await runHakobu(cwd, args);
 
 	for (const target of targets) {
-		const args = ["bun", "build", bundledEntry, "--compile", "--format=esm"];
-
-		if (flags.splitting) {
-			// Splitting requires --outdir instead of --outfile
-			const splitOutdir = flags.outfile
-				? join(cwd, flags.outfile)
-				: (flags.outdir ?? join(cwd, "dist"));
-			args.push("--outdir", splitOutdir);
-		} else if (flags.outfile) {
-			let outfile = flags.outfile;
-			if (hasMultipleTargets && target) {
-				const suffix = target.replace(/^bun-/, "");
-				outfile = `${flags.outfile}-${suffix}`;
-			}
-			args.push("--outfile", outfile);
-		}
-
-		if (flags.minify) {
-			args.push("--minify");
-		}
-
-		if (flags.bytecode) {
-			args.push("--bytecode");
-		}
-
-		if (flags.sourcemap) {
-			args.push("--sourcemap=linked");
-		}
-
-		if (flags.splitting) {
-			args.push("--splitting");
-		}
-
-		if (flags.define) {
-			for (const [key, value] of Object.entries(flags.define)) {
-				args.push("--define", `${key}=${value}`);
-			}
-		}
-
-		// Windows-specific flags
-		if (flags.windows) {
-			if (flags.windows.icon) {
-				args.push("--windows-icon", flags.windows.icon);
-			}
-			if (flags.windows.hideConsole) {
-				args.push("--windows-hide-console");
-			}
-		}
-
-		if (target) {
-			args.push("--target", target);
-			info(`${colors.cyan("seed build")} compiling for ${colors.bold(target)}...`);
-		} else {
-			info(`${colors.cyan("seed build")} compiling...`);
-		}
-
-		const proc = Bun.spawn(args, {
-			cwd,
-			stdout: "inherit",
-			stderr: "inherit",
-		});
-
-		const exitCode = await proc.exited;
-		if (exitCode !== 0) {
-			error(`Compilation failed${target ? ` for target ${target}` : ""}`);
-			process.exitCode = 1;
-			return;
-		}
-
-		success(`Compiled${target ? ` for ${target}` : ""}`);
+		success(`Compiled${target !== "host" ? ` for ${target}` : ""}`);
 	}
 }

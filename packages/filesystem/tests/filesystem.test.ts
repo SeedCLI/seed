@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "vitest";
 import { chmod, rm } from "node:fs/promises";
 import { copy } from "../src/copy.js";
 import { ensureDir, list, subdirectories } from "../src/dir.js";
@@ -12,7 +12,7 @@ import { remove } from "../src/remove.js";
 import { tmpDir, tmpFile } from "../src/tmp.js";
 import { write, writeJson } from "../src/write.js";
 
-const TEST_DIR = path.join(import.meta.dir, ".test-tmp");
+const TEST_DIR = path.join(new URL(".", import.meta.url).pathname, ".test-tmp");
 
 afterEach(async () => {
 	await rm(TEST_DIR, { recursive: true, force: true });

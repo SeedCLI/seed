@@ -1,3 +1,4 @@
+import { execa } from "execa";
 import { ExecError, ExecTimeoutError } from "./errors.js";
 import type { ExecOptions, ExecResult } from "./types.js";
 
@@ -6,104 +7,113 @@ export async function exec(command: string, options?: ExecOptions): Promise<Exec
 	const useShell = options?.shell ?? true;
 
 	const isWin = process.platform === "win32";
+	let cmd: string;
 	let args: string[];
 	if (useShell) {
-		args = isWin ? ["cmd", "/c", command] : ["sh", "-c", command];
+		if (isWin) {
+			cmd = "cmd";
+			args = ["/c", command];
+		} else {
+			cmd = "sh";
+			args = ["-c", command];
+		}
 	} else {
 		// Parse quoted strings: supports "double quotes" and 'single quotes'
-		args = [];
+		const parsed: string[] = [];
 		const regex = /(?:"([^"]*)")|(?:'([^']*)')|(\S+)/g;
 		for (const match of command.matchAll(regex)) {
-			args.push(match[1] ?? match[2] ?? match[3]);
+			parsed.push(match[1] ?? match[2] ?? match[3]);
 		}
-	}
-	if (args.length === 0) {
-		throw new ExecError(command || "(empty)", 1, "", "Empty command");
-	}
-	const cmd = args[0];
-	const cmdArgs = args.slice(1);
-
-	const proc = Bun.spawn([cmd, ...cmdArgs], {
-		cwd: options?.cwd,
-		env: options?.env ? { ...process.env, ...options.env } : undefined,
-		stdout: options?.stream ? "inherit" : "pipe",
-		stderr: options?.stream ? "inherit" : "pipe",
-		stdin: options?.stdin ? "pipe" : undefined,
-	});
-
-	// Write stdin if provided
-	if (options?.stdin && proc.stdin) {
-		const data =
-			typeof options.stdin === "string" ? new TextEncoder().encode(options.stdin) : options.stdin;
-		try {
-			proc.stdin.write(data);
-			await proc.stdin.end();
-		} catch {
-			// Process may have already exited; broken pipe is expected
+		if (parsed.length === 0) {
+			throw new ExecError(command || "(empty)", 1, "", "Empty command");
 		}
+		cmd = parsed[0];
+		args = parsed.slice(1);
 	}
 
-	// Handle timeout
-	if (options?.timeout) {
-		let timedOut = false;
-		let killTimer: ReturnType<typeof setTimeout> | undefined;
-		const timer = setTimeout(() => {
-			timedOut = true;
-			// Send SIGTERM first for graceful shutdown, then SIGKILL after 2s
-			proc.kill("SIGTERM");
-			killTimer = setTimeout(() => {
-				try {
-					proc.kill("SIGKILL");
-				} catch {
-					// Process already exited
-				}
-			}, 2000);
-		}, options.timeout);
-
-		try {
-			// Read stdout/stderr concurrently with process exit to avoid deadlocks
-			const [stdout, stderr, exitCode] = await Promise.all([
-				options?.stream ? Promise.resolve("") : new Response(proc.stdout).text(),
-				options?.stream ? Promise.resolve("") : new Response(proc.stderr).text(),
-				proc.exited,
-			]);
-			clearTimeout(timer);
-			if (killTimer) clearTimeout(killTimer);
-
-			if (timedOut) {
-				throw new ExecTimeoutError(command, options.timeout);
-			}
-
-			const shouldTrim = options?.trim !== false;
-			const out = shouldTrim ? stdout.trimEnd() : stdout;
-			const err2 = shouldTrim ? stderr.trimEnd() : stderr;
-
-			if (throwOnError && exitCode !== 0) {
-				throw new ExecError(command, exitCode, out, err2);
-			}
-
-			return { stdout: out, stderr: err2, exitCode };
-		} catch (err) {
-			clearTimeout(timer);
-			if (killTimer) clearTimeout(killTimer);
-			throw err;
-		}
+	if (useShell && !command) {
+		throw new ExecError("(empty)", 1, "", "Empty command");
 	}
-
-	// Read stdout/stderr concurrently with process exit to avoid deadlocks
-	const [rawStdout, rawStderr, exitCode] = await Promise.all([
-		options?.stream ? Promise.resolve("") : new Response(proc.stdout).text(),
-		options?.stream ? Promise.resolve("") : new Response(proc.stderr).text(),
-		proc.exited,
-	]);
 
 	const shouldTrim = options?.trim !== false;
-	const stdout = shouldTrim ? rawStdout.trimEnd() : rawStdout;
-	const stderr = shouldTrim ? rawStderr.trimEnd() : rawStderr;
 
-	if (throwOnError && exitCode !== 0) {
-		throw new ExecError(command, exitCode, stdout, stderr);
+	const inputOpts: Record<string, unknown> = {
+		cwd: options?.cwd,
+		env: options?.env ? { ...process.env, ...options.env } : undefined,
+		timeout: options?.timeout,
+		reject: false,
+		stripFinalNewline: shouldTrim,
+		stdin: options?.stdin ? "pipe" : undefined,
+		stdout: options?.stream ? "inherit" : "pipe",
+		stderr: options?.stream ? "inherit" : "pipe",
+		// execa's input option for stdin data
+		...(options?.stdin
+			? {
+					input:
+						typeof options.stdin === "string"
+							? options.stdin
+							: Buffer.isBuffer(options.stdin)
+								? options.stdin
+								: options.stdin,
+				}
+			: {}),
+	};
+
+	try {
+		const result: { stdout?: string; stderr?: string; exitCode?: number; timedOut?: boolean } =
+			await execa(cmd, args, inputOpts as any);
+
+		const stdout = options?.stream
+			? ""
+			: shouldTrim
+				? (result.stdout?.trimEnd() ?? "")
+				: (result.stdout ?? "");
+		const stderr = options?.stream
+			? ""
+			: shouldTrim
+				? (result.stderr?.trimEnd() ?? "")
+				: (result.stderr ?? "");
+		const exitCode = result.exitCode ?? 0;
+
+		if (result.timedOut) {
+			throw new ExecTimeoutError(command, options!.timeout!);
+		}
+
+		if (throwOnError && exitCode !== 0) {
+			throw new ExecError(command, exitCode, stdout, stderr);
+		}
+
+		return { stdout, stderr, exitCode };
+	} catch (err) {
+		if (err instanceof ExecError || err instanceof ExecTimeoutError) {
+			throw err;
+		}
+		// Handle execa errors that carry timedOut / exitCode
+		const execaErr = err as {
+			timedOut?: boolean;
+			exitCode?: number;
+			stdout?: string;
+			stderr?: string;
+		};
+		if (execaErr.timedOut) {
+			throw new ExecTimeoutError(command, options!.timeout!);
+		}
+		const stdout = options?.stream
+			? ""
+			: shouldTrim
+				? (execaErr.stdout?.trimEnd() ?? "")
+				: (execaErr.stdout ?? "");
+		const stderr = options?.stream
+			? ""
+			: shouldTrim
+				? (execaErr.stderr?.trimEnd() ?? "")
+				: (execaErr.stderr ?? "");
+		const exitCode = execaErr.exitCode ?? 1;
+
+		if (throwOnError && exitCode !== 0) {
+			throw new ExecError(command, exitCode, stdout, stderr);
+		}
+
+		return { stdout, stderr, exitCode };
 	}
-
-	return { stdout, stderr, exitCode };
 }

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,7 +30,7 @@ function setupTestWorkspace() {
 			name: "alpha-app",
 			version: "1.2.3",
 			description: "First test project",
-			scripts: { dev: "bun src/index.ts", test: "bun test" },
+			scripts: { dev: "node --import tsx src/index.ts", test: "vitest run" },
 			dependencies: { chalk: "^5.0.0" },
 			devDependencies: { typescript: "^5.0.0" },
 		}),

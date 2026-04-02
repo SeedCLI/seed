@@ -5,7 +5,7 @@ A [Seed CLI](https://seedcli.dev) plugin.
 ## Installation
 
 ```bash
-bun add <%= name %>
+pnpm add <%= name %>
 ```
 
 ## Usage

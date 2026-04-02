@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { JsonWriteOptions } from "./types.js";
 
@@ -7,7 +7,7 @@ export async function write(filePath: string, content: string | Buffer): Promise
 		throw new Error("write() requires a non-empty file path");
 	}
 	await mkdir(dirname(filePath), { recursive: true });
-	await Bun.write(filePath, content);
+	await writeFile(filePath, content);
 }
 
 export async function writeJson(

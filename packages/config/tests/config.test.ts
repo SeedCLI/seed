@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { get, load, loadFile } from "../src/index.js";
@@ -80,7 +80,7 @@ describe("config", () => {
 	describe("loadFile", () => {
 		test("loads JSON file", async () => {
 			const file = join(dir, "config.json");
-			await Bun.write(file, JSON.stringify({ name: "test", port: 3000 }));
+			await writeFile(file, JSON.stringify({ name: "test", port: 3000 }));
 			const config = await loadFile(file);
 			expect(config).toEqual({ name: "test", port: 3000 });
 		});
@@ -98,7 +98,7 @@ describe("config", () => {
 		});
 
 		test("loads config from config file", async () => {
-			await Bun.write(join(dir, "testapp.config.json"), JSON.stringify({ port: 8080 }));
+			await writeFile(join(dir, "testapp.config.json"), JSON.stringify({ port: 8080 }));
 			const result = await load({
 				name: "testapp",
 				cwd: dir,
@@ -108,7 +108,7 @@ describe("config", () => {
 		});
 
 		test("overrides take precedence", async () => {
-			await Bun.write(join(dir, "testapp.config.json"), JSON.stringify({ port: 8080 }));
+			await writeFile(join(dir, "testapp.config.json"), JSON.stringify({ port: 8080 }));
 			const result = await load({
 				name: "testapp",
 				cwd: dir,

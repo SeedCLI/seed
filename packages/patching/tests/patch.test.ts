@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { mkdtemp, readFile as fsReadFile, rm, writeFile as fsWriteFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { append, exists, patch, patchJson, prepend } from "../src/index.js";
@@ -17,12 +17,12 @@ describe("patching", () => {
 
 	async function writeFile(name: string, content: string): Promise<string> {
 		const filePath = join(dir, name);
-		await Bun.write(filePath, content);
+		await fsWriteFile(filePath, content);
 		return filePath;
 	}
 
 	async function readFile(filePath: string): Promise<string> {
-		return Bun.file(filePath).text();
+		return fsReadFile(filePath, "utf-8");
 	}
 
 	describe("patch", () => {

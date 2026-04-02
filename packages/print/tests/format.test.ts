@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { columns, indent, wrap } from "../src/format.js";
 
 describe("format", () => {

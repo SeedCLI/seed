@@ -56,7 +56,7 @@ export function validateSeedcliVersion(plugin: PluginConfig, runtimeVersion: str
 
 	if (!satisfies(runtimeVersion, plugin.seedcli)) {
 		throw new PluginValidationError(
-			`Plugin "${plugin.name}" requires Seed CLI ${plugin.seedcli}\n\n  Current Seed CLI version: ${runtimeVersion}\n  Required by plugin:       ${plugin.seedcli}\n\n  Upgrade Seed CLI:\n    bun update @seedcli/core`,
+			`Plugin "${plugin.name}" requires Seed CLI ${plugin.seedcli}\n\n  Current Seed CLI version: ${runtimeVersion}\n  Required by plugin:       ${plugin.seedcli}\n\n  Upgrade Seed CLI:\n    npm update @seedcli/core`,
 			plugin.name,
 		);
 	}
@@ -77,7 +77,7 @@ export function validatePeerDependencies(
 
 		if (!peer) {
 			throw new PluginDependencyError(
-				`Plugin "${plugin.name}" requires peer plugin "${peerName}" but it is not loaded.\n\n  Install the required plugin:\n    bun add @mycli/plugin-${peerName}`,
+				`Plugin "${plugin.name}" requires peer plugin "${peerName}" but it is not loaded.\n\n  Install the required plugin:\n    npm install @mycli/plugin-${peerName}`,
 				plugin.name,
 				peerName,
 			);
@@ -85,7 +85,7 @@ export function validatePeerDependencies(
 
 		if (!satisfies(peer.version, versionRange)) {
 			throw new PluginDependencyError(
-				`Plugin "${plugin.name}" requires "${peerName}@${versionRange}" but found "${peer.version}".\n\n  Upgrade the plugin:\n    bun update @mycli/plugin-${peerName}`,
+				`Plugin "${plugin.name}" requires "${peerName}@${versionRange}" but found "${peer.version}".\n\n  Upgrade the plugin:\n    npm update @mycli/plugin-${peerName}`,
 				plugin.name,
 				peerName,
 			);

@@ -7,14 +7,17 @@
 		"<%= it.name %>": "./src/index.ts"
 	},
 	"scripts": {
-		"dev": "bun --watch src/index.ts",
+		"dev": "node --import tsx --watch src/index.ts",
 		"build": "seed build",
 		"compile": "seed build --compile --outfile <%= it.name %>",
-		"test": "bun test",
+		"test": "vitest run",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"typecheck": "tsc --noEmit"
+	},
+	"engines": {
+		"node": ">=24.0.0"
 	},
 	"dependencies": {
 		"@seedcli/core": "^<%= it.seedcliVersion %>"
@@ -23,7 +26,9 @@
 		"@biomejs/biome": "^2.4.4",
 		"@seedcli/cli": "^<%= it.seedcliVersion %>",
 		"@seedcli/testing": "^<%= it.seedcliVersion %>",
-		"@types/bun": "latest",
+		"@types/node": "^24.0.0",
+		"tsx": "^4.19.0",
+		"vitest": "^3.2.0",
 		"typescript": "^5.9.0"
 	}
 }

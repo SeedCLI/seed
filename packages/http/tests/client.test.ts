@@ -1,8 +1,8 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Server } from "bun";
 import { create, get, head, post, put } from "../src/client.js";
 import { download } from "../src/download.js";
 import { HttpError, HttpTimeoutError } from "../src/errors.js";
@@ -10,58 +10,83 @@ import { HttpError, HttpTimeoutError } from "../src/errors.js";
 let server: Server;
 let baseURL: string;
 
-beforeAll(() => {
-	server = Bun.serve({
-		port: 0,
-		fetch(req) {
-			const url = new URL(req.url);
+beforeAll(async () => {
+	server = createServer(async (req, res) => {
+		const url = new URL(req.url!, `http://${req.headers.host}`);
 
-			if (url.pathname === "/json") {
-				return Response.json({ message: "hello", method: req.method });
+		if (url.pathname === "/json") {
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ message: "hello", method: req.method }));
+			return;
+		}
+		if (url.pathname === "/text") {
+			res.writeHead(200, { "Content-Type": "text/plain" });
+			res.end("plain text response");
+			return;
+		}
+		if (url.pathname === "/echo") {
+			const chunks: Buffer[] = [];
+			for await (const chunk of req) chunks.push(chunk as Buffer);
+			const body = JSON.parse(Buffer.concat(chunks).toString());
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ echo: body, method: req.method }));
+			return;
+		}
+		if (url.pathname === "/headers") {
+			const headers: Record<string, string> = {};
+			for (const [key, value] of Object.entries(req.headers)) {
+				if (typeof value === "string") headers[key] = value;
 			}
-			if (url.pathname === "/text") {
-				return new Response("plain text response");
-			}
-			if (url.pathname === "/echo") {
-				return req.json().then((body) => Response.json({ echo: body, method: req.method }));
-			}
-			if (url.pathname === "/headers") {
-				const headers: Record<string, string> = {};
-				req.headers.forEach((value, key) => {
-					headers[key] = value;
-				});
-				return Response.json(headers);
-			}
-			if (url.pathname === "/status/404") {
-				return new Response("Not Found", { status: 404 });
-			}
-			if (url.pathname === "/status/500") {
-				return Response.json({ error: "server error" }, { status: 500 });
-			}
-			if (url.pathname === "/params") {
-				const params: Record<string, string> = {};
-				url.searchParams.forEach((value, key) => {
-					params[key] = value;
-				});
-				return Response.json(params);
-			}
-			if (url.pathname === "/slow") {
-				return new Promise((resolve) =>
-					setTimeout(() => resolve(Response.json({ done: true })), 3000),
-				);
-			}
-			if (url.pathname === "/download") {
-				return new Response("file content for download test");
-			}
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(headers));
+			return;
+		}
+		if (url.pathname === "/status/404") {
+			res.writeHead(404, { "Content-Type": "text/plain" });
+			res.end("Not Found");
+			return;
+		}
+		if (url.pathname === "/status/500") {
+			res.writeHead(500, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: "server error" }));
+			return;
+		}
+		if (url.pathname === "/params") {
+			const params: Record<string, string> = {};
+			url.searchParams.forEach((value, key) => {
+				params[key] = value;
+			});
+			res.writeHead(200, { "Content-Type": "application/json" });
+			res.end(JSON.stringify(params));
+			return;
+		}
+		if (url.pathname === "/slow") {
+			setTimeout(() => {
+				res.writeHead(200, { "Content-Type": "application/json" });
+				res.end(JSON.stringify({ done: true }));
+			}, 3000);
+			return;
+		}
+		if (url.pathname === "/download") {
+			res.writeHead(200, { "Content-Type": "text/plain" });
+			res.end("file content for download test");
+			return;
+		}
 
-			return new Response("Not Found", { status: 404 });
-		},
+		res.writeHead(404, { "Content-Type": "text/plain" });
+		res.end("Not Found");
 	});
-	baseURL = `http://localhost:${server.port}`;
+
+	await new Promise<void>((resolve) => {
+		server.listen(0, () => resolve());
+	});
+	const addr = server.address();
+	const port = typeof addr === "object" && addr ? addr.port : 0;
+	baseURL = `http://localhost:${port}`;
 });
 
 afterAll(() => {
-	server.stop(true);
+	server.close();
 });
 
 describe("http client", () => {
@@ -167,7 +192,7 @@ describe("download", () => {
 	test("downloads file", async () => {
 		const dest = join(tmpDir, "downloaded.txt");
 		await download(`${baseURL}/download`, dest);
-		const content = await Bun.file(dest).text();
+		const content = await readFile(dest, "utf-8");
 		expect(content).toBe("file content for download test");
 	});
 

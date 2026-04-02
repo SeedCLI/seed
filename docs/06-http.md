@@ -11,7 +11,7 @@
 ## Overview
 
 Two modes:
-1. **Simple mode** — Thin wrapper over Bun's native `fetch()` with convenience methods (get, post, put, delete), response typing, and file downloads
+1. **Simple mode** — Thin wrapper over Node.js's native `fetch()` with convenience methods (get, post, put, delete), response typing, and file downloads
 2. **OpenAPI mode** — Integration with `openapi-fetch` for projects that have an OpenAPI schema, providing full end-to-end type safety
 
 ---
@@ -23,7 +23,7 @@ packages/http/
 ├── package.json
 ├── src/
 │   ├── index.ts          # Public API
-│   ├── client.ts         # Simple HTTP client (Bun fetch wrapper)
+│   ├── client.ts         # Simple HTTP client (Node.js fetch wrapper)
 │   ├── openapi.ts        # OpenAPI-typed client wrapper (openapi-fetch)
 │   ├── download.ts       # File download with progress
 │   └── types.ts          # Shared types
@@ -70,7 +70,7 @@ interface HttpResponse<T> {
   statusText: string;
   headers: Headers;
   ok: boolean;
-  raw: Response;            // Original Bun Response object
+  raw: Response;            // Original Response object
 }
 ```
 
@@ -167,7 +167,7 @@ Requires two steps:
 
 ```bash
 # Step 1: Generate types (one-time or in build script)
-bunx openapi-typescript https://api.example.com/openapi.json -o src/api-schema.ts
+pnpm dlx openapi-typescript https://api.example.com/openapi.json -o src/api-schema.ts
 ```
 
 ```ts
@@ -225,7 +225,7 @@ await client.DELETE("/users/{id}", {
 
 - **6kb** bundle size (vs 367kb for full codegen solutions)
 - **300k ops/s** — fastest in benchmarks
-- Uses native `fetch` — perfect for Bun
+- Uses native `fetch` — works with Node.js's built-in fetch
 - No runtime codegen — types are compile-time only
 - Battle-tested in production
 

@@ -1,6 +1,16 @@
 import { join } from "node:path";
+import { access, readFile } from "node:fs/promises";
 import { load } from "@seedcli/config";
 import type { SeedConfig } from "@seedcli/core";
+
+async function fileExists(path: string): Promise<boolean> {
+	try {
+		await access(path);
+		return true;
+	} catch {
+		return false;
+	}
+}
 
 export async function resolveEntry(
 	cwd: string,
@@ -22,11 +32,10 @@ export async function resolveEntry(
 
 	// 2. Check package.json bin field
 	const pkgPath = join(cwd, "package.json");
-	const pkgFile = Bun.file(pkgPath);
 
-	if (await pkgFile.exists()) {
+	if (await fileExists(pkgPath)) {
 		try {
-			const pkg = await pkgFile.json();
+			const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
 			if (typeof pkg.bin === "string") {
 				return pkg.bin;
 			}
@@ -42,7 +51,7 @@ export async function resolveEntry(
 	// 3. Fall back to common defaults
 	const defaults = ["src/index.ts", "src/cli.ts", "index.ts"];
 	for (const d of defaults) {
-		if (await Bun.file(join(cwd, d)).exists()) {
+		if (await fileExists(join(cwd, d))) {
 			return d;
 		}
 	}

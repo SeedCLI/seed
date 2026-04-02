@@ -1,0 +1,23 @@
+{
+  "name": "tui-demo",
+  "version": "0.1.0",
+  "description": "TUI packages end-to-end verification demo",
+  "type": "module",
+  "private": true,
+  "main": "src/index.ts",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "node --import tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@seedcli/core": "workspace:*",
+    "@seedcli/print": "workspace:*",
+    "@seedcli/tui": "workspace:*",
+    "@seedcli/tui-core": "workspace:*",
+    "@seedcli/tui-vue": "workspace:*",
+    "vue": "^3.5.29"
+  }
+}

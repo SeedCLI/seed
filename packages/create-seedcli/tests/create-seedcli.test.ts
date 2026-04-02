@@ -1,12 +1,17 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { directory } from "@seedcli/template";
+import { execa } from "execa";
 
-const TEMPLATES_DIR = join(import.meta.dir, "..", "templates");
-const PKG_VERSION = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf-8"))
+const TEMPLATES_DIR = join(import.meta.dirname, "..", "templates");
+const PKG_VERSION = JSON.parse(readFileSync(join(import.meta.dirname, "..", "package.json"), "utf-8"))
 	.version as string;
+
+// Resolve tsx to absolute path so it works from temp cwd
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
+const TSX_PATH = join(REPO_ROOT, "node_modules", "tsx", "dist", "esm", "index.mjs");
 
 let tempDir: string;
 
@@ -41,24 +46,24 @@ describe("create-seedcli templates", () => {
 		expect(existsSync(join(targetDir, "tsconfig.json"))).toBe(true);
 		expect(existsSync(join(targetDir, "seed.config.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, ".gitignore"))).toBe(true);
-		expect(existsSync(join(targetDir, "bunfig.toml"))).toBe(true);
+		// bunfig.toml removed in Node.js migration
 		expect(existsSync(join(targetDir, "src/index.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/commands/hello.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/extensions/timer.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, "tests/hello.test.ts"))).toBe(true);
 
 		// Check template variables were interpolated
-		const pkg = await Bun.file(join(targetDir, "package.json")).json();
+		const pkg = JSON.parse(readFileSync(join(targetDir, "package.json"), "utf-8"));
 		expect(pkg.name).toBe("my-cli");
 		expect(pkg.description).toBe("Test CLI");
 		expect(pkg.version).toBe("0.0.1");
 		expect(pkg.bin["my-cli"]).toBe("./src/index.ts");
 
-		const indexTs = await Bun.file(join(targetDir, "src/index.ts")).text();
+		const indexTs = readFileSync(join(targetDir, "src/index.ts"), "utf-8");
 		expect(indexTs).toContain('build("my-cli")');
 		expect(indexTs).toContain('.version("0.0.1")');
 
-		const helloTs = await Bun.file(join(targetDir, "src/commands/hello.ts")).text();
+		const helloTs = readFileSync(join(targetDir, "src/commands/hello.ts"), "utf-8");
 		expect(helloTs).toContain('name: "hello"');
 		expect(helloTs).toContain("Hello,");
 	});
@@ -84,22 +89,22 @@ describe("create-seedcli templates", () => {
 		expect(existsSync(join(targetDir, "tsconfig.json"))).toBe(true);
 		expect(existsSync(join(targetDir, "src/index.ts"))).toBe(true);
 		expect(existsSync(join(targetDir, ".gitignore"))).toBe(true);
-		expect(existsSync(join(targetDir, "bunfig.toml"))).toBe(true);
+		// bunfig.toml removed in Node.js migration
 		expect(existsSync(join(targetDir, "tests/index.test.ts"))).toBe(true);
 
 		// No full-template extras
 		expect(existsSync(join(targetDir, "seed.config.ts"))).toBe(false);
 
 		// Check template variables
-		const pkg = await Bun.file(join(targetDir, "package.json")).json();
+		const pkg = JSON.parse(readFileSync(join(targetDir, "package.json"), "utf-8"));
 		expect(pkg.name).toBe("mini-cli");
 		expect(pkg.dependencies["@seedcli/core"]).toBeDefined();
 		// Minimal has @seedcli/cli devDep for build/compile scripts
 		expect(pkg.devDependencies["@seedcli/cli"]).toBeDefined();
 		expect(pkg.devDependencies["@seedcli/testing"]).toBeUndefined();
-		expect(pkg.scripts.test).toBe("bun test");
+		expect(pkg.scripts.test).toBe("vitest run");
 
-		const indexTs = await Bun.file(join(targetDir, "src/index.ts")).text();
+		const indexTs = readFileSync(join(targetDir, "src/index.ts"), "utf-8");
 		expect(indexTs).toContain('build("mini-cli")');
 		expect(indexTs).toContain("Hello from mini-cli!");
 	});
@@ -132,7 +137,7 @@ describe("create-seedcli templates", () => {
 		expect(existsSync(join(targetDir, "tests/plugin.test.ts"))).toBe(true);
 
 		// Check package.json: no bin, has exports, has peerDependencies, has publishConfig
-		const pkg = await Bun.file(join(targetDir, "package.json")).json();
+		const pkg = JSON.parse(readFileSync(join(targetDir, "package.json"), "utf-8"));
 		expect(pkg.name).toBe("my-plugin");
 		expect(pkg.description).toBe("Test plugin");
 		expect(pkg.bin).toBeUndefined();
@@ -142,24 +147,24 @@ describe("create-seedcli templates", () => {
 		expect(pkg.peerDependencies["@seedcli/core"]).toBeDefined();
 		expect(pkg.files).toContain("dist");
 		expect(pkg.scripts.build).toBeDefined();
-		expect(pkg.scripts.prepublishOnly).toBe("bun run build");
+		expect(pkg.scripts.prepublishOnly).toBe("pnpm run build");
 		expect(pkg.publishConfig).toBeDefined();
 		expect(pkg.publishConfig.main).toBe("./dist/index.js");
 		expect(pkg.publishConfig.types).toBe("./dist/index.d.ts");
 
 		// Check index.ts contains definePlugin and re-exports types
-		const indexTs = await Bun.file(join(targetDir, "src/index.ts")).text();
+		const indexTs = readFileSync(join(targetDir, "src/index.ts"), "utf-8");
 		expect(indexTs).toContain("definePlugin");
 		expect(indexTs).toContain('"my-plugin"');
 		expect(indexTs).toContain('export type {} from "./types.js"');
 
 		// Check types.d.ts contains SeedExtensions augmentation
-		const typesTs = await Bun.file(join(targetDir, "src/types.d.ts")).text();
+		const typesTs = readFileSync(join(targetDir, "src/types.d.ts"), "utf-8");
 		expect(typesTs).toContain("SeedExtensions");
 		expect(typesTs).toContain('declare module "@seedcli/core"');
 
 		// Check extension contains defineExtension without declare module
-		const extensionTs = await Bun.file(join(targetDir, "src/extensions/example.ts")).text();
+		const extensionTs = readFileSync(join(targetDir, "src/extensions/example.ts"), "utf-8");
 		expect(extensionTs).toContain("defineExtension");
 		expect(extensionTs).not.toContain("declare module");
 		expect(extensionTs).toContain("seed.print");
@@ -177,7 +182,7 @@ describe("create-seedcli templates", () => {
 		];
 
 		for (const file of files) {
-			const content = await Bun.file(join(targetDir, file)).text();
+			const content = readFileSync(join(targetDir, file), "utf-8");
 			expect(content).not.toContain("<%=");
 			expect(content).not.toContain("<%~");
 			expect(content).not.toContain("<% ");
@@ -212,7 +217,7 @@ describe("create-seedcli templates", () => {
 		];
 
 		for (const file of files) {
-			const content = await Bun.file(join(targetDir, file)).text();
+			const content = readFileSync(join(targetDir, file), "utf-8");
 			expect(content).not.toContain("<%=");
 			expect(content).not.toContain("<%~");
 			expect(content).not.toContain("<% ");
@@ -220,27 +225,23 @@ describe("create-seedcli templates", () => {
 	});
 
 	test("--help flag prints usage", async () => {
-		const proc = Bun.spawn(["bun", join(import.meta.dir, "..", "src", "index.ts"), "--help"], {
+		const result = await execa("node", ["--import", TSX_PATH, join(import.meta.dirname, "..", "src", "index.ts"), "--help"], {
 			stdout: "pipe",
 			stderr: "pipe",
 		});
-		const stdout = await new Response(proc.stdout).text();
-		await proc.exited;
 
-		expect(stdout).toContain("create-seedcli");
-		expect(stdout).toContain("--yes");
-		expect(stdout).toContain("--no-install");
-		expect(stdout).toContain("--no-git");
+		expect(result.stdout).toContain("create-seedcli");
+		expect(result.stdout).toContain("--yes");
+		expect(result.stdout).toContain("--no-install");
+		expect(result.stdout).toContain("--no-git");
 	});
 
 	test("--version flag prints version", async () => {
-		const proc = Bun.spawn(["bun", join(import.meta.dir, "..", "src", "index.ts"), "--version"], {
+		const result = await execa("node", ["--import", TSX_PATH, join(import.meta.dirname, "..", "src", "index.ts"), "--version"], {
 			stdout: "pipe",
 			stderr: "pipe",
 		});
-		const stdout = await new Response(proc.stdout).text();
-		await proc.exited;
 
-		expect(stdout.trim()).toBe(PKG_VERSION);
+		expect(result.stdout.trim()).toBe(PKG_VERSION);
 	});
 });

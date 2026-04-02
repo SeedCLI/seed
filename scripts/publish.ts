@@ -1,30 +1,34 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node --import tsx
 
 /**
  * Publish packages to npm.
  *
  * Before publishing:
- * 1. Resolves workspace:* dependencies → ^version
- * 2. Swaps exports/main/types/bin from src/ → dist/
+ * 1. Resolves workspace:* dependencies -> ^version
+ * 2. Swaps exports/main/types/bin from src/ -> dist/
  *
  * After publishing:
  * 3. Restores original package.json files
  *
  * Usage:
- *   bun scripts/publish.ts                            # Publish all packages
- *   bun scripts/publish.ts --tag create-seedcli@0.1.8 # Publish single package
- *   bun scripts/publish.ts --dry-run                  # Dry run (no actual publish)
+ *   pnpm run publish                                   # Publish all packages
+ *   pnpm run publish -- --tag create-seedcli@0.1.8     # Publish single package
+ *   pnpm run publish -- --dry-run                      # Dry run (no actual publish)
  *
  * Tag formats:
- *   v0.1.8               → publish all packages (version from root package.json)
- *   create-seedcli@0.1.8 → publish only create-seedcli at version 0.1.8
- *   cli@0.1.8            → publish only @seedcli/cli at version 0.1.8
+ *   v0.1.8               -> publish all packages (version from root package.json)
+ *   create-seedcli@0.1.8 -> publish only create-seedcli at version 0.1.8
+ *   cli@0.1.8            -> publish only @seedcli/cli at version 0.1.8
  */
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
-const ROOT = join(import.meta.dir, "..");
+const execFileAsync = promisify(execFile);
+
+const ROOT = join(import.meta.dirname, "..");
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const provenance = args.includes("--provenance");
@@ -61,19 +65,19 @@ const frameworkVersion: string = rootPkg.version;
 /**
  * Parse a git tag to determine which packages to publish and at what version.
  *
- * - "v0.1.8"               → all packages at framework version
- * - "create-seedcli@0.1.8" → only create-seedcli at 0.1.8 (deps still use framework version)
+ * - "v0.1.8"               -> all packages at framework version
+ * - "create-seedcli@0.1.8" -> only create-seedcli at 0.1.8 (deps still use framework version)
  */
 function parseTag(tag: string | undefined): {
 	packages: string[];
 	versionOverrides: Map<string, string>;
 } {
-	// No tag or v* tag → publish everything at framework version
+	// No tag or v* tag -> publish everything at framework version
 	if (!tag || tag.startsWith("v")) {
 		return { packages: allPackages, versionOverrides: new Map() };
 	}
 
-	// package@version tag → publish single package
+	// package@version tag -> publish single package
 	const match = tag.match(/^(.+)@(.+)$/);
 	if (!match) {
 		console.error(`Invalid tag format: "${tag}". Expected "v<version>" or "<package>@<version>".`);
@@ -92,16 +96,12 @@ function parseTag(tag: string | undefined): {
 
 /** Check if a specific version of a package is already published on npm. */
 async function isPublished(name: string, version: string): Promise<boolean> {
-	const proc = Bun.spawn(["npm", "view", `${name}@${version}`, "version"], {
-		stdout: "pipe",
-		stderr: "pipe",
-	});
-	const [stdout, , exitCode] = await Promise.all([
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-		proc.exited,
-	]);
-	return exitCode === 0 && stdout.trim() === version;
+	try {
+		const { stdout } = await execFileAsync("npm", ["view", `${name}@${version}`, "version"]);
+		return stdout.trim() === version;
+	} catch {
+		return false;
+	}
 }
 
 /** Restore all original package.json files. */
@@ -137,7 +137,7 @@ for (const pkg of allPackages) {
 		data.version = versionOverrides.get(pkg);
 	}
 
-	// Resolve workspace:* → ^frameworkVersion (always uses the framework version)
+	// Resolve workspace:* -> ^frameworkVersion (always uses the framework version)
 	for (const depField of ["dependencies", "devDependencies", "peerDependencies"]) {
 		const deps = data[depField];
 		if (!deps) continue;
@@ -148,7 +148,7 @@ for (const pkg of allPackages) {
 		}
 	}
 
-	// Swap exports from src/ → dist/ (preserving existing structure)
+	// Swap exports from src/ -> dist/ (preserving existing structure)
 	data.main = "./dist/index.js";
 	data.types = "./dist/index.d.ts";
 	if (data.exports && typeof data.exports === "object") {
@@ -173,7 +173,7 @@ for (const pkg of allPackages) {
 		};
 	}
 
-	// Swap bin entries from src/ → dist/
+	// Swap bin entries from src/ -> dist/
 	if (data.bin) {
 		const bin = data.bin as Record<string, string>;
 		for (const [name, path] of Object.entries(bin)) {
@@ -209,7 +209,7 @@ try {
 
 		// Validate dist/ exists before attempting publish
 		if (!existsSync(join(pkgDir, "dist"))) {
-			console.log(` FAIL (missing dist/ — run "bun run build" first)`);
+			console.log(` FAIL (missing dist/ — run "pnpm run build" first)`);
 			failed = true;
 			continue;
 		}
@@ -225,25 +225,15 @@ try {
 		if (dryRun) cmd.push("--dry-run");
 		if (provenance) cmd.push("--provenance");
 
-		const proc = Bun.spawn(cmd, {
-			cwd: pkgDir,
-			stdout: "pipe",
-			stderr: "pipe",
-		});
-
-		const [stdout, stderr, exitCode] = await Promise.all([
-			new Response(proc.stdout).text(),
-			new Response(proc.stderr).text(),
-			proc.exited,
-		]);
-
-		if (exitCode !== 0) {
-			console.log(` FAIL`);
-			if (stderr.trim()) console.error(`  ${stderr.trim()}`);
-			if (stdout.trim()) console.error(`  ${stdout.trim()}`);
-			failed = true;
-		} else {
+		try {
+			await execFileAsync(cmd[0], cmd.slice(1), { cwd: pkgDir });
 			console.log(` OK`);
+		} catch (err: unknown) {
+			console.log(` FAIL`);
+			const error = err as { stderr?: string; stdout?: string };
+			if (error.stderr?.trim()) console.error(`  ${error.stderr.trim()}`);
+			if (error.stdout?.trim()) console.error(`  ${error.stdout.trim()}`);
+			failed = true;
 		}
 	}
 } finally {

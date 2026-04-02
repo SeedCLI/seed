@@ -265,7 +265,7 @@ import { defineConfig } from "@seedcli/core";
 export default defineConfig({
   build: {
     compile: {
-      targets: ["bun-darwin-arm64", "bun-linux-x64"],
+      targets: ["node24-macos-arm64", "node24-linux-x64"],
     },
   },
   dev: {

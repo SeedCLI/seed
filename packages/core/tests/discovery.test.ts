@@ -1,13 +1,19 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
 	DiscoveryError,
 	discover,
 	discoverCommands,
 	discoverExtensions,
 } from "../src/discovery/auto-discover.js";
+
+/** Write a file, creating parent directories as needed (replaces Bun.write). */
+async function writeTestFile(path: string, content: string): Promise<void> {
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, content, "utf-8");
+}
 
 describe("discoverCommands", () => {
 	let dir: string;
@@ -21,7 +27,7 @@ describe("discoverCommands", () => {
 	});
 
 	test("discovers a single top-level command", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/hello.ts"),
 			`export default { name: "hello", run: async () => {} };`,
 		);
@@ -32,11 +38,11 @@ describe("discoverCommands", () => {
 	});
 
 	test("discovers multiple commands", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/hello.ts"),
 			`export default { name: "hello", run: async () => {} };`,
 		);
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/deploy.ts"),
 			`export default { name: "deploy", run: async () => {} };`,
 		);
@@ -48,7 +54,7 @@ describe("discoverCommands", () => {
 	});
 
 	test("assigns name from filename if not set", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/greet.ts"),
 			`export default { description: "A greeting", run: async () => {} };`,
 		);
@@ -58,11 +64,11 @@ describe("discoverCommands", () => {
 	});
 
 	test("nested directory creates subcommands", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/db/migrate.ts"),
 			`export default { name: "migrate", run: async () => {} };`,
 		);
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/db/seed.ts"),
 			`export default { name: "seed", run: async () => {} };`,
 		);
@@ -74,11 +80,11 @@ describe("discoverCommands", () => {
 	});
 
 	test("index.ts in subdirectory provides parent command config", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/db/index.ts"),
 			`export default { name: "db", description: "Database commands" };`,
 		);
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/db/migrate.ts"),
 			`export default { name: "migrate", run: async () => {} };`,
 		);
@@ -91,11 +97,11 @@ describe("discoverCommands", () => {
 	});
 
 	test("skips files starting with underscore", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/hello.ts"),
 			`export default { name: "hello", run: async () => {} };`,
 		);
-		await Bun.write(join(dir, "commands/_helper.ts"), `export const helper = () => {};`);
+		await writeTestFile(join(dir, "commands/_helper.ts"), `export const helper = () => {};`);
 
 		const commands = await discoverCommands(dir);
 		expect(commands.length).toBe(1);
@@ -103,11 +109,11 @@ describe("discoverCommands", () => {
 	});
 
 	test("skips files starting with dot", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/hello.ts"),
 			`export default { name: "hello", run: async () => {} };`,
 		);
-		await Bun.write(join(dir, "commands/.hidden.ts"), `export default { name: "hidden" };`);
+		await writeTestFile(join(dir, "commands/.hidden.ts"), `export default { name: "hidden" };`);
 
 		const commands = await discoverCommands(dir);
 		expect(commands.length).toBe(1);
@@ -119,8 +125,8 @@ describe("discoverCommands", () => {
 	});
 
 	test("skips root index.ts", async () => {
-		await Bun.write(join(dir, "commands/index.ts"), `export default { name: "index" };`);
-		await Bun.write(
+		await writeTestFile(join(dir, "commands/index.ts"), `export default { name: "index" };`);
+		await writeTestFile(
 			join(dir, "commands/hello.ts"),
 			`export default { name: "hello", run: async () => {} };`,
 		);
@@ -131,11 +137,11 @@ describe("discoverCommands", () => {
 	});
 
 	test("skips .d.ts declaration files", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/hello.ts"),
 			`export default { name: "hello", run: async () => {} };`,
 		);
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/hello.d.ts"),
 			`export declare const hello: { name: string };`,
 		);
@@ -146,11 +152,11 @@ describe("discoverCommands", () => {
 	});
 
 	test("skips .test.ts files", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/deploy.ts"),
 			`export default { name: "deploy", run: async () => {} };`,
 		);
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/deploy.test.ts"),
 			`import { test } from "bun:test"; test("dummy", () => {});`,
 		);
@@ -161,11 +167,11 @@ describe("discoverCommands", () => {
 	});
 
 	test("skips .spec.ts files", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/deploy.ts"),
 			`export default { name: "deploy", run: async () => {} };`,
 		);
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/deploy.spec.ts"),
 			`import { test } from "bun:test"; test("spec", () => {});`,
 		);
@@ -188,7 +194,7 @@ describe("discoverExtensions", () => {
 	});
 
 	test("discovers extensions", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "extensions/auth.ts"),
 			`export default { name: "auth", setup: () => {} };`,
 		);
@@ -199,7 +205,7 @@ describe("discoverExtensions", () => {
 	});
 
 	test("assigns name from filename if not set", async () => {
-		await Bun.write(join(dir, "extensions/logger.ts"), `export default { setup: () => {} };`);
+		await writeTestFile(join(dir, "extensions/logger.ts"), `export default { setup: () => {} };`);
 
 		const extensions = await discoverExtensions(dir);
 		expect(extensions[0].name).toBe("logger");
@@ -211,11 +217,11 @@ describe("discoverExtensions", () => {
 	});
 
 	test("skips underscore-prefixed files", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "extensions/auth.ts"),
 			`export default { name: "auth", setup: () => {} };`,
 		);
-		await Bun.write(join(dir, "extensions/_util.ts"), `export const util = {};`);
+		await writeTestFile(join(dir, "extensions/_util.ts"), `export const util = {};`);
 
 		const extensions = await discoverExtensions(dir);
 		expect(extensions.length).toBe(1);
@@ -234,11 +240,11 @@ describe("discover", () => {
 	});
 
 	test("discovers both commands and extensions", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/hello.ts"),
 			`export default { name: "hello", run: async () => {} };`,
 		);
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "extensions/auth.ts"),
 			`export default { name: "auth", setup: () => {} };`,
 		);
@@ -282,11 +288,11 @@ describe("validation and error handling", () => {
 	});
 
 	test("skips command with no run handler or subcommands", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/valid.ts"),
 			`export default { name: "valid", run: async () => {} };`,
 		);
-		await Bun.write(join(dir, "commands/invalid.ts"), `export default { description: "no run" };`);
+		await writeTestFile(join(dir, "commands/invalid.ts"), `export default { description: "no run" };`);
 
 		const commands = await discoverCommands(dir);
 		expect(commands.length).toBe(1);
@@ -294,11 +300,11 @@ describe("validation and error handling", () => {
 	});
 
 	test("skips command that exports a non-object", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/valid.ts"),
 			`export default { name: "valid", run: async () => {} };`,
 		);
-		await Bun.write(join(dir, "commands/bad.ts"), `export default "not an object";`);
+		await writeTestFile(join(dir, "commands/bad.ts"), `export default "not an object";`);
 
 		const commands = await discoverCommands(dir);
 		expect(commands.length).toBe(1);
@@ -306,11 +312,11 @@ describe("validation and error handling", () => {
 	});
 
 	test("skips extension with no setup function", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "extensions/valid.ts"),
 			`export default { name: "valid", setup: () => {} };`,
 		);
-		await Bun.write(join(dir, "extensions/invalid.ts"), `export default { name: "invalid" };`);
+		await writeTestFile(join(dir, "extensions/invalid.ts"), `export default { name: "invalid" };`);
 
 		const extensions = await discoverExtensions(dir);
 		expect(extensions.length).toBe(1);
@@ -318,11 +324,11 @@ describe("validation and error handling", () => {
 	});
 
 	test("skips extension that exports a non-object", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "extensions/valid.ts"),
 			`export default { name: "valid", setup: () => {} };`,
 		);
-		await Bun.write(join(dir, "extensions/bad.ts"), `export default 42;`);
+		await writeTestFile(join(dir, "extensions/bad.ts"), `export default 42;`);
 
 		const extensions = await discoverExtensions(dir);
 		expect(extensions.length).toBe(1);
@@ -330,11 +336,11 @@ describe("validation and error handling", () => {
 	});
 
 	test("skips command files that fail to import", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/valid.ts"),
 			`export default { name: "valid", run: async () => {} };`,
 		);
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "commands/broken.ts"),
 			`import { nonExistent } from "totally-fake-module-xyz"; export default nonExistent;`,
 		);
@@ -345,11 +351,11 @@ describe("validation and error handling", () => {
 	});
 
 	test("skips extension files that fail to import", async () => {
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "extensions/valid.ts"),
 			`export default { name: "valid", setup: () => {} };`,
 		);
-		await Bun.write(
+		await writeTestFile(
 			join(dir, "extensions/broken.ts"),
 			`import { nonExistent } from "totally-fake-module-xyz"; export default nonExistent;`,
 		);

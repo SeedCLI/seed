@@ -1,23 +1,19 @@
 /**
- * Supported Bun compile targets.
+ * Supported Hakobu compile targets.
  *
- * @see https://bun.sh/docs/bundler/executables#cross-compile
+ * Use `"all"` to compile for every supported platform at once.
+ *
+ * @see https://github.com/nicolo-ribaudo/hakobu
  */
 export type CompileTarget =
-	| "bun-linux-x64"
-	| "bun-linux-x64-baseline"
-	| "bun-linux-x64-modern"
-	| "bun-linux-arm64"
-	| "bun-linux-x64-musl"
-	| "bun-linux-x64-musl-baseline"
-	| "bun-linux-arm64-musl"
-	| "bun-darwin-x64"
-	| "bun-darwin-x64-baseline"
-	| "bun-darwin-arm64"
-	| "bun-windows-x64"
-	| "bun-windows-x64-baseline"
-	| "bun-windows-x64-modern"
-	| "bun-windows-arm64";
+	| "node24-linux-x64"
+	| "node24-linux-arm64"
+	| "node24-macos-x64"
+	| "node24-macos-arm64"
+	| "node24-win-x64"
+	| "node24-win-arm64"
+	| "node24-linuxstatic-x64"
+	| "all";
 
 /**
  * Seed CLI framework configuration — used in `seed.config.ts`.
@@ -26,12 +22,12 @@ export interface SeedConfig {
 	build?: {
 		/** Entry point for build (overrides dev.entry for build/compile) */
 		entry?: string;
+		/** Modules to keep external (not bundled). Supports exact names and globs. */
+		external?: string[];
 		/** JS bundle options (Tier 2) */
 		bundle?: {
 			/** Output directory (default: "dist") */
 			outdir?: string;
-			/** Use Bun shebang instead of Node.js */
-			bun?: boolean;
 			/** Minify the output */
 			minify?: boolean;
 			/** Generate sourcemaps */
@@ -41,31 +37,12 @@ export interface SeedConfig {
 		compile?: {
 			/** Target platforms */
 			targets?: CompileTarget[];
-			/** Compile to bytecode for faster startup */
-			bytecode?: boolean;
 			/** Generate linked sourcemaps */
 			sourcemap?: boolean;
 			/** Enable code splitting (outputs chunks + binary in outdir) */
 			splitting?: boolean;
 			/** Compile-time defines (key-value string replacements) */
 			define?: Record<string, string>;
-			/** Windows-specific executable metadata */
-			windows?: {
-				/** Path to .ico file for the executable icon */
-				icon?: string;
-				/** Hide the console window on Windows */
-				hideConsole?: boolean;
-				/** Executable title */
-				title?: string;
-				/** Publisher name */
-				publisher?: string;
-				/** Version string */
-				version?: string;
-				/** Description */
-				description?: string;
-				/** Copyright notice */
-				copyright?: string;
-			};
 		};
 	};
 	dev?: {
@@ -96,7 +73,7 @@ export interface SeedConfig {
  * import { defineConfig } from "@seedcli/core";
  *
  * export default defineConfig({
- *   build: { compile: { targets: ["bun-darwin-arm64"] } },
+ *   build: { compile: { targets: ["node24-macos-arm64"] } },
  *   dev: { entry: "src/index.ts" },
  * });
  * ```
