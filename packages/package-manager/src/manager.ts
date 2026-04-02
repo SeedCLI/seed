@@ -18,9 +18,10 @@ async function exec(args: string[], options?: { cwd?: string; silent?: boolean }
 		}
 		return "";
 	} catch (error: unknown) {
-		const stderr = options?.silent && error && typeof error === "object" && "stderr" in error
-			? String((error as { stderr: unknown }).stderr)
-			: "";
+		const stderr =
+			options?.silent && error && typeof error === "object" && "stderr" in error
+				? String((error as { stderr: unknown }).stderr)
+				: "";
 		throw new Error(`Command failed: ${command}${stderr ? `\n${stderr}` : ""}`);
 	}
 }

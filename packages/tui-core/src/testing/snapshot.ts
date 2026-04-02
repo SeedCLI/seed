@@ -6,7 +6,7 @@
  * and bug report exports.
  */
 
-import type { Cell, Frame, TuiNode } from "../types.js";
+import type { Frame, TuiNode } from "../types.js";
 
 // ─── Frame Serialization ───
 

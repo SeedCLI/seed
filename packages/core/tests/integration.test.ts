@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
 import { createInterceptor } from "@seedcli/testing";
+import { describe, expect, test } from "vitest";
 import {
 	arg,
 	build,
@@ -577,7 +577,7 @@ describe("Alias conflict detection", () => {
 
 describe("Built-in module availability", () => {
 	test("seed.print is available without registerModule or direct @seedcli/print install", async () => {
-		let capturedPrint: unknown = undefined;
+		let capturedPrint: unknown;
 		const runtime = build("testcli")
 			.command(
 				command({
@@ -603,9 +603,20 @@ describe("Built-in module availability", () => {
 
 	test("all 14 built-in modules are present on seed context", async () => {
 		const moduleNames = [
-			"print", "prompt", "filesystem", "system", "http", "template",
-			"strings", "semver", "packageManager", "config", "patching",
-			"ui", "tui", "completions",
+			"print",
+			"prompt",
+			"filesystem",
+			"system",
+			"http",
+			"template",
+			"strings",
+			"semver",
+			"packageManager",
+			"config",
+			"patching",
+			"ui",
+			"tui",
+			"completions",
 		];
 
 		const captured: Record<string, unknown> = {};
@@ -639,16 +650,20 @@ describe("Built-in module availability", () => {
 		// Override with custom
 		registerModule("@seedcli/strings", { custom: true });
 
-		let firstCapture: unknown = undefined;
-		let secondCapture: unknown = undefined;
+		let firstCapture: unknown;
+		let secondCapture: unknown;
 
 		const cmd1 = command({
 			name: "c1",
-			run: async (seed) => { firstCapture = seed.strings; },
+			run: async (seed) => {
+				firstCapture = seed.strings;
+			},
 		});
 		const cmd2 = command({
 			name: "c2",
-			run: async (seed) => { secondCapture = seed.strings; },
+			run: async (seed) => {
+				secondCapture = seed.strings;
+			},
 		});
 
 		const interceptor = createInterceptor();
@@ -656,7 +671,11 @@ describe("Built-in module availability", () => {
 		// Run with override
 		const r1 = build("testcli").command(cmd1).create();
 		interceptor.start();
-		try { await r1.run(["c1"]); } finally { interceptor.stop(); }
+		try {
+			await r1.run(["c1"]);
+		} finally {
+			interceptor.stop();
+		}
 
 		expect((firstCapture as Record<string, unknown>).custom).toBe(true);
 
@@ -665,7 +684,11 @@ describe("Built-in module availability", () => {
 
 		const r2 = build("testcli").command(cmd2).create();
 		interceptor.start();
-		try { await r2.run(["c2"]); } finally { interceptor.stop(); }
+		try {
+			await r2.run(["c2"]);
+		} finally {
+			interceptor.stop();
+		}
 
 		expect(secondCapture).toBeDefined();
 		expect((secondCapture as Record<string, unknown>).custom).toBeUndefined();

@@ -1,13 +1,13 @@
 import {
+	addEventListener,
+	appendChild,
+	createNode,
+	type KeyEvent,
+	markDirty,
+	setContent,
 	type TuiNode,
 	type TuiNodeProps,
-	type KeyEvent,
-	createNode,
-	appendChild,
-	addEventListener,
-	setContent,
 	updateProps,
-	markDirty,
 } from "@seedcli/tui-core";
 
 // ─── Types ───

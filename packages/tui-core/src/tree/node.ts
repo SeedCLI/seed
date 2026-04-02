@@ -1,10 +1,4 @@
-import type {
-	ComputedLayout,
-	EventHandler,
-	NodeType,
-	TuiNode,
-	TuiNodeProps,
-} from "../types.js";
+import type { EventHandler, NodeType, TuiNode, TuiNodeProps } from "../types.js";
 
 let nextId = 0;
 
@@ -145,8 +139,8 @@ export function addEventListener(node: TuiNode, event: string, handler: EventHan
 	handlers.add(handler);
 
 	return () => {
-		handlers!.delete(handler);
-		if (handlers!.size === 0) {
+		handlers?.delete(handler);
+		if (handlers?.size === 0) {
 			node.handlers.delete(event);
 		}
 	};

@@ -1,13 +1,23 @@
 import { command } from "@seedcli/core";
 import { createApp } from "@seedcli/tui";
-import { createVueTuiApp, TuiText, TuiBox, TuiRow, TuiColumn, TuiInput, TuiSelect } from "@seedcli/tui-vue";
-import { defineComponent, ref, computed, h } from "vue";
+import {
+	createVueTuiApp,
+	TuiBox,
+	TuiColumn,
+	TuiInput,
+	TuiRow,
+	TuiSelect,
+	TuiText,
+} from "@seedcli/tui-vue";
+import { computed, defineComponent, h, ref } from "vue";
 
 const VueDemoApp = defineComponent({
 	name: "VueDemoApp",
 	setup() {
 		const name = ref("");
-		const greeting = computed(() => (name.value ? `Hello, ${name.value}!` : "Type your name above"));
+		const greeting = computed(() =>
+			name.value ? `Hello, ${name.value}!` : "Type your name above",
+		);
 
 		const selectedColor = ref(0);
 		const colors = [
@@ -20,7 +30,9 @@ const VueDemoApp = defineComponent({
 		const counter = ref(0);
 
 		// Auto-increment counter every 2 seconds
-		const interval = setInterval(() => { counter.value++; }, 2000);
+		const _interval = setInterval(() => {
+			counter.value++;
+		}, 2000);
 
 		return () =>
 			// Layout: 24 rows, padding [0,1,0,1], gap:1
@@ -29,7 +41,12 @@ const VueDemoApp = defineComponent({
 			// Fix: use gap:0 between some or reduce box sizes
 			// header(1) + row[input(6), select(7)](7) + counter(6) + row-boxes(3) + footer(1) = 18 + 4 = 22. Fits!
 			h(TuiColumn, { width: "fill", height: "fill", gap: 1, padding: [0, 1, 0, 1] }, () => [
-				h(TuiText, { content: "=== Vue Reconciler Demo ===", bold: true, color: "#00BFFF", height: 1 }),
+				h(TuiText, {
+					content: "=== Vue Reconciler Demo ===",
+					bold: true,
+					color: "#00BFFF",
+					height: 1,
+				}),
 
 				// Input + Select side by side
 				h(TuiRow, { gap: 2, height: 7 }, () => [
@@ -39,7 +56,9 @@ const VueDemoApp = defineComponent({
 							h(TuiInput, {
 								modelValue: name.value,
 								placeholder: "Enter your name...",
-								"onUpdate:modelValue": (val: string) => { name.value = val; },
+								"onUpdate:modelValue": (val: string) => {
+									name.value = val;
+								},
 							}),
 							h(TuiText, { content: greeting.value, color: "#2ECC71", height: 1 }),
 						]),
@@ -50,8 +69,12 @@ const VueDemoApp = defineComponent({
 							h(TuiSelect, {
 								items: colors,
 								modelValue: selectedColor.value,
-								"onUpdate:modelValue": (val: number) => { selectedColor.value = val; },
-								onSubmit: (item: { label: string }) => { selectedLabel.value = `Chosen: ${item.label}`; },
+								"onUpdate:modelValue": (val: number) => {
+									selectedColor.value = val;
+								},
+								onSubmit: (item: { label: string }) => {
+									selectedLabel.value = `Chosen: ${item.label}`;
+								},
 							}),
 							h(TuiText, { content: selectedLabel.value, dim: true, height: 1 }),
 						]),
@@ -62,9 +85,18 @@ const VueDemoApp = defineComponent({
 				h(TuiBox, { border: "rounded", padding: [0, 1, 0, 1], width: 40, height: 6 }, () => [
 					h(TuiColumn, { gap: 0, height: 4 }, () => [
 						h(TuiText, { content: "Reactive Counter (auto-increments):", bold: true, height: 1 }),
-						h(TuiText, { content: `Count: ${counter.value}`, color: "#3498DB", bold: true, height: 1 }),
+						h(TuiText, {
+							content: `Count: ${counter.value}`,
+							color: "#3498DB",
+							bold: true,
+							height: 1,
+						}),
 						h(TuiText, { content: `Doubled: ${counter.value * 2}`, color: "#9B59B6", height: 1 }),
-						h(TuiText, { content: counter.value % 2 === 0 ? "Even" : "Odd", color: "#E67E22", height: 1 }),
+						h(TuiText, {
+							content: counter.value % 2 === 0 ? "Even" : "Odd",
+							color: "#E67E22",
+							height: 1,
+						}),
 					]),
 				]),
 

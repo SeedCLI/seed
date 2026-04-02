@@ -1,5 +1,5 @@
-import { join } from "node:path";
 import { access, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { load } from "@seedcli/config";
 import type { SeedConfig } from "@seedcli/core";
 

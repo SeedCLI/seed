@@ -1,13 +1,9 @@
-import type { ComputedLayout, SizeValue, TuiNode } from "../types.js";
+import type { SizeValue, TuiNode } from "../types.js";
 
 /**
  * Resolve a size value to a concrete number.
  */
-function resolveSize(
-	value: SizeValue | undefined,
-	available: number,
-	auto: number,
-): number {
+function resolveSize(value: SizeValue | undefined, available: number, auto: number): number {
 	if (value === undefined || value === "auto") return auto;
 	if (value === "fill") return available;
 	if (typeof value === "number") return value;
@@ -176,9 +172,10 @@ function layoutColumn(
 			fillCount++;
 		} else if (h === "auto") {
 			// Auto-height: estimate based on content or 1 line
-			const est = child.type === "text" && child.content
-				? Math.ceil(child.content.length / Math.max(1, availableWidth))
-				: 1;
+			const est =
+				child.type === "text" && child.content
+					? Math.ceil(child.content.length / Math.max(1, availableWidth))
+					: 1;
 			fixedHeight += est;
 		} else {
 			fixedHeight += resolveSize(h, availableHeight, 1);

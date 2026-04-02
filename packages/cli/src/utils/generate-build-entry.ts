@@ -1,4 +1,4 @@
-import { readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative } from "node:path";
 import { globSync } from "tinyglobby";
 

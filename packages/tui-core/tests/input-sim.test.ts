@@ -1,13 +1,13 @@
-import { describe, test, expect } from "vitest";
+import { describe, expect, test } from "vitest";
 import { MemoryTerminalSession } from "../src/session/memory-terminal-session.js";
 import {
 	keyToBytes,
-	stringToBytes,
 	simulateKey,
-	simulateType,
+	simulateKeySequence,
 	simulatePaste,
 	simulateResize,
-	simulateKeySequence,
+	simulateType,
+	stringToBytes,
 } from "../src/testing/input-sim.js";
 
 describe("keyToBytes", () => {
@@ -96,7 +96,9 @@ describe("session simulation", () => {
 	test("simulateResize updates session size", () => {
 		const session = new MemoryTerminalSession(80, 24);
 		let resized = false;
-		session.onResize(() => { resized = true; });
+		session.onResize(() => {
+			resized = true;
+		});
 
 		simulateResize(session, 120, 40);
 		expect(resized).toBe(true);

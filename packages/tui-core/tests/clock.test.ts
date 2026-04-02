@@ -1,5 +1,5 @@
-import { describe, test, expect, afterEach } from "vitest";
-import { VirtualClock, createVirtualClock } from "../src/testing/clock.js";
+import { afterEach, describe, expect, test } from "vitest";
+import { createVirtualClock, VirtualClock } from "../src/testing/clock.js";
 
 describe("VirtualClock", () => {
 	let clock: VirtualClock;
@@ -26,7 +26,9 @@ describe("VirtualClock", () => {
 		clock.install();
 
 		let fired = false;
-		setTimeout(() => { fired = true; }, 50);
+		setTimeout(() => {
+			fired = true;
+		}, 50);
 
 		clock.advance(25);
 		expect(fired).toBe(false);
@@ -40,7 +42,9 @@ describe("VirtualClock", () => {
 		clock.install();
 
 		let fired = false;
-		setTimeout(() => { fired = true; }, 100);
+		setTimeout(() => {
+			fired = true;
+		}, 100);
 
 		clock.advance(99);
 		expect(fired).toBe(false);
@@ -51,7 +55,9 @@ describe("VirtualClock", () => {
 		clock.install();
 
 		let fired = false;
-		const id = setTimeout(() => { fired = true; }, 50);
+		const id = setTimeout(() => {
+			fired = true;
+		}, 50);
 		clearTimeout(id);
 
 		clock.advance(100);
@@ -63,7 +69,9 @@ describe("VirtualClock", () => {
 		clock.install();
 
 		let count = 0;
-		setInterval(() => { count++; }, 100);
+		setInterval(() => {
+			count++;
+		}, 100);
 
 		clock.advance(350);
 		expect(count).toBe(3);
@@ -74,7 +82,9 @@ describe("VirtualClock", () => {
 		clock.install();
 
 		let count = 0;
-		const id = setInterval(() => { count++; }, 100);
+		const id = setInterval(() => {
+			count++;
+		}, 100);
 
 		clock.advance(250);
 		expect(count).toBe(2);
@@ -89,7 +99,9 @@ describe("VirtualClock", () => {
 		clock.install();
 
 		let fired = false;
-		setTimeout(() => { fired = true; }, 75);
+		setTimeout(() => {
+			fired = true;
+		}, 75);
 
 		const delta = clock.tick();
 		expect(delta).toBe(75);

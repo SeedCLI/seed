@@ -1,9 +1,4 @@
-import {
-	type TuiNode,
-	type TuiNodeProps,
-	createNode,
-	appendChild,
-} from "@seedcli/tui-core";
+import { appendChild, createNode, type TuiNode, type TuiNodeProps } from "@seedcli/tui-core";
 
 // ─── Heading Colors by Level ───
 
@@ -31,12 +26,12 @@ function parseInlineSegments(line: string, baseStyle: TuiNodeProps = {}): Inline
 	const segments: InlineSegment[] = [];
 
 	// Combined pattern for inline formatting
-	const inlineRe =
-		/(\*\*(.+?)\*\*)|(\*(.+?)\*)|(`([^`]+?)`)|(\[([^\]]+?)\]\(([^)]+?)\))/g;
+	const inlineRe = /(\*\*(.+?)\*\*)|(\*(.+?)\*)|(`([^`]+?)`)|(\[([^\]]+?)\]\(([^)]+?)\))/g;
 
 	let lastIndex = 0;
 	let match: RegExpExecArray | null;
 
+	// biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
 	while ((match = inlineRe.exec(line)) !== null) {
 		// Push any text before this match as plain text
 		if (match.index > lastIndex) {
@@ -91,9 +86,7 @@ function buildInlineRow(segments: InlineSegment[]): TuiNode {
 	if (segments.length === 1) {
 		return createNode("text", segments[0].style, [], segments[0].text);
 	}
-	const children = segments.map((seg) =>
-		createNode("text", seg.style, [], seg.text),
-	);
+	const children = segments.map((seg) => createNode("text", seg.style, [], seg.text));
 	return createNode("row", {}, children);
 }
 
@@ -134,11 +127,9 @@ export function markdown(content: string, props: TuiNodeProps = {}): TuiNode {
 
 			const codeContent = codeLines.join("\n");
 			const codeText = createNode("text", { dim: true }, [], codeContent);
-			const codeBox = createNode(
-				"box",
-				{ border: "single", padding: [0, 1, 0, 1], dim: true },
-				[codeText],
-			);
+			const codeBox = createNode("box", { border: "single", padding: [0, 1, 0, 1], dim: true }, [
+				codeText,
+			]);
 			appendChild(wrapper, codeBox);
 			continue;
 		}
@@ -186,7 +177,7 @@ export function markdown(content: string, props: TuiNodeProps = {}): TuiNode {
 		if (ulMatch) {
 			const indent = ulMatch[1].length;
 			const itemText = ulMatch[2];
-			const prefix = " ".repeat(indent) + "\u2022 ";
+			const prefix = `${" ".repeat(indent)}\u2022 `;
 			const segments = parseInlineSegments(itemText);
 
 			if (segments.length > 0) {
@@ -206,7 +197,7 @@ export function markdown(content: string, props: TuiNodeProps = {}): TuiNode {
 			const indent = olMatch[1].length;
 			const num = olMatch[2];
 			const itemText = olMatch[3];
-			const prefix = " ".repeat(indent) + num + ". ";
+			const prefix = `${" ".repeat(indent) + num}. `;
 			const segments = parseInlineSegments(itemText);
 
 			if (segments.length > 0) {

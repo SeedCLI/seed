@@ -1,4 +1,4 @@
-import { mkdir, readFile as fsReadFile, writeFile as fsWriteFile } from "node:fs/promises";
+import { readFile as fsReadFile, writeFile as fsWriteFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { PatchOptions, PatchResult } from "./types.js";
 

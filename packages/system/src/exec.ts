@@ -76,7 +76,7 @@ export async function exec(command: string, options?: ExecOptions): Promise<Exec
 		const exitCode = result.exitCode ?? 0;
 
 		if (result.timedOut) {
-			throw new ExecTimeoutError(command, options!.timeout!);
+			throw new ExecTimeoutError(command, options?.timeout ?? 0);
 		}
 
 		if (throwOnError && exitCode !== 0) {
@@ -96,7 +96,7 @@ export async function exec(command: string, options?: ExecOptions): Promise<Exec
 			stderr?: string;
 		};
 		if (execaErr.timedOut) {
-			throw new ExecTimeoutError(command, options!.timeout!);
+			throw new ExecTimeoutError(command, options?.timeout ?? 0);
 		}
 		const stdout = options?.stream
 			? ""

@@ -1,5 +1,5 @@
-import { describe, test, expect } from "vitest";
-import { createNode, appendChild, type TuiNode } from "@seedcli/tui-core";
+import type { TuiNode } from "@seedcli/tui-core";
+import { describe, expect, test } from "vitest";
 import { hostConfig } from "../src/renderer.js";
 
 describe("Vue TUI Renderer — Host Config", () => {
@@ -19,7 +19,9 @@ describe("Vue TUI Renderer — Host Config", () => {
 		expect(hostConfig.createElement("tui-text", false, undefined, null).type).toBe("text");
 		expect(hostConfig.createElement("tui-column", false, undefined, null).type).toBe("column");
 		expect(hostConfig.createElement("tui-spacer", false, undefined, null).type).toBe("spacer");
-		expect(hostConfig.createElement("tui-component", false, undefined, null).type).toBe("component");
+		expect(hostConfig.createElement("tui-component", false, undefined, null).type).toBe(
+			"component",
+		);
 	});
 
 	test("unknown tag falls back to box", () => {
@@ -180,7 +182,7 @@ describe("Vue TUI Renderer — Host Config", () => {
 		// Should have registered a key event handler
 		const handlers = node.handlers.get("key");
 		expect(handlers).toBeDefined();
-		expect(handlers!.size).toBe(1);
+		expect(handlers?.size).toBe(1);
 	});
 
 	test("removes old event handler when patching", () => {
@@ -189,11 +191,11 @@ describe("Vue TUI Renderer — Host Config", () => {
 		const handler2 = () => {};
 
 		hostConfig.patchProp(node, "onKey", undefined, handler1);
-		expect(node.handlers.get("key")!.size).toBe(1);
+		expect(node.handlers.get("key")?.size).toBe(1);
 
 		hostConfig.patchProp(node, "onKey", handler1, handler2);
 		// Old handler removed, new one added
-		expect(node.handlers.get("key")!.size).toBe(1);
+		expect(node.handlers.get("key")?.size).toBe(1);
 	});
 
 	test("removes event handler when set to null", () => {
@@ -214,7 +216,7 @@ describe("Vue TUI Renderer — Host Config", () => {
 		const original = hostConfig.createElement("tui-box", false, undefined, null);
 		hostConfig.patchProp(original, "width", undefined, 100);
 
-		const cloned = hostConfig.cloneNode!(original);
+		const cloned = hostConfig.cloneNode?.(original);
 		expect(cloned.type).toBe("box");
 		expect(cloned.props.width).toBe(100);
 		expect(cloned.id).not.toBe(original.id); // Different ID
@@ -224,6 +226,7 @@ describe("Vue TUI Renderer — Host Config", () => {
 
 	test("inserts static text content", () => {
 		const parent = hostConfig.createElement("tui-column", false, undefined, null);
+		// biome-ignore lint/style/noNonNullAssertion: method is defined, ?. would break destructuring
 		const [first, last] = hostConfig.insertStaticContent!("static text", parent, null, false);
 		expect(first).toBe(last);
 		expect(first.content).toBe("static text");

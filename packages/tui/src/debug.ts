@@ -11,11 +11,7 @@
  * Toggled via F12 key or programmatic API.
  */
 
-import {
-	type TuiNode,
-	createNode,
-	setContent,
-} from "@seedcli/tui-core";
+import { createNode, setContent, type TuiNode } from "@seedcli/tui-core";
 
 export interface DebugOverlayState {
 	fps: number;

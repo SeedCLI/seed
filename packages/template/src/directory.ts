@@ -1,4 +1,4 @@
-import { access, copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { renderFile } from "./engine.js";
 import type { DirectoryOptions } from "./types.js";

@@ -1,5 +1,5 @@
-import type { TuiNode } from "../types.js";
 import { findFocusableNodes } from "../tree/node.js";
+import type { TuiNode } from "../types.js";
 
 /**
  * Focus manager for TUI apps.

@@ -1,14 +1,12 @@
 import {
+	addEventListener,
+	appendChild,
+	createNode,
+	type KeyEvent,
+	markDirty,
+	removeChild,
 	type TuiNode,
 	type TuiNodeProps,
-	type KeyEvent,
-	createNode,
-	appendChild,
-	removeChild,
-	addEventListener,
-	setContent,
-	updateProps,
-	markDirty,
 } from "@seedcli/tui-core";
 
 // ─── Types ───
@@ -51,11 +49,7 @@ function normalizeItems(raw: string[] | ListItem[]): ListItem[] {
  * Find the next non-disabled index in the given direction.
  * Returns the current index if no valid target exists.
  */
-function findNextEnabled(
-	items: ListItem[],
-	from: number,
-	direction: 1 | -1,
-): number {
+function findNextEnabled(items: ListItem[], from: number, direction: 1 | -1): number {
 	if (items.length === 0) return from;
 	let idx = from + direction;
 	while (idx >= 0 && idx < items.length) {
@@ -69,11 +63,7 @@ function findNextEnabled(
  * Find the nearest non-disabled index scanning from `start` in `direction`.
  * If the item at `start` is enabled, returns `start`.
  */
-function findNearestEnabled(
-	items: ListItem[],
-	start: number,
-	direction: 1 | -1,
-): number {
+function findNearestEnabled(items: ListItem[], start: number, direction: 1 | -1): number {
 	if (items.length === 0) return start;
 	let idx = start;
 	while (idx >= 0 && idx < items.length) {

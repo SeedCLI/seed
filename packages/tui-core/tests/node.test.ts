@@ -1,18 +1,18 @@
-import { describe, expect, test, beforeEach } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
 import {
-	createNode,
+	addEventListener,
 	appendChild,
-	removeChild,
-	insertBefore,
-	updateProps,
-	setContent,
+	clearDirty,
+	createNode,
+	disposeNode,
 	findFocusableNodes,
 	findNodeById,
+	insertBefore,
 	markDirty,
-	clearDirty,
+	removeChild,
 	resetIdCounter,
-	addEventListener,
-	disposeNode,
+	setContent,
+	updateProps,
 } from "../src/tree/node.js";
 
 beforeEach(() => {
@@ -203,9 +203,9 @@ describe("findNodeById", () => {
 describe("event handlers", () => {
 	test("adds and removes event handlers", () => {
 		const node = createNode("box");
-		let called = false;
+		let _called = false;
 		const remove = addEventListener(node, "key", () => {
-			called = true;
+			_called = true;
 		});
 
 		expect(node.handlers.has("key")).toBe(true);

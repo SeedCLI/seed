@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, vi, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { arg, build, command, flag } from "../src/index.js";
 
 describe("build() — Builder", () => {

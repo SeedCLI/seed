@@ -1,13 +1,12 @@
 import { build } from "@seedcli/core";
-
-import { primitivesCommand } from "./commands/primitives.js";
 import { componentsCommand } from "./commands/components.js";
+import { debugCommand } from "./commands/debug.js";
+import { fullAppCommand } from "./commands/full-app.js";
+import { pluginsCommand } from "./commands/plugins.js";
+import { primitivesCommand } from "./commands/primitives.js";
 import { stateCommand } from "./commands/state.js";
 import { themeCommand } from "./commands/theme.js";
-import { pluginsCommand } from "./commands/plugins.js";
-import { debugCommand } from "./commands/debug.js";
 import { vueDemoCommand } from "./commands/vue-demo.js";
-import { fullAppCommand } from "./commands/full-app.js";
 
 const cli = build("tui-demo")
 	.version("0.1.0")

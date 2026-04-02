@@ -5,7 +5,7 @@
  * and last frame — to a JSON object that can be saved to a file.
  */
 
-import type { TuiNode, TerminalCapabilities, Frame } from "@seedcli/tui-core";
+import type { Frame, TerminalCapabilities, TuiNode } from "@seedcli/tui-core";
 
 // ─── Exported Types ───
 

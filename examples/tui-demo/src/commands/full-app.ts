@@ -1,27 +1,32 @@
 import { command } from "@seedcli/core";
+import type { TuiEvent, TuiNode } from "@seedcli/tui";
 import {
-	createApp,
-	text,
+	addEventListener,
+	applyTheme,
 	box,
 	column,
-	row,
-	spacer,
-	input,
-	select,
-	progress,
-	createTheme,
-	applyTheme,
-	createSignal,
+	createApp,
 	createEffect,
-	addEventListener,
+	createSignal,
+	createTheme,
+	input,
+	progress,
+	row,
+	select,
+	spacer,
+	text,
 } from "@seedcli/tui";
-import type { TuiNode, FocusEvent, TuiEvent } from "@seedcli/tui";
 
 /**
  * Add focus/blur visual indicator to a box by changing its border color.
  * The `focusableChild` is the component inside the box that receives focus.
  */
-function addFocusRing(wrapper: TuiNode, focusableChild: TuiNode, focusColor: string, blurColor: string) {
+function addFocusRing(
+	wrapper: TuiNode,
+	focusableChild: TuiNode,
+	focusColor: string,
+	blurColor: string,
+) {
 	const setBorder = (color: string) => {
 		const border = wrapper.props.border;
 		if (typeof border === "object" && border !== null) {
@@ -69,11 +74,10 @@ export const fullAppCommand = command({
 		// ── Header ──
 		const header = box(
 			{ width: "fill", height: 1, padding: [0, 1, 0, 1] },
-			row({ height: 1 }, ...[
-				text(" Task Manager ", { bold: true, height: 1 }),
-				spacer({ height: 1 }),
-				statusText,
-			]),
+			row(
+				{ height: 1 },
+				...[text(" Task Manager ", { bold: true, height: 1 }), spacer({ height: 1 }), statusText],
+			),
 		);
 		applyTheme(header, { color: "primary.fg", bgColor: "primary.bg" }, theme);
 		applyTheme(header.children[0].children[0], "primary.fg", theme);
@@ -95,10 +99,7 @@ export const fullAppCommand = command({
 		// Input box: border(2) + label(1) + input(1) = 4
 		const inputBox = box(
 			{ border: "rounded", padding: [0, 1, 0, 1], width: "fill", height: 4 },
-			column({ gap: 0, height: 2 }, ...[
-				text("New Task:", { bold: true, height: 1 }),
-				taskInput,
-			]),
+			column({ gap: 0, height: 2 }, ...[text("New Task:", { bold: true, height: 1 }), taskInput]),
 		);
 		addFocusRing(inputBox, taskInput, theme.primary.border, "#333333");
 
@@ -119,10 +120,10 @@ export const fullAppCommand = command({
 		// Select box: border(2) + label(1) + 4 items = 7
 		const selectBox = box(
 			{ border: "single", padding: [0, 1, 0, 1], width: 25, height: 7 },
-			column({ gap: 0, height: 5 }, ...[
-				text("Priority:", { bold: true, height: 1 }),
-				prioritySelect,
-			]),
+			column(
+				{ gap: 0, height: 5 },
+				...[text("Priority:", { bold: true, height: 1 }), prioritySelect],
+			),
 		);
 		addFocusRing(selectBox, prioritySelect, theme.primary.border, "#333333");
 
@@ -136,9 +137,7 @@ export const fullAppCommand = command({
 			if (tasks.length === 0) {
 				taskListContent.content = "No tasks yet";
 			} else {
-				taskListContent.content = tasks
-					.map((t, i) => `  ${i + 1}. ${t}`)
-					.join("\n");
+				taskListContent.content = tasks.map((t, i) => `  ${i + 1}. ${t}`).join("\n");
 			}
 		}
 
@@ -146,10 +145,7 @@ export const fullAppCommand = command({
 		// border(2) is fixed overhead, content fills the rest
 		const taskListBox = box(
 			{ border: "single", padding: [0, 1, 0, 1], width: "fill", overflow: "clip" },
-			column({ gap: 0 }, ...[
-				taskListTitle,
-				taskListContent,
-			]),
+			column({ gap: 0 }, ...[taskListTitle, taskListContent]),
 		);
 
 		// ── Progress ──
@@ -180,13 +176,16 @@ export const fullAppCommand = command({
 		// ── Footer ──
 		const footer = box(
 			{ width: "fill", height: 1, padding: [0, 1, 0, 1] },
-			row({ height: 1 }, ...[
-				text("Tab: navigate", { dim: true, height: 1 }),
-				text(" | ", { dim: true, height: 1 }),
-				text("Enter: submit", { dim: true, height: 1 }),
-				text(" | ", { dim: true, height: 1 }),
-				text("Ctrl+C: quit", { dim: true, height: 1 }),
-			]),
+			row(
+				{ height: 1 },
+				...[
+					text("Tab: navigate", { dim: true, height: 1 }),
+					text(" | ", { dim: true, height: 1 }),
+					text("Enter: submit", { dim: true, height: 1 }),
+					text(" | ", { dim: true, height: 1 }),
+					text("Ctrl+C: quit", { dim: true, height: 1 }),
+				],
+			),
 		);
 		applyTheme(footer, { bgColor: "surface.subtle" }, theme);
 
@@ -195,23 +194,29 @@ export const fullAppCommand = command({
 		//   header(1) + content(fill) + footer(1) = content gets 22
 		// Content (gap:1, padding:1 → contentHeight=18):
 		//   topRow(height:7) + taskList(fill) + progress(1) = taskList gets 18-7-1-2gaps = 8
-		const root = column({ width: "fill", height: "fill", gap: 0 }, ...[
-			header,
-			column({ gap: 1, padding: 1, width: "fill" }, ...[
-				// Top row: input + select side by side
-				row({ gap: 2, width: "fill", height: 7 }, ...[
-					column({ width: "fill", height: 7 }, ...[
-						inputBox,
-						spacer({ height: 1 }),
-					]),
-					selectBox,
-				]),
-				// Task list fills remaining vertical space
-				taskListBox,
-				progressBar,
-			]),
-			footer,
-		]);
+		const root = column(
+			{ width: "fill", height: "fill", gap: 0 },
+			...[
+				header,
+				column(
+					{ gap: 1, padding: 1, width: "fill" },
+					...[
+						// Top row: input + select side by side
+						row(
+							{ gap: 2, width: "fill", height: 7 },
+							...[
+								column({ width: "fill", height: 7 }, ...[inputBox, spacer({ height: 1 })]),
+								selectBox,
+							],
+						),
+						// Task list fills remaining vertical space
+						taskListBox,
+						progressBar,
+					],
+				),
+				footer,
+			],
+		);
 
 		app.mount(root);
 		await app.run();

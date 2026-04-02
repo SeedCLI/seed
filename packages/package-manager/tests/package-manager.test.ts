@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { getCommands } from "../src/commands.js";
 import { detect } from "../src/detect.js";
 import { create } from "../src/manager.js";

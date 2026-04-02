@@ -21,9 +21,9 @@
  *   cli@0.1.8            -> publish only @seedcli/cli at version 0.1.8
  */
 
+import { execFile } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);

@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { directory } from "../src/directory.js";
 import { renderString } from "../src/engine.js";
 import { generate } from "../src/generate.js";

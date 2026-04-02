@@ -5,10 +5,10 @@
  * Compiles TypeScript -> JavaScript + .d.ts + source maps into dist/ folders.
  */
 
-import { existsSync, rmSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
+import { existsSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);

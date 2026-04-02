@@ -1,4 +1,4 @@
-import { type TuiNode, type TuiNodeProps, createNode } from "@seedcli/tui-core";
+import { createNode, type TuiNode, type TuiNodeProps } from "@seedcli/tui-core";
 
 /**
  * Create a text node.

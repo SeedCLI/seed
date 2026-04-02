@@ -6,21 +6,21 @@
  * insertion/removal, and text content changes through the tui-core API.
  */
 
-import { createRenderer, type RendererOptions } from "@vue/runtime-core";
 import {
-	type EventHandler,
-	type NodeType,
-	type TuiNode,
-	type TuiNodeProps,
 	addEventListener,
 	appendChild,
 	createNode,
 	disposeNode,
+	type EventHandler,
 	insertBefore,
+	type NodeType,
 	removeChild,
 	setContent,
+	type TuiNode,
+	type TuiNodeProps,
 	updateProps,
 } from "@seedcli/tui-core";
+import { createRenderer, type RendererOptions } from "@vue/runtime-core";
 
 // ─── Node Type Mapping ───
 
@@ -80,12 +80,7 @@ const SKIP_PROPS = new Set(["key", "ref", "ref_for", "ref_key"]);
  * Apply a single prop change to a TUI node.
  * Handles event binding/unbinding and TuiNodeProps updates.
  */
-function patchNodeProp(
-	el: TuiNode,
-	key: string,
-	prevValue: unknown,
-	nextValue: unknown,
-): void {
+function patchNodeProp(el: TuiNode, key: string, prevValue: unknown, nextValue: unknown): void {
 	if (SKIP_PROPS.has(key)) return;
 
 	// Content prop sets text content directly
@@ -204,7 +199,11 @@ const hostConfig: RendererOptions<TuiNode, TuiNode> = {
 		return createNode(node.type, { ...node.props }, [], node.content);
 	},
 
-	insertStaticContent(content: string, parent: TuiNode, anchor: TuiNode | null): [TuiNode, TuiNode] {
+	insertStaticContent(
+		content: string,
+		parent: TuiNode,
+		anchor: TuiNode | null,
+	): [TuiNode, TuiNode] {
 		const textNode = createNode("text", {}, [], content);
 		if (anchor) {
 			insertBefore(parent, textNode, anchor);

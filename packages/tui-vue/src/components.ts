@@ -6,8 +6,8 @@
  * lifecycle management for common TUI primitives and interactive components.
  */
 
-import { defineComponent, h, type PropType, onUnmounted, ref, watch } from "@vue/runtime-core";
-import type { TuiNodeProps, KeyEvent } from "@seedcli/tui-core";
+import type { KeyEvent, TuiNodeProps } from "@seedcli/tui-core";
+import { defineComponent, h, type PropType, ref, watch } from "@vue/runtime-core";
 
 // ─── Primitive Components ───
 
@@ -32,17 +32,21 @@ export const TuiText = defineComponent({
 	setup(props, { slots }) {
 		return () => {
 			const slotContent = slots.default?.();
-			return h("tui-text" as any, {
-				color: props.color,
-				bgColor: props.bgColor,
-				bold: props.bold || undefined,
-				italic: props.italic || undefined,
-				underline: props.underline || undefined,
-				dim: props.dim || undefined,
-				inverse: props.inverse || undefined,
-				strikethrough: props.strikethrough || undefined,
-				content: slotContent ? undefined : props.content,
-			}, slotContent);
+			return h(
+				"tui-text" as any,
+				{
+					color: props.color,
+					bgColor: props.bgColor,
+					bold: props.bold || undefined,
+					italic: props.italic || undefined,
+					underline: props.underline || undefined,
+					dim: props.dim || undefined,
+					inverse: props.inverse || undefined,
+					strikethrough: props.strikethrough || undefined,
+					content: slotContent ? undefined : props.content,
+				},
+				slotContent,
+			);
 		};
 	},
 });
@@ -67,7 +71,8 @@ export const TuiBox = defineComponent({
 		visible: { type: Boolean, default: true },
 	},
 	setup(props, { slots }) {
-		return () => h("tui-box" as any, { ...props, visible: props.visible || undefined }, slots.default?.());
+		return () =>
+			h("tui-box" as any, { ...props, visible: props.visible || undefined }, slots.default?.());
 	},
 });
 
@@ -143,11 +148,14 @@ export const TuiInput = defineComponent({
 	setup(props, { emit }) {
 		const cursorPos = ref(props.modelValue.length);
 
-		watch(() => props.modelValue, (val) => {
-			if (cursorPos.value > val.length) {
-				cursorPos.value = val.length;
-			}
-		});
+		watch(
+			() => props.modelValue,
+			(val) => {
+				if (cursorPos.value > val.length) {
+					cursorPos.value = val.length;
+				}
+			},
+		);
 
 		const onKey = (event: KeyEvent) => {
 			const key = event.key;
@@ -222,20 +230,26 @@ export const TuiInput = defineComponent({
 
 		return () => {
 			const display = props.modelValue
-				? (props.mask ? props.mask.repeat(props.modelValue.length) : props.modelValue)
+				? props.mask
+					? props.mask.repeat(props.modelValue.length)
+					: props.modelValue
 				: "";
 			const showPlaceholder = !props.modelValue && props.placeholder;
 
-			return h("tui-component" as any, {
-				focusable: true,
-				width: props.width,
-				onKey,
-			}, [
-				h("tui-text" as any, {
-					content: showPlaceholder ? props.placeholder : display,
-					dim: showPlaceholder ? true : undefined,
-				}),
-			]);
+			return h(
+				"tui-component" as any,
+				{
+					focusable: true,
+					width: props.width,
+					onKey,
+				},
+				[
+					h("tui-text" as any, {
+						content: showPlaceholder ? props.placeholder : display,
+						dim: showPlaceholder ? true : undefined,
+					}),
+				],
+			);
 		};
 	},
 });
@@ -310,10 +324,14 @@ export const TuiSelect = defineComponent({
 				});
 			});
 
-			return h("tui-component" as any, {
-				focusable: true,
-				onKey,
-			}, children);
+			return h(
+				"tui-component" as any,
+				{
+					focusable: true,
+					onKey,
+				},
+				children,
+			);
 		};
 	},
 });

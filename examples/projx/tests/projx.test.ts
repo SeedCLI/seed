@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { build } from "@seedcli/core";
 import { createTestCli } from "@seedcli/testing";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { checkCommand } from "../src/commands/check.js";
 import { infoCommand } from "../src/commands/info.js";
 import { listCommand } from "../src/commands/list.js";

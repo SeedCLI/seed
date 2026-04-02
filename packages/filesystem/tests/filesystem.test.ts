@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, test } from "vitest";
 import { chmod, rm } from "node:fs/promises";
+import { afterEach, describe, expect, test } from "vitest";
 import { copy } from "../src/copy.js";
 import { ensureDir, list, subdirectories } from "../src/dir.js";
 import { DirectoryNotEmptyError, FileNotFoundError, PermissionError } from "../src/errors.js";

@@ -1,7 +1,7 @@
-import { describe, test, expect } from "vitest";
+import { describe, expect, test } from "vitest";
 import { TraceCollector } from "../src/tracing.js";
-import type { KeyEvent, TuiNode } from "../src/types.js";
 import { createNode } from "../src/tree/node.js";
+import type { KeyEvent } from "../src/types.js";
 
 function mockKeyEvent(key: string, handled = false): KeyEvent {
 	return {
@@ -9,7 +9,9 @@ function mockKeyEvent(key: string, handled = false): KeyEvent {
 		raw: new Uint8Array(),
 		modifiers: new Set(),
 		handled,
-		stopPropagation() { this.handled = true; },
+		stopPropagation() {
+			this.handled = true;
+		},
 	};
 }
 

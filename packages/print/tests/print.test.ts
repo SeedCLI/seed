@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, vi, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { print, setDebugMode } from "../src/log.js";
 
 describe("print module", () => {

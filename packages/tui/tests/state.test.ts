@@ -1,5 +1,5 @@
-import { describe, test, expect } from "vitest";
-import { createSignal, createComputed, createEffect, createStore } from "../src/state.js";
+import { describe, expect, test } from "vitest";
+import { createComputed, createEffect, createSignal, createStore } from "../src/state.js";
 
 describe("createSignal", () => {
 	test("returns initial value", () => {
@@ -17,7 +17,9 @@ describe("createSignal", () => {
 		const [get, set] = createSignal(0);
 		const values: number[] = [];
 
-		(get as { _subscribe?: (cb: (v: number) => void) => () => void })._subscribe?.((v) => values.push(v));
+		(get as { _subscribe?: (cb: (v: number) => void) => () => void })._subscribe?.((v) =>
+			values.push(v),
+		);
 
 		set(1);
 		set(2);
@@ -27,7 +29,9 @@ describe("createSignal", () => {
 	test("skips no-op updates", () => {
 		const [get, set] = createSignal(5);
 		let callCount = 0;
-		(get as { _subscribe?: (cb: (v: number) => void) => () => void })._subscribe?.(() => callCount++);
+		(get as { _subscribe?: (cb: (v: number) => void) => () => void })._subscribe?.(
+			() => callCount++,
+		);
 
 		set(5); // same value
 		expect(callCount).toBe(0);
@@ -55,7 +59,9 @@ describe("createComputed", () => {
 describe("createEffect", () => {
 	test("runs immediately", () => {
 		let ran = false;
-		createEffect(() => { ran = true; }, []);
+		createEffect(() => {
+			ran = true;
+		}, []);
 		expect(ran).toBe(true);
 	});
 
@@ -63,7 +69,9 @@ describe("createEffect", () => {
 		const [count, setCount] = createSignal(0);
 		const values: number[] = [];
 
-		createEffect(() => { values.push(count()); }, [count]);
+		createEffect(() => {
+			values.push(count());
+		}, [count]);
 
 		setCount(1);
 		setCount(2);
@@ -73,7 +81,9 @@ describe("createEffect", () => {
 	test("cleans up on dispose", () => {
 		const [count, setCount] = createSignal(0);
 		let runs = 0;
-		const dispose = createEffect(() => { runs++; }, [count]);
+		const dispose = createEffect(() => {
+			runs++;
+		}, [count]);
 
 		setCount(1);
 		expect(runs).toBe(2);

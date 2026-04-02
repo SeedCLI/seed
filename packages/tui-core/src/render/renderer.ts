@@ -185,7 +185,6 @@ function getBorderChars(style: string): BorderChars {
 				horizontal: "-",
 				vertical: "|",
 			};
-		case "single":
 		default:
 			return {
 				topLeft: "┌",

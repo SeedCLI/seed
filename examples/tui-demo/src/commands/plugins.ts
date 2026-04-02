@@ -1,14 +1,6 @@
 import { command } from "@seedcli/core";
-import {
-	createApp,
-	text,
-	box,
-	column,
-	row,
-	PluginRegistry,
-	addEventListener,
-} from "@seedcli/tui";
-import type { TuiPlugin, KeyEvent, TuiEvent, TuiNode } from "@seedcli/tui";
+import type { KeyEvent, TuiEvent, TuiNode, TuiPlugin } from "@seedcli/tui";
+import { addEventListener, box, column, createApp, PluginRegistry, row, text } from "@seedcli/tui";
 
 const badgePlugin: TuiPlugin = {
 	id: "demo/badges",
@@ -37,13 +29,17 @@ const altBadgePlugin: TuiPlugin = {
 	name: "Alt Badge Components",
 	version: "1.0.0",
 	install(registry) {
-		registry.registerComponent("other/badges", "other/fancy-badge", (opts: Record<string, unknown>) => {
-			const label = (opts.label as string) || "fancy";
-			return box(
-				{ border: "double", padding: [0, 1, 0, 1], height: 3 },
-				text(`★ ${label} ★`, { color: "#F1C40F", bold: true, height: 1 }),
-			);
-		});
+		registry.registerComponent(
+			"other/badges",
+			"other/fancy-badge",
+			(opts: Record<string, unknown>) => {
+				const label = (opts.label as string) || "fancy";
+				return box(
+					{ border: "double", padding: [0, 1, 0, 1], height: 3 },
+					text(`★ ${label} ★`, { color: "#F1C40F", bold: true, height: 1 }),
+				);
+			},
+		);
 	},
 };
 
@@ -87,23 +83,36 @@ export const pluginsCommand = command({
 
 		const controls = box(
 			{ border: "rounded", padding: [0, 1, 0, 1], width: 50, height: 6, focusable: true },
-			column({ gap: 0, height: 4 }, ...[
-				text("Controls:", { bold: true, height: 1 }),
-				text("  1 Uninstall demo/badges", { height: 1 }),
-				text("  2 Re-install demo/badges", { height: 1 }),
-				text("  3 Check components | 4 Dispose all", { height: 1 }),
-			]),
+			column(
+				{ gap: 0, height: 4 },
+				...[
+					text("Controls:", { bold: true, height: 1 }),
+					text("  1 Uninstall demo/badges", { height: 1 }),
+					text("  2 Re-install demo/badges", { height: 1 }),
+					text("  3 Check components | 4 Dispose all", { height: 1 }),
+				],
+			),
 		);
 
 		addEventListener(controls, "key", ((event: KeyEvent) => {
 			if (event.key === "1") {
-				try { registry.uninstall("demo/badges"); log("Uninstalled demo/badges"); }
-				catch (e) { log(`Error: ${(e as Error).message}`); }
+				try {
+					registry.uninstall("demo/badges");
+					log("Uninstalled demo/badges");
+				} catch (e) {
+					log(`Error: ${(e as Error).message}`);
+				}
 			} else if (event.key === "2") {
-				try { registry.install(badgePlugin); log("Re-installed demo/badges"); }
-				catch (e) { log(`Error: ${(e as Error).message}`); }
+				try {
+					registry.install(badgePlugin);
+					log("Re-installed demo/badges");
+				} catch (e) {
+					log(`Error: ${(e as Error).message}`);
+				}
 			} else if (event.key === "3") {
-				log(`demo/badge: ${registry.hasComponent("demo/badge")}, fancy: ${registry.hasComponent("other/fancy-badge")}`);
+				log(
+					`demo/badge: ${registry.hasComponent("demo/badge")}, fancy: ${registry.hasComponent("other/fancy-badge")}`,
+				);
 			} else if (event.key === "4") {
 				registry.dispose();
 				log("All plugins disposed");
@@ -114,27 +123,31 @@ export const pluginsCommand = command({
 		// header(1) + badges-row(3) + keymap(1) + log-box(6) + controls(6) + footer(1) = 18
 		// Gaps: 5 × 1 = 5. Total: 18 + 5 = 23. Fits!
 
-		const root = column({ width: "fill", height: "fill", gap: 1, padding: [0, 1, 0, 1] }, ...[
-			text("=== Plugin System Demo ===", { bold: true, color: "#00BFFF", height: 1 }),
+		const root = column(
+			{ width: "fill", height: "fill", gap: 1, padding: [0, 1, 0, 1] },
+			...[
+				text("=== Plugin System Demo ===", { bold: true, color: "#00BFFF", height: 1 }),
 
-			row({ gap: 2, height: 3 }, ...[
-				text("Badges:", { bold: true, height: 1 }),
-				badge1,
-				badge2,
-				fancyBadge,
-			]),
+				row(
+					{ gap: 2, height: 3 },
+					...[text("Badges:", { bold: true, height: 1 }), badge1, badge2, fancyBadge],
+				),
 
-			keymapText,
+				keymapText,
 
-			box({ border: "single", padding: [0, 1, 0, 1], width: 55, height: 6 }, column({ gap: 0, height: 4 }, ...[
-				text("Event Log:", { bold: true, height: 1 }),
-				logText,
-			])),
+				box(
+					{ border: "single", padding: [0, 1, 0, 1], width: 55, height: 6 },
+					column(
+						{ gap: 0, height: 4 },
+						...[text("Event Log:", { bold: true, height: 1 }), logText],
+					),
+				),
 
-			controls,
+				controls,
 
-			text("Press Ctrl+C to exit", { dim: true, height: 1 }),
-		]);
+				text("Press Ctrl+C to exit", { dim: true, height: 1 }),
+			],
+		);
 
 		app.mount(root);
 		await app.run().finally(() => {

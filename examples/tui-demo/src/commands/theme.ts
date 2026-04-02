@@ -1,19 +1,19 @@
 import { command } from "@seedcli/core";
+import type { KeyEvent, Theme, TuiEvent } from "@seedcli/tui";
 import {
-	createApp,
-	text,
+	addEventListener,
+	applyTheme,
 	box,
 	column,
-	row,
+	createApp,
 	createTheme,
+	createThemeContext,
 	darkTheme,
 	lightTheme,
-	createThemeContext,
-	applyTheme,
 	resolveThemeForCapability,
-	addEventListener,
+	row,
+	text,
 } from "@seedcli/tui";
-import type { Theme, KeyEvent, TuiEvent } from "@seedcli/tui";
 
 export const themeCommand = command({
 	name: "theme",
@@ -38,21 +38,24 @@ export const themeCommand = command({
 		// Preview nodes
 		const surfacePreview = box(
 			{ border: "rounded", padding: [0, 1, 0, 1], width: 40, height: 4 },
-			column({ gap: 0, height: 2 }, ...[
-				text("Surface preview", { height: 1 }),
-				text("Muted text here", { height: 1 }),
-			]),
+			column(
+				{ gap: 0, height: 2 },
+				...[text("Surface preview", { height: 1 }), text("Muted text here", { height: 1 })],
+			),
 		);
 		const primaryPreview = box(
 			{ border: "single", padding: [0, 1, 0, 1], width: 40, height: 3 },
 			text("Primary button", { height: 1 }),
 		);
-		const statusPreviews = row({ gap: 2, height: 1 }, ...[
-			text("Success", { height: 1 }),
-			text("Warning", { height: 1 }),
-			text("Error", { height: 1 }),
-			text("Info", { height: 1 }),
-		]);
+		const statusPreviews = row(
+			{ gap: 2, height: 1 },
+			...[
+				text("Success", { height: 1 }),
+				text("Warning", { height: 1 }),
+				text("Error", { height: 1 }),
+				text("Info", { height: 1 }),
+			],
+		);
 
 		function applyCurrentTheme() {
 			const theme = ctx.getTheme();
@@ -77,11 +80,14 @@ export const themeCommand = command({
 		// Controls
 		const controls = box(
 			{ border: "rounded", padding: [0, 1, 0, 1], width: 45, height: 5, focusable: true },
-			column({ gap: 0, height: 3 }, ...[
-				text("Controls:", { bold: true, height: 1 }),
-				text("  t  Cycle themes (dark/light/ocean)", { height: 1 }),
-				text("  d  Dark  |  l  Light", { height: 1 }),
-			]),
+			column(
+				{ gap: 0, height: 3 },
+				...[
+					text("Controls:", { bold: true, height: 1 }),
+					text("  t  Cycle themes (dark/light/ocean)", { height: 1 }),
+					text("  d  Dark  |  l  Light", { height: 1 }),
+				],
+			),
 		);
 
 		addEventListener(controls, "key", ((event: KeyEvent) => {
@@ -110,30 +116,42 @@ export const themeCommand = command({
 		// Use fewer children:
 		// header(1) + row[surface(4), primary(3)](4) + status(1) + cap-box(4) + controls(5) + footer(1) = 16 + 5 gaps = 21. Fits!
 
-		const root = column({ width: "fill", height: "fill", gap: 1, padding: [0, 1, 0, 1] }, ...[
-			text("=== Theme System Demo ===", { bold: true, color: "#00BFFF", height: 1 }),
+		const root = column(
+			{ width: "fill", height: "fill", gap: 1, padding: [0, 1, 0, 1] },
+			...[
+				text("=== Theme System Demo ===", { bold: true, color: "#00BFFF", height: 1 }),
 
-			// Theme preview: surface + primary side by side
-			row({ gap: 2, height: 4 }, ...[
-				surfacePreview,
-				column({ gap: 0, height: 4 }, ...[
-					themeNameText,
-					primaryPreview,
-				]),
-			]),
+				// Theme preview: surface + primary side by side
+				row(
+					{ gap: 2, height: 4 },
+					...[surfacePreview, column({ gap: 0, height: 4 }, ...[themeNameText, primaryPreview])],
+				),
 
-			statusPreviews,
+				statusPreviews,
 
-			// Capability degradation: border(2) + 2 lines = 4
-			box({ border: "single", padding: [0, 1, 0, 1], width: 50, height: 4 }, column({ gap: 0, height: 2 }, ...[
-				text(`256-color primary: ${degraded256.primary.bg}`, { color: degraded256.primary.bg, height: 1 }),
-				text(`16-color primary: ${degraded16.primary.bg}`, { color: degraded16.primary.bg, height: 1 }),
-			])),
+				// Capability degradation: border(2) + 2 lines = 4
+				box(
+					{ border: "single", padding: [0, 1, 0, 1], width: 50, height: 4 },
+					column(
+						{ gap: 0, height: 2 },
+						...[
+							text(`256-color primary: ${degraded256.primary.bg}`, {
+								color: degraded256.primary.bg,
+								height: 1,
+							}),
+							text(`16-color primary: ${degraded16.primary.bg}`, {
+								color: degraded16.primary.bg,
+								height: 1,
+							}),
+						],
+					),
+				),
 
-			controls,
+				controls,
 
-			text("Press Ctrl+C to exit", { dim: true, height: 1 }),
-		]);
+				text("Press Ctrl+C to exit", { dim: true, height: 1 }),
+			],
+		);
 
 		app.mount(root);
 		await app.run();

@@ -1,6 +1,6 @@
-import { describe, test, expect } from "vitest";
-import { createNode, appendChild } from "@seedcli/tui-core";
-import { createDebugOverlay, FpsCounter, countDirtyNodes, countNodes } from "../src/debug.js";
+import { appendChild, createNode } from "@seedcli/tui-core";
+import { describe, expect, test } from "vitest";
+import { countDirtyNodes, countNodes, createDebugOverlay, FpsCounter } from "../src/debug.js";
 
 describe("createDebugOverlay", () => {
 	test("creates a hidden overlay node", () => {

@@ -1,13 +1,11 @@
 import {
+	addEventListener,
+	appendChild,
+	createNode,
+	type KeyEvent,
+	markDirty,
 	type TuiNode,
 	type TuiNodeProps,
-	type KeyEvent,
-	createNode,
-	appendChild,
-	addEventListener,
-	setContent,
-	updateProps,
-	markDirty,
 } from "@seedcli/tui-core";
 
 // ─── Types ───
@@ -47,7 +45,7 @@ function truncateText(text: string, maxWidth: number): string {
 	if (maxWidth <= 0) return "";
 	if (text.length <= maxWidth) return text;
 	if (maxWidth === 1) return "\u2026";
-	return text.slice(0, maxWidth - 1) + "\u2026";
+	return `${text.slice(0, maxWidth - 1)}\u2026`;
 }
 
 /**
@@ -67,7 +65,6 @@ function alignText(text: string, width: number, align: "left" | "center" | "righ
 			const right = remaining - left;
 			return " ".repeat(left) + truncated + " ".repeat(right);
 		}
-		case "left":
 		default:
 			return truncated + " ".repeat(remaining);
 	}
@@ -150,11 +147,7 @@ export function table(options: TableOptions): TuiNode {
 	/**
 	 * Build a single row node from an array of cell values.
 	 */
-	function buildRow(
-		cells: string[],
-		style: TuiNodeProps,
-		isSelected: boolean,
-	): TuiNode {
+	function buildRow(cells: string[], style: TuiNodeProps, isSelected: boolean): TuiNode {
 		const cellNodes: TuiNode[] = [];
 		for (let c = 0; c < columns.length; c++) {
 			const align = columns[c].align ?? "left";
@@ -235,12 +228,14 @@ export function table(options: TableOptions): TuiNode {
 	}
 
 	// Expose update API
-	(wrapper as TuiNode & {
-		_table: {
-			setSelectedRow: (idx: number) => void;
-			setRows: (newRows: string[][]) => void;
-		};
-	})._table = {
+	(
+		wrapper as TuiNode & {
+			_table: {
+				setSelectedRow: (idx: number) => void;
+				setRows: (newRows: string[][]) => void;
+			};
+		}
+	)._table = {
 		setSelectedRow(idx: number) {
 			if (idx !== selectedRow && idx >= 0 && idx < rows.length) {
 				selectedRow = idx;

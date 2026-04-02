@@ -1,5 +1,5 @@
-import { describe, test, expect } from "vitest";
-import { createNode, appendChild } from "@seedcli/tui-core";
+import { appendChild, createNode } from "@seedcli/tui-core";
+import { describe, expect, test } from "vitest";
 import { createSnapshot, snapshotToJson } from "../src/snapshot-export.js";
 
 const mockCapabilities = {

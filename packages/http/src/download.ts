@@ -54,7 +54,9 @@ export async function download(
 		} finally {
 			reader.releaseLock();
 			try {
-				await new Promise<void>((resolve, reject) => writer.end((err?: Error | null) => err ? reject(err) : resolve()));
+				await new Promise<void>((resolve, reject) =>
+					writer.end((err?: Error | null) => (err ? reject(err) : resolve())),
+				);
 			} catch {
 				// Prevent writer.end() from masking the original error
 			}
@@ -101,7 +103,9 @@ export async function download(
 	} finally {
 		reader.releaseLock();
 		try {
-			await new Promise<void>((resolve, reject) => writer.end((err?: Error | null) => err ? reject(err) : resolve()));
+			await new Promise<void>((resolve, reject) =>
+				writer.end((err?: Error | null) => (err ? reject(err) : resolve())),
+			);
 		} catch {
 			// Prevent writer.end() from masking the original error
 		}

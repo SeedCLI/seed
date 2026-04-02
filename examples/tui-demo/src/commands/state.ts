@@ -1,18 +1,18 @@
 import { command } from "@seedcli/core";
+import type { KeyEvent, TuiEvent } from "@seedcli/tui";
 import {
-	createApp,
-	text,
+	addEventListener,
 	box,
 	column,
-	row,
-	createSignal,
+	createApp,
+	createAsyncResource,
 	createComputed,
 	createEffect,
+	createSignal,
 	createStore,
-	createAsyncResource,
-	addEventListener,
+	row,
+	text,
 } from "@seedcli/tui";
-import type { KeyEvent, TuiEvent } from "@seedcli/tui";
 
 export const stateCommand = command({
 	name: "state",
@@ -30,7 +30,10 @@ export const stateCommand = command({
 		const doubledText = text(`Doubled: ${doubled()}`, { color: "#9B59B6", height: 1 });
 
 		const isEven = createComputed(() => getCount() % 2 === 0, [getCount]);
-		const parityText = text(`Parity: ${isEven() ? "even" : "odd"}`, { color: "#E67E22", height: 1 });
+		const parityText = text(`Parity: ${isEven() ? "even" : "odd"}`, {
+			color: "#E67E22",
+			height: 1,
+		});
 
 		// --- Effect ---
 		const effectLog = text("Effect: waiting for changes...", { dim: true, height: 1 });
@@ -67,7 +70,7 @@ export const stateCommand = command({
 			if (resource.loading()) {
 				resourceText.content = "Async: loading...";
 			} else if (resource.error()) {
-				resourceText.content = `Async: error - ${resource.error()!.message}`;
+				resourceText.content = `Async: error - ${resource.error()?.message}`;
 			} else {
 				const data = resource.data();
 				resourceText.content = `Async: status=${data?.status}, ts=${data?.timestamp}`;
@@ -77,14 +80,17 @@ export const stateCommand = command({
 		// Interactive controls
 		const controlsBox = box(
 			{ border: "rounded", padding: [0, 1, 0, 1], width: 50, height: 8, focusable: true },
-			column({ gap: 0, height: 6 }, ...[
-				text("Controls:", { bold: true, height: 1 }),
-				text("  +/=  Increment counter", { height: 1 }),
-				text("  -/_  Decrement counter", { height: 1 }),
-				text("  r    Refetch async resource", { height: 1 }),
-				text("  u    Toggle username", { height: 1 }),
-				text("  n    Increment notifications", { height: 1 }),
-			]),
+			column(
+				{ gap: 0, height: 6 },
+				...[
+					text("Controls:", { bold: true, height: 1 }),
+					text("  +/=  Increment counter", { height: 1 }),
+					text("  -/_  Decrement counter", { height: 1 }),
+					text("  r    Refetch async resource", { height: 1 }),
+					text("  u    Toggle username", { height: 1 }),
+					text("  n    Increment notifications", { height: 1 }),
+				],
+			),
 		);
 
 		addEventListener(controlsBox, "key", ((event: KeyEvent) => {
@@ -112,31 +118,30 @@ export const stateCommand = command({
 		// header(1) + signals-box(5) + effect(1) + store-row(1) + async-row(1) + controls(8) + footer(1) = 18
 		// Gaps: 6 × 1 = 6. Total: 18 + 6 = 24. Fits!
 
-		const root = column({ width: "fill", height: "fill", gap: 1, padding: [0, 1, 0, 1] }, ...[
-			text("=== Reactive State Demo ===", { bold: true, color: "#00BFFF", height: 1 }),
+		const root = column(
+			{ width: "fill", height: "fill", gap: 1, padding: [0, 1, 0, 1] },
+			...[
+				text("=== Reactive State Demo ===", { bold: true, color: "#00BFFF", height: 1 }),
 
-			// Signals + Computed in one box: border(2) + 3 lines = 5
-			box({ border: "single", padding: [0, 1, 0, 1], width: 45, height: 5 }, column({ gap: 0, height: 3 }, ...[
-				countText,
-				doubledText,
-				parityText,
-			])),
+				// Signals + Computed in one box: border(2) + 3 lines = 5
+				box(
+					{ border: "single", padding: [0, 1, 0, 1], width: 45, height: 5 },
+					column({ gap: 0, height: 3 }, ...[countText, doubledText, parityText]),
+				),
 
-			effectLog,
+				effectLog,
 
-			// Store (inline)
-			row({ height: 1 }, ...[
-				text("Store: ", { bold: true, height: 1 }),
-				storeText,
-			]),
+				// Store (inline)
+				row({ height: 1 }, ...[text("Store: ", { bold: true, height: 1 }), storeText]),
 
-			// Async resource (inline)
-			resourceText,
+				// Async resource (inline)
+				resourceText,
 
-			controlsBox,
+				controlsBox,
 
-			text("Press Ctrl+C to exit", { dim: true, height: 1 }),
-		]);
+				text("Press Ctrl+C to exit", { dim: true, height: 1 }),
+			],
+		);
 
 		app.mount(root);
 		await app.run().finally(() => {

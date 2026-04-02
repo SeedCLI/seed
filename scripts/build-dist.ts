@@ -12,35 +12,23 @@
  *   - Code signing issues from the exec() API path
  */
 
-import * as esbuild from "esbuild";
 import { execFile } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import * as esbuild from "esbuild";
 
 const execFileAsync = promisify(execFile);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
-const TARGETS = [
-	"node24-linux-x64",
-	"node24-linux-arm64",
-	"node24-macos-arm64",
-	"node24-win-x64",
-];
+const TARGETS = ["node24-linux-x64", "node24-linux-arm64", "node24-macos-arm64", "node24-win-x64"];
 
 // Resolve the hakobu CLI JS entry from node_modules
 function resolveHakobuBin(): string {
-	const jsEntry = path.join(
-		ROOT,
-		"node_modules",
-		"@hakobu",
-		"hakobu",
-		"lib-es5",
-		"bin.js",
-	);
+	const jsEntry = path.join(ROOT, "node_modules", "@hakobu", "hakobu", "lib-es5", "bin.js");
 	if (existsSync(jsEntry)) return jsEntry;
 	throw new Error("Cannot find @hakobu/hakobu. Run pnpm install first.");
 }
@@ -127,10 +115,7 @@ const require = __esbuild_createRequire(import.meta.url);`,
 		main: "dist/cli.mjs",
 		bin: { seed: "dist/cli.mjs" },
 	};
-	writeFileSync(
-		path.join(stageDir, "package.json"),
-		JSON.stringify(stagePkg, null, 2),
-	);
+	writeFileSync(path.join(stageDir, "package.json"), JSON.stringify(stagePkg, null, 2));
 
 	// ── Step 2: Hakobu packages the bundled output ──
 	console.log("\nStep 2: Packaging with Hakobu...\n");
@@ -145,14 +130,7 @@ const require = __esbuild_createRequire(import.meta.url);`,
 		try {
 			const { stderr } = await execFileAsync(
 				process.execPath,
-				[
-					hakobuBin,
-					stageDir,
-					"--target",
-					target,
-					"--output",
-					outputPath,
-				],
+				[hakobuBin, stageDir, "--target", target, "--output", outputPath],
 				{
 					cwd: ROOT,
 					timeout: 300000,
@@ -164,12 +142,8 @@ const require = __esbuild_createRequire(import.meta.url);`,
 			if (stderr) {
 				const important = stderr
 					.split("\n")
-					.filter(
-						(l) =>
-							l.includes("Error") &&
-							!l.includes("@sec-ant/readable-stream"),
-					);
-				if (important.length > 0) console.error("\n" + important.join("\n"));
+					.filter((l) => l.includes("Error") && !l.includes("@sec-ant/readable-stream"));
+				if (important.length > 0) console.error(`\n${important.join("\n")}`);
 			}
 
 			console.log(" OK");
@@ -177,12 +151,7 @@ const require = __esbuild_createRequire(import.meta.url);`,
 			console.log(" FAIL");
 			const error = err as { stderr?: string };
 			if (error.stderr?.trim()) {
-				console.error(
-					error.stderr
-						.split("\n")
-						.slice(-5)
-						.join("\n"),
-				);
+				console.error(error.stderr.split("\n").slice(-5).join("\n"));
 			}
 		}
 	}
@@ -201,12 +170,7 @@ const require = __esbuild_createRequire(import.meta.url);`,
 			} catch {
 				console.log(`\n  ${path.basename(binaryPath)}: re-signing...`);
 				try {
-					await execFileAsync("codesign", [
-						"--force",
-						"--sign",
-						"-",
-						binaryPath,
-					]);
+					await execFileAsync("codesign", ["--force", "--sign", "-", binaryPath]);
 					console.log("  Re-signed OK");
 				} catch (signErr: unknown) {
 					const se = signErr as { stderr?: string };
@@ -226,9 +190,9 @@ const require = __esbuild_createRequire(import.meta.url);`,
 		const ext = target.includes("win") ? ".exe" : "";
 		const file = path.join(ROOT, "dist", `seed-${suffix}${ext}`);
 		if (existsSync(file)) {
-			const size = (
-				(await import("node:fs/promises")).stat(file)
-			).then((s) => `${(s.size / 1024 / 1024).toFixed(1)}MB`);
+			const _size = (await import("node:fs/promises"))
+				.stat(file)
+				.then((s) => `${(s.size / 1024 / 1024).toFixed(1)}MB`);
 			console.log(`  dist/seed-${suffix}${ext}`);
 		}
 	}

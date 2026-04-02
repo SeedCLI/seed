@@ -1,5 +1,5 @@
-import { describe, test, expect } from "vitest";
 import { createNode } from "@seedcli/tui-core";
+import { describe, expect, test } from "vitest";
 import { PluginRegistry, type TuiPlugin } from "../src/plugins.js";
 
 function createTestPlugin(id: string, overrides?: Partial<TuiPlugin>): TuiPlugin {
@@ -48,7 +48,9 @@ describe("PluginRegistry", () => {
 		let disposed = false;
 		const registry = new PluginRegistry();
 		const plugin = createTestPlugin("org/disposable", {
-			dispose: () => { disposed = true; },
+			dispose: () => {
+				disposed = true;
+			},
 		});
 		registry.install(plugin);
 		registry.uninstall("org/disposable");
@@ -227,7 +229,9 @@ describe("Render Hooks", () => {
 			name: "Remove",
 			version: "1.0.0",
 			install(reg) {
-				reg.registerRenderHook("rm/hook", "before", () => { hookRan = true; });
+				reg.registerRenderHook("rm/hook", "before", () => {
+					hookRan = true;
+				});
 			},
 		};
 		registry.install(plugin);
@@ -244,7 +248,9 @@ describe("dispose", () => {
 		let disposed = false;
 
 		const plugin = createTestPlugin("disp/all", {
-			dispose: () => { disposed = true; },
+			dispose: () => {
+				disposed = true;
+			},
 		});
 		registry.install(plugin);
 

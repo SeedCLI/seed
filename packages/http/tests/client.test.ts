@@ -1,8 +1,8 @@
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { create, get, head, post, put } from "../src/client.js";
 import { download } from "../src/download.js";
 import { HttpError, HttpTimeoutError } from "../src/errors.js";

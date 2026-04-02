@@ -34,39 +34,67 @@ export {
 	addEventListener,
 	appendChild,
 	createNode,
+	FocusManager,
 	findNodeById,
 	insertBefore,
+	MemoryTerminalSession,
 	markDirty,
 	removeChild,
+	StdTerminalSession,
 	setContent,
 	updateProps,
-	FocusManager,
-	MemoryTerminalSession,
-	StdTerminalSession,
 } from "@seedcli/tui-core";
-
-// TUI module types
-export type {
-	AppStateManager,
-	LifecycleState,
-	TuiApp,
-	TuiModule,
-} from "./types.js";
-
 // App factory
 export { createApp } from "./app.js";
-
-// Primitives
-export { box, column, row, spacer, text } from "./primitives.js";
-
 // Capabilities
 export { detectCapabilities } from "./capabilities.js";
+export { type CodeOptions, code } from "./components/code.js";
+// Components
+export { type InputOptions, input } from "./components/input.js";
+export { type ListItem, type ListOptions, list } from "./components/list.js";
+export { markdown } from "./components/markdown.js";
+export { type ProgressOptions, progress } from "./components/progress.js";
+export {
+	type ScrollBoxControls,
+	type ScrollBoxNode,
+	type ScrollBoxOptions,
+	scrollBox,
+} from "./components/scroll-box.js";
+export { type SelectItem, type SelectOptions, select } from "./components/select.js";
+export { type ColumnDef, type TableOptions, table } from "./components/table.js";
+export type { DebugOverlayState } from "./debug.js";
+// Debug tools
+export { countDirtyNodes, countNodes, createDebugOverlay, FpsCounter } from "./debug.js";
+export type { ComponentFactory, KeymapBinding, RenderHook, TuiPlugin } from "./plugins.js";
+// Plugin system
+export { PluginRegistry } from "./plugins.js";
+// Primitives
+export { box, column, row, spacer, text } from "./primitives.js";
+export type { SerializedNode, SnapshotExport } from "./snapshot-export.js";
 
+// Snapshot export
+export { createSnapshot, snapshotToJson } from "./snapshot-export.js";
+// State
+export {
+	type AsyncResource,
+	createAsyncResource,
+	createComputed,
+	createEffect,
+	createSignal,
+	createStore,
+	type Store,
+} from "./state.js";
 // Theme
 export {
 	type AccentTokens,
+	applyTheme,
 	type BorderTokens,
+	createTheme,
+	createThemeContext,
+	darkTheme,
+	lightTheme,
 	type PrimaryTokens,
+	resolveThemeForCapability,
 	type SecondaryTokens,
 	type StatusTokens,
 	type SurfaceTokens,
@@ -74,43 +102,11 @@ export {
 	type Theme,
 	type ThemeContext,
 	type TokenPath,
-	applyTheme,
-	createTheme,
-	createThemeContext,
-	darkTheme,
-	lightTheme,
-	resolveThemeForCapability,
 } from "./theme.js";
-
-// State
-export {
-	type AsyncResource,
-	type Store,
-	createAsyncResource,
-	createComputed,
-	createEffect,
-	createSignal,
-	createStore,
-} from "./state.js";
-
-// Components
-export { type InputOptions, input } from "./components/input.js";
-export { type SelectItem, type SelectOptions, select } from "./components/select.js";
-export { type ListItem, type ListOptions, list } from "./components/list.js";
-export { type ScrollBoxControls, type ScrollBoxNode, type ScrollBoxOptions, scrollBox } from "./components/scroll-box.js";
-export { type ColumnDef, type TableOptions, table } from "./components/table.js";
-export { markdown } from "./components/markdown.js";
-export { type CodeOptions, code } from "./components/code.js";
-export { type ProgressOptions, progress } from "./components/progress.js";
-
-// Debug tools
-export { FpsCounter, countDirtyNodes, countNodes, createDebugOverlay } from "./debug.js";
-export type { DebugOverlayState } from "./debug.js";
-
-// Snapshot export
-export { createSnapshot, snapshotToJson } from "./snapshot-export.js";
-export type { SerializedNode, SnapshotExport } from "./snapshot-export.js";
-
-// Plugin system
-export { PluginRegistry } from "./plugins.js";
-export type { ComponentFactory, KeymapBinding, RenderHook, TuiPlugin } from "./plugins.js";
+// TUI module types
+export type {
+	AppStateManager,
+	LifecycleState,
+	TuiApp,
+	TuiModule,
+} from "./types.js";

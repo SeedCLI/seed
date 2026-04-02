@@ -1,21 +1,21 @@
 import { command } from "@seedcli/core";
+import type { KeyEvent, TuiEvent } from "@seedcli/tui";
 import {
-	createApp,
-	text,
+	addEventListener,
 	box,
 	column,
-	row,
-	createDebugOverlay,
-	FpsCounter,
-	countNodes,
 	countDirtyNodes,
+	countNodes,
+	createApp,
+	createDebugOverlay,
 	createSnapshot,
-	snapshotToJson,
 	detectCapabilities,
-	addEventListener,
+	FpsCounter,
 	markDirty,
+	row,
+	snapshotToJson,
+	text,
 } from "@seedcli/tui";
-import type { KeyEvent, TuiEvent } from "@seedcli/tui";
 
 export const debugCommand = command({
 	name: "debug",
@@ -31,15 +31,17 @@ export const debugCommand = command({
 		const snapshotResult = text("Press 's' to take snapshot", { dim: true, height: 1 });
 
 		// Sample tree to count nodes in
-		const sampleTree = column({ gap: 0, height: 3 }, ...[
-			row({ gap: 1, height: 1 }, ...[
-				text("A", { height: 1 }), text("B", { height: 1 }), text("C", { height: 1 }),
-			]),
-			row({ gap: 1, height: 1 }, ...[
-				text("D", { height: 1 }), text("E", { height: 1 }),
-			]),
-			text("Nested content", { height: 1 }),
-		]);
+		const sampleTree = column(
+			{ gap: 0, height: 3 },
+			...[
+				row(
+					{ gap: 1, height: 1 },
+					...[text("A", { height: 1 }), text("B", { height: 1 }), text("C", { height: 1 })],
+				),
+				row({ gap: 1, height: 1 }, ...[text("D", { height: 1 }), text("E", { height: 1 })]),
+				text("Nested content", { height: 1 }),
+			],
+		);
 
 		function updateStats() {
 			fpsCounter.frame();
@@ -59,13 +61,16 @@ export const debugCommand = command({
 
 		const controls = box(
 			{ border: "rounded", padding: [0, 1, 0, 1], width: 50, height: 7, focusable: true },
-			column({ gap: 0, height: 5 }, ...[
-				text("Controls:", { bold: true, height: 1 }),
-				text("  o  Toggle debug overlay", { height: 1 }),
-				text("  s  Take snapshot", { height: 1 }),
-				text("  d  Mark tree dirty", { height: 1 }),
-				text("  f  Simulate frame tick", { height: 1 }),
-			]),
+			column(
+				{ gap: 0, height: 5 },
+				...[
+					text("Controls:", { bold: true, height: 1 }),
+					text("  o  Toggle debug overlay", { height: 1 }),
+					text("  s  Take snapshot", { height: 1 }),
+					text("  d  Mark tree dirty", { height: 1 }),
+					text("  f  Simulate frame tick", { height: 1 }),
+				],
+			),
 		);
 
 		addEventListener(controls, "key", ((event: KeyEvent) => {
@@ -96,22 +101,28 @@ export const debugCommand = command({
 		// Gaps: 5 × 1 = 5. Total: 16 + 5 = 21. Fits!
 		// Note: overlay node is hidden by default, doesn't affect layout
 
-		const root = column({ width: "fill", height: "fill", gap: 1, padding: [0, 1, 0, 1] }, ...[
-			text("=== Debug Tools Demo ===", { bold: true, color: "#00BFFF", height: 1 }),
+		const root = column(
+			{ width: "fill", height: "fill", gap: 1, padding: [0, 1, 0, 1] },
+			...[
+				text("=== Debug Tools Demo ===", { bold: true, color: "#00BFFF", height: 1 }),
 
-			statsText,
+				statsText,
 
-			box({ border: "single", padding: [0, 1, 0, 1], width: 35, height: 5 }, column({ gap: 0, height: 3 }, ...[
-				text("Sample Tree:", { bold: true, height: 1 }),
-				sampleTree,
-			])),
+				box(
+					{ border: "single", padding: [0, 1, 0, 1], width: 35, height: 5 },
+					column(
+						{ gap: 0, height: 3 },
+						...[text("Sample Tree:", { bold: true, height: 1 }), sampleTree],
+					),
+				),
 
-			snapshotResult,
+				snapshotResult,
 
-			controls,
+				controls,
 
-			text("Press Ctrl+C to exit", { dim: true, height: 1 }),
-		]);
+				text("Press Ctrl+C to exit", { dim: true, height: 1 }),
+			],
+		);
 
 		updateStats();
 

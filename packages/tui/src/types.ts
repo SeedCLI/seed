@@ -1,10 +1,4 @@
-import type {
-	AppConfig,
-	CapabilityProfile,
-	RenderMode,
-	TerminalCapabilities,
-	TuiNode,
-} from "@seedcli/tui-core";
+import type { AppConfig, TerminalCapabilities, TuiNode } from "@seedcli/tui-core";
 
 // ─── App ───
 
@@ -52,7 +46,10 @@ export interface TuiModule {
 	input(options?: import("./components/input.js").InputOptions): TuiNode;
 	select(options: import("./components/select.js").SelectOptions): TuiNode;
 	list(options: import("./components/list.js").ListOptions): TuiNode;
-	scrollBox(options: import("./components/scroll-box.js").ScrollBoxOptions, ...children: TuiNode[]): import("./components/scroll-box.js").ScrollBoxNode;
+	scrollBox(
+		options: import("./components/scroll-box.js").ScrollBoxOptions,
+		...children: TuiNode[]
+	): import("./components/scroll-box.js").ScrollBoxNode;
 	table(options: import("./components/table.js").TableOptions): TuiNode;
 	markdown(content: string, props?: import("@seedcli/tui-core").TuiNodeProps): TuiNode;
 	code(options: import("./components/code.js").CodeOptions): TuiNode;

@@ -1,15 +1,26 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execa } from "execa";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import {
+	compileOutputPath,
+	hostPlatformName,
+	parseCompileTarget,
+	resolveAppId,
+	resolveCompileOutput,
+	resolveHakobuBin,
+	resolveNodeRuntime,
+	VALID_COMPILE_TARGETS,
+	validateCompileFlags,
+} from "../src/commands/build.js";
 import { generateBuildEntry } from "../src/utils/generate-build-entry.js";
-import { compileOutputPath, hostPlatformName, parseCompileTarget, resolveAppId, resolveCompileOutput, resolveHakobuBin, resolveNodeRuntime, validateCompileFlags, VALID_COMPILE_TARGETS } from "../src/commands/build.js";
 import { resolveEntry } from "../src/utils/resolve-entry.js";
 
-const PKG_VERSION = JSON.parse(readFileSync(join(import.meta.dirname, "..", "package.json"), "utf-8"))
-	.version as string;
+const PKG_VERSION = JSON.parse(
+	readFileSync(join(import.meta.dirname, "..", "package.json"), "utf-8"),
+).version as string;
 
 // Resolve tsx to an absolute path so it works from temp cwd directories
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -139,14 +150,10 @@ describe("Hakobu build backend resolution", () => {
 
 describe("seed CLI", () => {
 	test("shows help with --help", async () => {
-		const result = await execa(
-			"node",
-			["--import", TSX_PATH, CLI_ENTRY, "--help"],
-			{
-				stdout: "pipe",
-				stderr: "pipe",
-			},
-		);
+		const result = await execa("node", ["--import", TSX_PATH, CLI_ENTRY, "--help"], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
 
 		expect(result.stdout).toContain("new");
 		expect(result.stdout).toContain("generate");
@@ -154,14 +161,10 @@ describe("seed CLI", () => {
 	});
 
 	test("shows version with --version", async () => {
-		const result = await execa(
-			"node",
-			["--import", TSX_PATH, CLI_ENTRY, "--version"],
-			{
-				stdout: "pipe",
-				stderr: "pipe",
-			},
-		);
+		const result = await execa("node", ["--import", TSX_PATH, CLI_ENTRY, "--version"], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
 
 		expect(result.stdout).toContain(`seed v${PKG_VERSION}`);
 	});
@@ -182,7 +185,8 @@ describe("seed new", () => {
 		const result = await execa(
 			"node",
 			[
-				"--import", TSX_PATH,
+				"--import",
+				TSX_PATH,
 				CLI_ENTRY,
 				"new",
 				"test-app",
@@ -207,7 +211,10 @@ describe("seed new", () => {
 		const indexContent = readFileSync(join(dir, "test-app", "src", "index.ts"), "utf-8");
 		expect(indexContent).toBeTruthy();
 
-		const helloContent = readFileSync(join(dir, "test-app", "src", "commands", "hello.ts"), "utf-8");
+		const helloContent = readFileSync(
+			join(dir, "test-app", "src", "commands", "hello.ts"),
+			"utf-8",
+		);
 		expect(helloContent).toBeTruthy();
 	});
 });
@@ -458,9 +465,9 @@ const cli = build("mycli")
 		const lines = result?.content.split("\n");
 
 		// Find where the injected import appears
-		const injectedImportIdx = lines!.findIndex((l) => l.includes("import plugin_my_plugin"));
+		const injectedImportIdx = lines?.findIndex((l) => l.includes("import plugin_my_plugin"));
 		// Find where "const cli" appears
-		const constCliIdx = lines!.findIndex((l) => l.includes("const cli"));
+		const constCliIdx = lines?.findIndex((l) => l.includes("const cli"));
 
 		// The injected import MUST appear before the executable code
 		expect(injectedImportIdx).toBeGreaterThan(-1);
@@ -497,11 +504,11 @@ const cli = build("mycli")
 		const lines = result?.content.split("\n");
 
 		// Find the side-effect import
-		const sideEffectIdx = lines!.findIndex((l) => l.includes('import "reflect-metadata"'));
+		const sideEffectIdx = lines?.findIndex((l) => l.includes('import "reflect-metadata"'));
 		// Find the injected import
-		const injectedIdx = lines!.findIndex((l) => l.includes("import plugin_my_plugin"));
+		const injectedIdx = lines?.findIndex((l) => l.includes("import plugin_my_plugin"));
 		// Find the executable code
-		const constIdx = lines!.findIndex((l) => l.includes("const cli"));
+		const constIdx = lines?.findIndex((l) => l.includes("const cli"));
 
 		// Side-effect import should be present
 		expect(sideEffectIdx).toBeGreaterThan(-1);
@@ -543,11 +550,11 @@ const cli = build("mycli")
 		const lines = result?.content.split("\n");
 
 		// Find the last original import (node:path)
-		const pathImportIdx = lines!.findIndex((l) => l.includes('from "node:path"'));
+		const pathImportIdx = lines?.findIndex((l) => l.includes('from "node:path"'));
 		// Find the injected import
-		const injectedIdx = lines!.findIndex((l) => l.includes("import plugin_my_plugin"));
+		const injectedIdx = lines?.findIndex((l) => l.includes("import plugin_my_plugin"));
 		// Find the executable code
-		const constIdx = lines!.findIndex((l) => l.includes("const cli"));
+		const constIdx = lines?.findIndex((l) => l.includes("const cli"));
 
 		// Injected import should come after the last original import
 		expect(injectedIdx).toBeGreaterThan(pathImportIdx);
@@ -574,13 +581,7 @@ describe("seed generate", () => {
 	test("generates a command file", async () => {
 		const result = await execa(
 			"node",
-			[
-				"--import", TSX_PATH,
-				CLI_ENTRY,
-				"generate",
-				"command",
-				"deploy",
-			],
+			["--import", TSX_PATH, CLI_ENTRY, "generate", "command", "deploy"],
 			{
 				stdout: "pipe",
 				stderr: "pipe",
@@ -598,13 +599,7 @@ describe("seed generate", () => {
 	test("generates an extension file", async () => {
 		const result = await execa(
 			"node",
-			[
-				"--import", TSX_PATH,
-				CLI_ENTRY,
-				"generate",
-				"extension",
-				"auth",
-			],
+			["--import", TSX_PATH, CLI_ENTRY, "generate", "extension", "auth"],
 			{
 				stdout: "pipe",
 				stderr: "pipe",
@@ -622,13 +617,7 @@ describe("seed generate", () => {
 	test("generates a plugin scaffold", async () => {
 		const result = await execa(
 			"node",
-			[
-				"--import", TSX_PATH,
-				CLI_ENTRY,
-				"generate",
-				"plugin",
-				"my-plugin",
-			],
+			["--import", TSX_PATH, CLI_ENTRY, "generate", "plugin", "my-plugin"],
 			{
 				stdout: "pipe",
 				stderr: "pipe",
@@ -651,13 +640,22 @@ describe("compile output path", () => {
 	describe("parseCompileTarget", () => {
 		test("parses standard targets", () => {
 			expect(parseCompileTarget("node24-win-x64")).toEqual({ platform: "win", arch: "x64" });
-			expect(parseCompileTarget("node24-linux-arm64")).toEqual({ platform: "linux", arch: "arm64" });
+			expect(parseCompileTarget("node24-linux-arm64")).toEqual({
+				platform: "linux",
+				arch: "arm64",
+			});
 			expect(parseCompileTarget("node24-macos-x64")).toEqual({ platform: "macos", arch: "x64" });
-			expect(parseCompileTarget("node24-macos-arm64")).toEqual({ platform: "macos", arch: "arm64" });
+			expect(parseCompileTarget("node24-macos-arm64")).toEqual({
+				platform: "macos",
+				arch: "arm64",
+			});
 		});
 
 		test("parses linuxstatic target", () => {
-			expect(parseCompileTarget("node24-linuxstatic-x64")).toEqual({ platform: "linuxstatic", arch: "x64" });
+			expect(parseCompileTarget("node24-linuxstatic-x64")).toEqual({
+				platform: "linuxstatic",
+				arch: "x64",
+			});
 		});
 	});
 

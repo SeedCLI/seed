@@ -1,4 +1,4 @@
-import type { StyleProps, TuiNode, TuiNodeProps, CapabilityProfile, ColorCapability } from "@seedcli/tui-core";
+import type { ColorCapability, TuiNode } from "@seedcli/tui-core";
 
 // ─── Theme Token Interfaces ───
 
@@ -53,7 +53,15 @@ export type BorderTokens = {
 };
 
 export interface Theme {
-	[key: string]: string | SurfaceTokens | PrimaryTokens | SecondaryTokens | AccentTokens | StatusTokens | TextTokens | BorderTokens;
+	[key: string]:
+		| string
+		| SurfaceTokens
+		| PrimaryTokens
+		| SecondaryTokens
+		| AccentTokens
+		| StatusTokens
+		| TextTokens
+		| BorderTokens;
 	name: string;
 	surface: SurfaceTokens;
 	primary: PrimaryTokens;
@@ -201,10 +209,7 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
 			targetVal !== null &&
 			!Array.isArray(targetVal)
 		) {
-			deepMerge(
-				targetVal as Record<string, unknown>,
-				sourceVal as Record<string, unknown>,
-			);
+			deepMerge(targetVal as Record<string, unknown>, sourceVal as Record<string, unknown>);
 		} else if (sourceVal !== undefined) {
 			target[key] = sourceVal;
 		}
@@ -304,13 +309,13 @@ function hexToAnsi256(hex: string): string {
 	if (r === g && g === b) {
 		if (r < 8) return "16";
 		if (r > 248) return "231";
-		return String(Math.round((r - 8) / 247 * 24) + 232);
+		return String(Math.round(((r - 8) / 247) * 24) + 232);
 	}
 
 	// Map to the 6x6x6 color cube (ANSI 16-231)
-	const ri = Math.round(r / 255 * 5);
-	const gi = Math.round(g / 255 * 5);
-	const bi = Math.round(b / 255 * 5);
+	const ri = Math.round((r / 255) * 5);
+	const gi = Math.round((g / 255) * 5);
+	const bi = Math.round((b / 255) * 5);
 
 	return String(16 + 36 * ri + 6 * gi + bi);
 }

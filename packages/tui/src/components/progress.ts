@@ -1,10 +1,10 @@
 import {
+	appendChild,
+	createNode,
+	markDirty,
+	setContent,
 	type TuiNode,
 	type TuiNodeProps,
-	createNode,
-	appendChild,
-	setContent,
-	markDirty,
 } from "@seedcli/tui-core";
 
 // ─── Types ───
@@ -88,9 +88,7 @@ export function progress(options: ProgressOptions): TuiNode {
 
 	// ── Child nodes ──
 
-	const labelNode = label != null
-		? createNode("text", { ...style }, [], label + " ")
-		: null;
+	const labelNode = label != null ? createNode("text", { ...style }, [], `${label} `) : null;
 
 	const barNode = createNode("text", { ...style }, [], "");
 	const infoNode = createNode("text", { ...style, dim: true }, [], "");
@@ -109,7 +107,7 @@ export function progress(options: ProgressOptions): TuiNode {
 	 * Render the spinner for indeterminate mode.
 	 */
 	function renderIndeterminateBar(): string {
-		return SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length] + " ";
+		return `${SPINNER_FRAMES[spinnerFrame % SPINNER_FRAMES.length]} `;
 	}
 
 	/**
@@ -129,7 +127,7 @@ export function progress(options: ProgressOptions): TuiNode {
 			parts.push(`${currentCurrent}/${currentTotal}`);
 		}
 
-		return parts.length > 0 ? " " + parts.join(" ") : "";
+		return parts.length > 0 ? ` ${parts.join(" ")}` : "";
 	}
 
 	/**
@@ -183,7 +181,7 @@ export function progress(options: ProgressOptions): TuiNode {
 		},
 		setLabel(text: string) {
 			if (labelNode) {
-				setContent(labelNode, text + " ");
+				setContent(labelNode, `${text} `);
 			}
 		},
 	};

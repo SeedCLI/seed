@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { mkdtemp, readFile as fsReadFile, rm, writeFile as fsWriteFile } from "node:fs/promises";
+import { readFile as fsReadFile, writeFile as fsWriteFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { append, exists, patch, patchJson, prepend } from "../src/index.js";
 
 describe("patching", () => {

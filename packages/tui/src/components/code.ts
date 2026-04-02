@@ -1,9 +1,4 @@
-import {
-	type TuiNode,
-	type TuiNodeProps,
-	createNode,
-	appendChild,
-} from "@seedcli/tui-core";
+import { appendChild, createNode, type TuiNode, type TuiNodeProps } from "@seedcli/tui-core";
 
 // ─── Types ───
 

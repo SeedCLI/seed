@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, vi, test } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { build, command } from "../src/index.js";
 import {
 	ExtensionCycleError,

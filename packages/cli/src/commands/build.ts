@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
+import { readFile, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, join } from "node:path";
-import { readFile, stat } from "node:fs/promises";
 import { promisify } from "node:util";
 import { load } from "@seedcli/config";
 import type { CompileTarget, SeedConfig } from "@seedcli/core";
@@ -62,14 +62,10 @@ async function runHakobu(cwd: string, args: string[]): Promise<void> {
 	const hakobuBin = await resolveHakobuBin(cwd);
 
 	try {
-		await execFileAsync(
-			nodeRuntime,
-			[hakobuBin, ...args],
-			{
-				cwd,
-				env: { ...process.env, NODE_NO_WARNINGS: "1" },
-			},
-		);
+		await execFileAsync(nodeRuntime, [hakobuBin, ...args], {
+			cwd,
+			env: { ...process.env, NODE_NO_WARNINGS: "1" },
+		});
 	} catch (err) {
 		const error = err as NodeJS.ErrnoException;
 		if (error.code === "ENOENT" && nodeRuntime === "node") {
@@ -94,7 +90,10 @@ export const buildCommand = command({
 		sourcemap: flag({ type: "boolean", description: "Generate sourcemaps" }),
 		splitting: flag({ type: "boolean", description: "Enable code splitting" }),
 		analyze: flag({ type: "boolean", description: "Show bundle size analysis" }),
-		external: flag({ type: "string", description: "Keep module(s) external (comma-separated, repeatable)" }),
+		external: flag({
+			type: "string",
+			description: "Keep module(s) external (comma-separated, repeatable)",
+		}),
 	},
 	run: async ({ flags }) => {
 		const cwd = process.cwd();
@@ -146,7 +145,9 @@ export const buildCommand = command({
 		}
 
 		// Merge config-file defaults with CLI flags (CLI flags take precedence)
-		const cliExternal = flags.external ? flags.external.split(",").map((e: string) => e.trim()) : [];
+		const cliExternal = flags.external
+			? flags.external.split(",").map((e: string) => e.trim())
+			: [];
 		const configExternal = buildConfig?.external ?? [];
 		const mergedFlags = {
 			compile: flags.compile,
@@ -198,7 +199,16 @@ async function bundleMode(
 
 	info(`${colors.cyan("seed build")} bundling...`);
 
-	const args: string[] = [cwd, "--bundle", "--entry", entryPath, "--output", outputPath, "--target", "host"];
+	const args: string[] = [
+		cwd,
+		"--bundle",
+		"--entry",
+		entryPath,
+		"--output",
+		outputPath,
+		"--target",
+		"host",
+	];
 
 	if (flags.minify) {
 		args.push("--minify");
@@ -259,11 +269,7 @@ export function hostPlatformName(): string {
 	}
 }
 
-export function compileOutputPath(
-	outdir: string,
-	targets: string[],
-	appId: string,
-): string {
+export function compileOutputPath(outdir: string, targets: string[], appId: string): string {
 	if (targets.length === 1 && targets[0] !== "all") {
 		const target = targets[0];
 		const { platform, arch } =
@@ -331,7 +337,9 @@ async function compileMode(
 	// ─── Validate compile targets ───
 	if (flags.target) {
 		const requested = flags.target.split(",").map((t) => t.trim());
-		const invalid = requested.filter((t) => t !== "all" && !VALID_COMPILE_TARGETS.includes(t as CompileTarget));
+		const invalid = requested.filter(
+			(t) => t !== "all" && !VALID_COMPILE_TARGETS.includes(t as CompileTarget),
+		);
 		if (invalid.length > 0) {
 			error(`Invalid compile target${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`);
 			info(`Valid targets: ${VALID_COMPILE_TARGETS.join(", ")}, all`);
@@ -366,7 +374,16 @@ async function compileMode(
 		appId,
 	});
 
-	const args: string[] = [cwd, "--bundle", "--entry", entryPath, "--target", targets.join(","), "--output", output];
+	const args: string[] = [
+		cwd,
+		"--bundle",
+		"--entry",
+		entryPath,
+		"--target",
+		targets.join(","),
+		"--output",
+		output,
+	];
 
 	if (flags.minify) {
 		args.push("--minify");

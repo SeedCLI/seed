@@ -1,7 +1,7 @@
-import { describe, expect, test, beforeEach } from "vitest";
-import { createNode, appendChild, resetIdCounter } from "../src/tree/node.js";
+import { beforeEach, describe, expect, test } from "vitest";
 import { computeLayout } from "../src/layout/engine.js";
 import { createFrame, diffFrames, renderTree } from "../src/render/renderer.js";
+import { createNode, resetIdCounter } from "../src/tree/node.js";
 
 beforeEach(() => {
 	resetIdCounter();

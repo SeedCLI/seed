@@ -1,12 +1,12 @@
 import {
+	addEventListener,
+	appendChild,
+	createNode,
+	type KeyEvent,
+	markDirty,
+	setContent,
 	type TuiNode,
 	type TuiNodeProps,
-	type KeyEvent,
-	createNode,
-	appendChild,
-	addEventListener,
-	setContent,
-	markDirty,
 } from "@seedcli/tui-core";
 
 // ─── Types ───
@@ -53,10 +53,7 @@ export type ScrollBoxNode = TuiNode & {
  *   scrollToEnd()     - jump to the bottom
  *   appendContent(n)  - add a child; auto-scrolls if enabled
  */
-export function scrollBox(
-	options: ScrollBoxOptions,
-	...children: TuiNode[]
-): ScrollBoxNode {
+export function scrollBox(options: ScrollBoxOptions, ...children: TuiNode[]): ScrollBoxNode {
 	const autoScroll = options.autoScroll ?? false;
 	const showScrollbar = options.showScrollbar ?? true;
 
@@ -148,9 +145,7 @@ export function scrollBox(
 		const maxThumbOffset = trackHeight - thumbSize;
 		const maxScrollOffset = contentHeight - pageHeight;
 		const thumbOffset =
-			maxScrollOffset > 0
-				? Math.round((scrollOffset / maxScrollOffset) * maxThumbOffset)
-				: 0;
+			maxScrollOffset > 0 ? Math.round((scrollOffset / maxScrollOffset) * maxThumbOffset) : 0;
 
 		const lines: string[] = [];
 		for (let row = 0; row < trackHeight; row++) {

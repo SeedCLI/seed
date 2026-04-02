@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import {
 	DiscoveryError,
 	discover,
@@ -292,7 +292,10 @@ describe("validation and error handling", () => {
 			join(dir, "commands/valid.ts"),
 			`export default { name: "valid", run: async () => {} };`,
 		);
-		await writeTestFile(join(dir, "commands/invalid.ts"), `export default { description: "no run" };`);
+		await writeTestFile(
+			join(dir, "commands/invalid.ts"),
+			`export default { description: "no run" };`,
+		);
 
 		const commands = await discoverCommands(dir);
 		expect(commands.length).toBe(1);

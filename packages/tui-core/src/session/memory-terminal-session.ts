@@ -100,7 +100,7 @@ export class MemoryTerminalSession implements TerminalSession {
 
 	/** Simulate terminal resize. */
 	simulateResize(columns: number, rows: number): void {
-		const previous = { ...this._size };
+		const _previous = { ...this._size };
 		this._size = { columns, rows };
 		for (const handler of this.resizeHandlers) {
 			handler(this._size);

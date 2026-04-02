@@ -16,20 +16,20 @@ const KEY_SEQUENCES: Record<string, Uint8Array> = {
 	tab: new Uint8Array([0x09]),
 	backspace: new Uint8Array([0x7f]),
 	delete: new Uint8Array([0x1b, 0x5b, 0x33, 0x7e]), // ESC[3~
-	up: new Uint8Array([0x1b, 0x5b, 0x41]),    // ESC[A
-	down: new Uint8Array([0x1b, 0x5b, 0x42]),   // ESC[B
-	right: new Uint8Array([0x1b, 0x5b, 0x43]),  // ESC[C
-	left: new Uint8Array([0x1b, 0x5b, 0x44]),   // ESC[D
-	home: new Uint8Array([0x1b, 0x5b, 0x48]),   // ESC[H
-	end: new Uint8Array([0x1b, 0x5b, 0x46]),    // ESC[F
-	pageUp: new Uint8Array([0x1b, 0x5b, 0x35, 0x7e]),   // ESC[5~
+	up: new Uint8Array([0x1b, 0x5b, 0x41]), // ESC[A
+	down: new Uint8Array([0x1b, 0x5b, 0x42]), // ESC[B
+	right: new Uint8Array([0x1b, 0x5b, 0x43]), // ESC[C
+	left: new Uint8Array([0x1b, 0x5b, 0x44]), // ESC[D
+	home: new Uint8Array([0x1b, 0x5b, 0x48]), // ESC[H
+	end: new Uint8Array([0x1b, 0x5b, 0x46]), // ESC[F
+	pageUp: new Uint8Array([0x1b, 0x5b, 0x35, 0x7e]), // ESC[5~
 	pageDown: new Uint8Array([0x1b, 0x5b, 0x36, 0x7e]), // ESC[6~
-	insert: new Uint8Array([0x1b, 0x5b, 0x32, 0x7e]),   // ESC[2~
+	insert: new Uint8Array([0x1b, 0x5b, 0x32, 0x7e]), // ESC[2~
 	// Function keys
-	f1: new Uint8Array([0x1b, 0x4f, 0x50]),      // ESCOP
-	f2: new Uint8Array([0x1b, 0x4f, 0x51]),      // ESCOQ
-	f3: new Uint8Array([0x1b, 0x4f, 0x52]),      // ESCOR
-	f4: new Uint8Array([0x1b, 0x4f, 0x53]),      // ESCOS
+	f1: new Uint8Array([0x1b, 0x4f, 0x50]), // ESCOP
+	f2: new Uint8Array([0x1b, 0x4f, 0x51]), // ESCOQ
+	f3: new Uint8Array([0x1b, 0x4f, 0x52]), // ESCOR
+	f4: new Uint8Array([0x1b, 0x4f, 0x53]), // ESCOS
 	f5: new Uint8Array([0x1b, 0x5b, 0x31, 0x35, 0x7e]), // ESC[15~
 };
 
@@ -65,7 +65,9 @@ export function keyToBytes(key: string): Uint8Array {
 		return new TextEncoder().encode(key);
 	}
 
-	throw new Error(`Unknown key: "${key}". Use a single character, a named key, or ctrl+/alt+ combo.`);
+	throw new Error(
+		`Unknown key: "${key}". Use a single character, a named key, or ctrl+/alt+ combo.`,
+	);
 }
 
 /**
@@ -117,7 +119,11 @@ export function simulatePaste(session: MemoryTerminalSession, text: string): voi
 /**
  * Simulate a terminal resize event.
  */
-export function simulateResize(session: MemoryTerminalSession, columns: number, rows: number): void {
+export function simulateResize(
+	session: MemoryTerminalSession,
+	columns: number,
+	rows: number,
+): void {
 	session.simulateResize(columns, rows);
 }
 

@@ -1,4 +1,4 @@
-import { describe, test, expect } from "vitest";
+import { describe, expect, test } from "vitest";
 import { input } from "../src/components/input.js";
 
 describe("Input component", () => {

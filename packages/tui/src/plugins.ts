@@ -7,7 +7,7 @@
  * and cleanup contracts.
  */
 
-import type { TuiNode, TuiNodeProps, EventHandler } from "@seedcli/tui-core";
+import type { EventHandler, TuiNode } from "@seedcli/tui-core";
 
 // ─── Plugin Definition ───
 
@@ -96,7 +96,7 @@ export class PluginRegistry {
 		if (this.plugins.has(plugin.id)) {
 			throw new Error(
 				`[SEED_TUI_PLUGIN_0001] Plugin "${plugin.id}" is already installed. ` +
-				`Uninstall it first with registry.uninstall("${plugin.id}").`,
+					`Uninstall it first with registry.uninstall("${plugin.id}").`,
 			);
 		}
 
@@ -104,8 +104,8 @@ export class PluginRegistry {
 		if (plugin.minApiVersion && !isCompatible(this._apiVersion, plugin.minApiVersion)) {
 			throw new Error(
 				`[SEED_TUI_PLUGIN_0002] Plugin "${plugin.id}" v${plugin.version} requires ` +
-				`TUI API >= ${plugin.minApiVersion}, but current API is v${this._apiVersion}. ` +
-				`Update @seedcli/tui to a compatible version.`,
+					`TUI API >= ${plugin.minApiVersion}, but current API is v${this._apiVersion}. ` +
+					`Update @seedcli/tui to a compatible version.`,
 			);
 		}
 
@@ -146,13 +146,18 @@ export class PluginRegistry {
 	 * Register a custom component.
 	 * Name must be namespaced: "vendor/component-name".
 	 */
-	registerComponent(pluginId: string, name: string, factory: ComponentFactory, version?: string): void {
+	registerComponent(
+		pluginId: string,
+		name: string,
+		factory: ComponentFactory,
+		version?: string,
+	): void {
 		// Validate namespace
 		if (!name.includes("/")) {
 			throw new Error(
 				`[SEED_TUI_PLUGIN_0003] Component name "${name}" must be namespaced ` +
-				`(e.g. "${pluginId.split("/")[0] || "vendor"}/${name}"). ` +
-				`Namespacing prevents conflicts between plugins.`,
+					`(e.g. "${pluginId.split("/")[0] || "vendor"}/${name}"). ` +
+					`Namespacing prevents conflicts between plugins.`,
 			);
 		}
 
@@ -161,8 +166,8 @@ export class PluginRegistry {
 		if (existing && existing.pluginId !== pluginId) {
 			throw new Error(
 				`[SEED_TUI_PLUGIN_0004] Component "${name}" is already registered by ` +
-				`plugin "${existing.pluginId}" (v${existing.version}). ` +
-				`To resolve: either uninstall "${existing.pluginId}" or use a different component name.`,
+					`plugin "${existing.pluginId}" (v${existing.version}). ` +
+					`To resolve: either uninstall "${existing.pluginId}" or use a different component name.`,
 			);
 		}
 
@@ -182,7 +187,7 @@ export class PluginRegistry {
 			const available = this.registeredComponents.join(", ") || "none";
 			throw new Error(
 				`[SEED_TUI_PLUGIN_0005] Component "${name}" is not registered. ` +
-				`Available components: ${available}`,
+					`Available components: ${available}`,
 			);
 		}
 		return comp.factory(options ?? {});

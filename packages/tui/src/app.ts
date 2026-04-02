@@ -1,24 +1,23 @@
 import {
 	type AppConfig,
-	type Frame,
-	type TerminalCapabilities,
-	type TerminalSession,
-	type TuiNode,
-	RenderScheduler,
-	StdTerminalSession,
-	computeLayout,
 	clearDirty,
+	computeLayout,
 	diffFrames,
 	dispatchEvent,
 	dispatchKeyEvent,
+	FocusManager,
+	type Frame,
 	frameToAnsi,
 	parseKeyEvents,
 	patchToAnsi,
+	RenderScheduler,
 	renderTree,
-	FocusManager,
+	StdTerminalSession,
+	type TerminalSession,
+	type TuiNode,
 } from "@seedcli/tui-core";
-import type { AppStateManager, LifecycleState, TuiApp } from "./types.js";
 import { detectCapabilities } from "./capabilities.js";
+import type { AppStateManager, LifecycleState, TuiApp } from "./types.js";
 
 /**
  * Create a new TUI application instance.
@@ -115,7 +114,12 @@ export function createApp(config: AppConfig): TuiApp {
 			}
 
 			// Non-interactive fallback modes
-			if (!caps.isTTY || caps.profile === "static" || caps.profile === "stream" || caps.profile === "plain") {
+			if (
+				!caps.isTTY ||
+				caps.profile === "static" ||
+				caps.profile === "stream" ||
+				caps.profile === "plain"
+			) {
 				state = "running";
 				// Render once and output
 				if (rootNode && session === null) {
@@ -310,8 +314,8 @@ function createStateManager(): AppStateManager {
 			subs.add(cb);
 
 			return () => {
-				subs!.delete(cb);
-				if (subs!.size === 0) {
+				subs?.delete(cb);
+				if (subs?.size === 0) {
 					subscribers.delete(key);
 				}
 			};

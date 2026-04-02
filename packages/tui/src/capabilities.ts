@@ -50,8 +50,9 @@ function detectColorCapability(): ColorCapability {
 
 	// Check stdout color depth (Node/Bun API)
 	if (process.stdout.isTTY) {
-		const depth = (process.stdout as NodeJS.WriteStream & { getColorDepth?: () => number })
-			.getColorDepth?.();
+		const depth = (
+			process.stdout as NodeJS.WriteStream & { getColorDepth?: () => number }
+		).getColorDepth?.();
 		if (depth !== undefined) {
 			if (depth >= 24) return { depth: "truecolor", noColor: false };
 			if (depth >= 8) return { depth: "256", noColor: false };
@@ -67,7 +68,12 @@ function detectColorCapability(): ColorCapability {
 function detectUnicode(): boolean {
 	const lang = process.env.LANG ?? "";
 	const lcAll = process.env.LC_ALL ?? "";
-	return lang.includes("UTF-8") || lang.includes("utf-8") || lcAll.includes("UTF-8") || lcAll.includes("utf-8");
+	return (
+		lang.includes("UTF-8") ||
+		lang.includes("utf-8") ||
+		lcAll.includes("UTF-8") ||
+		lcAll.includes("utf-8")
+	);
 }
 
 function resolveProfile(isTTY: boolean, color: ColorCapability): CapabilityProfile {

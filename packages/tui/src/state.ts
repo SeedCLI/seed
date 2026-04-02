@@ -147,10 +147,10 @@ interface ComputedGetter<T> extends SignalGetter<T> {
  * @returns A dispose function that stops the effect and runs final cleanup.
  */
 export function createEffect(
-	fn: () => void | (() => void),
+	fn: () => undefined | (() => void),
 	deps: Array<() => unknown>,
 ): () => void {
-	let cleanupFn: (() => void) | void = undefined;
+	let cleanupFn: (() => void) | undefined;
 	let disposed = false;
 
 	function run(): void {

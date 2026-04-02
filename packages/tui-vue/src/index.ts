@@ -1,9 +1,4 @@
 // ─── Mount ───
-export { createVueTuiApp } from "./mount.js";
-export type { CreateVueTuiAppOptions, VueTuiErrorContext, VueTuiInstance } from "./mount.js";
-
-// ─── Renderer ───
-export { render, createVueApp, hostConfig } from "./renderer.js";
 
 // ─── Vue Components ───
 export {
@@ -15,3 +10,7 @@ export {
 	TuiSpacer,
 	TuiText,
 } from "./components.js";
+export type { CreateVueTuiAppOptions, VueTuiErrorContext, VueTuiInstance } from "./mount.js";
+export { createVueTuiApp } from "./mount.js";
+// ─── Renderer ───
+export { createVueApp, hostConfig, render } from "./renderer.js";

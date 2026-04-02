@@ -1,13 +1,13 @@
-import { describe, test, expect } from "vitest";
-import { defineComponent, h, ref } from "@vue/runtime-core";
+import type { TuiApp } from "@seedcli/tui";
 import { createNode, type TuiNode } from "@seedcli/tui-core";
+import { defineComponent, h, ref } from "@vue/runtime-core";
+import { describe, expect, test } from "vitest";
 import { createVueTuiApp } from "../src/mount.js";
 import { render } from "../src/renderer.js";
-import type { TuiApp } from "@seedcli/tui";
 
 /** Minimal mock TuiApp for unit testing (no real terminal). */
 function createMockTuiApp(): TuiApp & { mountedRoot: TuiNode | null; running: boolean } {
-	let mountedRoot: TuiNode | null = null;
+	let _mountedRoot: TuiNode | null = null;
 	let running = false;
 
 	return {
@@ -15,7 +15,7 @@ function createMockTuiApp(): TuiApp & { mountedRoot: TuiNode | null; running: bo
 		running: false,
 
 		mount(root: TuiNode): void {
-			mountedRoot = root;
+			_mountedRoot = root;
 			this.mountedRoot = root;
 		},
 
@@ -231,7 +231,13 @@ describe("Vue custom renderer integration", () => {
 
 		// Fire event through handler
 		const handler = [...componentNode.handlers.get("key")!][0];
-		handler({ key: "a", raw: new Uint8Array(), modifiers: new Set(), handled: false, stopPropagation() {} } as never);
+		handler({
+			key: "a",
+			raw: new Uint8Array(),
+			modifiers: new Set(),
+			handled: false,
+			stopPropagation() {},
+		} as never);
 		expect(calls).toEqual(["key-pressed"]);
 	});
 });

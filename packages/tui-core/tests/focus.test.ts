@@ -1,6 +1,6 @@
-import { describe, expect, test, beforeEach } from "vitest";
-import { createNode, appendChild, resetIdCounter } from "../src/tree/node.js";
+import { beforeEach, describe, expect, test } from "vitest";
 import { FocusManager } from "../src/input/focus.js";
+import { appendChild, createNode, resetIdCounter } from "../src/tree/node.js";
 
 beforeEach(() => {
 	resetIdCounter();

@@ -1,13 +1,14 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { directory } from "@seedcli/template";
 import { execa } from "execa";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 const TEMPLATES_DIR = join(import.meta.dirname, "..", "templates");
-const PKG_VERSION = JSON.parse(readFileSync(join(import.meta.dirname, "..", "package.json"), "utf-8"))
-	.version as string;
+const PKG_VERSION = JSON.parse(
+	readFileSync(join(import.meta.dirname, "..", "package.json"), "utf-8"),
+).version as string;
 
 // Resolve tsx to absolute path so it works from temp cwd
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -225,10 +226,14 @@ describe("create-seedcli templates", () => {
 	});
 
 	test("--help flag prints usage", async () => {
-		const result = await execa("node", ["--import", TSX_PATH, join(import.meta.dirname, "..", "src", "index.ts"), "--help"], {
-			stdout: "pipe",
-			stderr: "pipe",
-		});
+		const result = await execa(
+			"node",
+			["--import", TSX_PATH, join(import.meta.dirname, "..", "src", "index.ts"), "--help"],
+			{
+				stdout: "pipe",
+				stderr: "pipe",
+			},
+		);
 
 		expect(result.stdout).toContain("create-seedcli");
 		expect(result.stdout).toContain("--yes");
@@ -237,10 +242,14 @@ describe("create-seedcli templates", () => {
 	});
 
 	test("--version flag prints version", async () => {
-		const result = await execa("node", ["--import", TSX_PATH, join(import.meta.dirname, "..", "src", "index.ts"), "--version"], {
-			stdout: "pipe",
-			stderr: "pipe",
-		});
+		const result = await execa(
+			"node",
+			["--import", TSX_PATH, join(import.meta.dirname, "..", "src", "index.ts"), "--version"],
+			{
+				stdout: "pipe",
+				stderr: "pipe",
+			},
+		);
 
 		expect(result.stdout.trim()).toBe(PKG_VERSION);
 	});

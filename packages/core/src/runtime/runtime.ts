@@ -374,7 +374,12 @@ export class Runtime {
 		const pluginPaths: string[] = [];
 		// Compile glob pattern to RegExp once outside the loop instead of per entry
 		const globRegex = matching
-			? new RegExp(`^${matching.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".")}$`)
+			? new RegExp(
+					`^${matching
+						.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+						.replace(/\*/g, ".*")
+						.replace(/\?/g, ".")}$`,
+				)
 			: undefined;
 
 		for (const entry of entries) {
@@ -608,9 +613,7 @@ export class Runtime {
 						continue;
 					}
 
-					const resolved = namedExport
-						? (mod as Record<string, unknown>)[namedExport]
-						: mod;
+					const resolved = namedExport ? (mod as Record<string, unknown>)[namedExport] : mod;
 					this.moduleCache.set(cacheKey, resolved);
 					(seed as unknown as Record<string, unknown>)[name] = resolved;
 				}

@@ -6,14 +6,14 @@
  * and scheduler integration.
  */
 
+import type { TuiApp } from "@seedcli/tui";
+import { createNode, disposeNode, type TuiNode } from "@seedcli/tui-core";
 import {
 	type Component,
-	type App as VueAppInstance,
 	type ComponentPublicInstance,
 	createVNode,
+	type App as VueAppInstance,
 } from "@vue/runtime-core";
-import { createNode, disposeNode, type TuiNode } from "@seedcli/tui-core";
-import type { TuiApp } from "@seedcli/tui";
 import { render } from "./renderer.js";
 
 export interface VueTuiErrorContext {
@@ -77,8 +77,12 @@ export function createVueTuiApp(
 	// Use a minimal "app shell" that wraps the root component.
 	const vueApp = {
 		config: {
-			errorHandler: null as ((err: unknown, instance: ComponentPublicInstance | null, info: string) => void) | null,
-			warnHandler: null as ((msg: string, instance: ComponentPublicInstance | null, trace: string) => void) | null,
+			errorHandler: null as
+				| ((err: unknown, instance: ComponentPublicInstance | null, info: string) => void)
+				| null,
+			warnHandler: null as
+				| ((msg: string, instance: ComponentPublicInstance | null, trace: string) => void)
+				| null,
 		},
 		use: () => vueApp,
 		provide: () => vueApp,
@@ -91,15 +95,13 @@ export function createVueTuiApp(
 		info: string,
 	) => {
 		const inst = instance as unknown as Record<string, unknown> | null;
-		const componentName = inst?.$options
-			? String(inst.$options)
-			: "Unknown";
+		const componentName = inst?.$options ? String(inst.$options) : "Unknown";
 		if (errorHandler) {
 			errorHandler(err, { component: componentName, phase: info });
 		} else {
 			console.error(
 				`[SEED_TUI_VUE_0002] Unhandled error in Vue TUI component "${componentName}" ` +
-				`during "${info}":\n`,
+					`during "${info}":\n`,
 				err,
 			);
 		}
@@ -111,9 +113,7 @@ export function createVueTuiApp(
 		_instance: ComponentPublicInstance | null,
 		trace: string,
 	) => {
-		console.warn(
-			`[SEED_TUI_VUE_WARN] ${msg}\n  Trace: ${trace}`,
-		);
+		console.warn(`[SEED_TUI_VUE_WARN] ${msg}\n  Trace: ${trace}`);
 	};
 
 	let mounted = false;
@@ -126,7 +126,7 @@ export function createVueTuiApp(
 			if (mounted) {
 				throw new Error(
 					"[SEED_TUI_VUE_0003] Vue TUI app is already mounted. " +
-					"Call unmount() before mounting again.",
+						"Call unmount() before mounting again.",
 				);
 			}
 

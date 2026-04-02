@@ -1,13 +1,13 @@
-import { describe, test, expect } from "vitest";
-import { createNode, appendChild, setContent } from "../src/tree/node.js";
-import type { Frame, Cell } from "../src/types.js";
+import { describe, expect, test } from "vitest";
 import {
+	assertFrameSnapshot,
+	diffSnapshots,
 	serializeFrame,
 	serializeFrameWithStyles,
 	serializeTree,
-	diffSnapshots,
-	assertFrameSnapshot,
 } from "../src/testing/snapshot.js";
+import { appendChild, createNode } from "../src/tree/node.js";
+import type { Cell, Frame } from "../src/types.js";
 
 function makeFrame(width: number, height: number, content: string[][]): Frame {
 	const cells: Cell[][] = [];

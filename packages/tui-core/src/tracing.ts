@@ -6,7 +6,7 @@
  * diagnostics and performance profiling.
  */
 
-import type { KeyEvent, TuiNode, Frame } from "./types.js";
+import type { KeyEvent, TuiNode } from "./types.js";
 
 // ─── Trace Event Types ───
 
@@ -22,7 +22,7 @@ export interface InputTraceEvent {
 export interface FocusTraceEvent {
 	type: "focus";
 	from: string | null; // node ID
-	to: string | null;   // node ID
+	to: string | null; // node ID
 	timestamp: number;
 }
 
@@ -144,9 +144,7 @@ export class TraceCollector {
 	}
 
 	/** Get events of a specific type. */
-	getEventsByType<T extends TraceEvent["type"]>(
-		type: T,
-	): Extract<TraceEvent, { type: T }>[] {
+	getEventsByType<T extends TraceEvent["type"]>(type: T): Extract<TraceEvent, { type: T }>[] {
 		return this.events.filter((e) => e.type === type) as Extract<TraceEvent, { type: T }>[];
 	}
 
@@ -167,15 +165,15 @@ export class TraceCollector {
 			focusCount: this.getEventsByType("focus").length,
 			layoutCount: layoutEvents.length,
 			renderCount: renderEvents.length,
-			avgRenderMs: renderEvents.length > 0
-				? renderEvents.reduce((sum, e) => sum + e.durationMs, 0) / renderEvents.length
-				: 0,
-			avgLayoutMs: layoutEvents.length > 0
-				? layoutEvents.reduce((sum, e) => sum + e.durationMs, 0) / layoutEvents.length
-				: 0,
-			maxRenderMs: renderEvents.length > 0
-				? Math.max(...renderEvents.map((e) => e.durationMs))
-				: 0,
+			avgRenderMs:
+				renderEvents.length > 0
+					? renderEvents.reduce((sum, e) => sum + e.durationMs, 0) / renderEvents.length
+					: 0,
+			avgLayoutMs:
+				layoutEvents.length > 0
+					? layoutEvents.reduce((sum, e) => sum + e.durationMs, 0) / layoutEvents.length
+					: 0,
+			maxRenderMs: renderEvents.length > 0 ? Math.max(...renderEvents.map((e) => e.durationMs)) : 0,
 			droppedInputs: inputEvents.filter((e) => !e.handled).length,
 		};
 	}
