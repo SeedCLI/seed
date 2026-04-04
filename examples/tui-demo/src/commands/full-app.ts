@@ -166,7 +166,7 @@ export const fullAppCommand = command({
 			p._progress.setValue(getProgress());
 		}
 
-		createEffect(() => {
+		createEffect((): undefined => {
 			const p = getProgress();
 			if (p >= 1) {
 				statusText.content = "All tasks complete!";

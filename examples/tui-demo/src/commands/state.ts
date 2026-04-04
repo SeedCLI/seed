@@ -37,7 +37,7 @@ export const stateCommand = command({
 
 		// --- Effect ---
 		const effectLog = text("Effect: waiting for changes...", { dim: true, height: 1 });
-		createEffect(() => {
+		createEffect((): undefined => {
 			const c = getCount();
 			effectLog.content = `Effect fired! Count changed to ${c}`;
 		}, [getCount]);

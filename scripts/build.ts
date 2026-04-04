@@ -7,11 +7,14 @@
 
 import { execFile } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const require = createRequire(import.meta.url);
+const tscBin = require.resolve("typescript/lib/tsc.js");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -81,15 +84,18 @@ async function main() {
 		process.stdout.write(`Building @seedcli/${pkg}...`);
 
 		try {
-			await execFileAsync("npx", ["tsc", "--project", buildConfig], {
+			await execFileAsync(process.execPath, [tscBin, "--project", buildConfig], {
 				cwd: ROOT,
 			});
 			console.log(` OK`);
 		} catch (err: unknown) {
 			console.log(` FAIL`);
-			const error = err as { stdout?: string; stderr?: string };
+			const error = err as { stdout?: string; stderr?: string; message?: string };
 			if (error.stdout?.trim()) console.error(error.stdout);
 			if (error.stderr?.trim()) console.error(error.stderr);
+			if (!error.stdout?.trim() && !error.stderr?.trim() && error.message) {
+				console.error(error.message);
+			}
 			console.error(`\nBuild failed at @seedcli/${pkg}.`);
 			process.exit(1);
 		}
