@@ -129,7 +129,7 @@ describe("package-manager", () => {
 		});
 
 		test("creates manager and gets version", async () => {
-			const pm = await create("bun");
+			const pm = await create("pnpm");
 			const version = await pm.version();
 			expect(version).toMatch(/\d+\.\d+/);
 		});
