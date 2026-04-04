@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { isPlural, isSingular, plural, singular } from "../src/pluralize.js";
 
 describe("plural", () => {

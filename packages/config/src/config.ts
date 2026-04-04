@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { loadConfig } from "c12";
 import type { LoadOptions, ResolvedConfig } from "./types.js";
 
@@ -47,8 +48,7 @@ export async function load<T extends Record<string, unknown> = Record<string, un
 export async function loadFile<T extends Record<string, unknown> = Record<string, unknown>>(
 	filePath: string,
 ): Promise<T> {
-	const file = Bun.file(filePath);
-	const text = await file.text();
+	const text = await readFile(filePath, "utf-8");
 
 	if (filePath.endsWith(".json")) {
 		try {

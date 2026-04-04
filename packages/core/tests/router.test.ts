@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { flattenCommands, route } from "../src/command/router.js";
 import { command } from "../src/index.js";
 

@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 function detectIndent(content: string): string | number {
@@ -23,8 +23,7 @@ export async function patchJson<T = Record<string, unknown>>(
 ): Promise<void> {
 	let raw: string;
 	try {
-		const file = Bun.file(filePath);
-		raw = await file.text();
+		raw = await readFile(filePath, "utf-8");
 	} catch (err) {
 		throw new Error(
 			`Failed to read "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
@@ -60,5 +59,5 @@ export async function patchJson<T = Record<string, unknown>>(
 	}
 
 	await mkdir(dirname(filePath), { recursive: true });
-	await Bun.write(filePath, json);
+	await writeFile(filePath, json);
 }

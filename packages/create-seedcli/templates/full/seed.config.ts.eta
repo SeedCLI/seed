@@ -10,7 +10,12 @@ export default defineConfig({
 	// Build configuration
 	// build: {
 	//   entry: "src/index.ts",
-	//   outDir: "dist",
+	//   bundle: {
+	//     outdir: "dist",
+	//   },
+	//   compile: {
+	//     targets: ["node24-macos-arm64"],
+	//   },
 	// },
 
 	// Plugin directories to scan

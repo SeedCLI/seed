@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import { join } from "node:path";
 import { build } from "@seedcli/core";
@@ -8,7 +8,7 @@ import { devCommand } from "./commands/dev.js";
 import { generateCommand } from "./commands/generate.js";
 import { newCommand } from "./commands/new.js";
 
-const pkg = await readJson<{ version: string }>(join(import.meta.dir, "..", "package.json"));
+const pkg = await readJson<{ version: string }>(join(import.meta.dirname, "..", "package.json"));
 
 const cli = build("seed")
 	.command(newCommand)

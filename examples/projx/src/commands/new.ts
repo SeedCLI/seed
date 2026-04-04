@@ -67,7 +67,7 @@ export const newCommand = command({
 		const spinner = print.spin(`Scaffolding ${projectName}...`);
 
 		// Resolve template directory relative to this file
-		const templatesRoot = filesystem.path.resolve(import.meta.dir, "../../templates");
+		const templatesRoot = filesystem.path.resolve(import.meta.dirname, "../../templates");
 		const templateDir = filesystem.path.join(templatesRoot, templateChoice);
 
 		if (!(await filesystem.exists(templateDir))) {
@@ -107,6 +107,6 @@ export const newCommand = command({
 		}
 
 		print.success(`\nProject created: ${targetDir}`);
-		print.muted(`  cd ${targetDir} && bun dev`);
+		print.muted(`  cd ${targetDir} && pnpm dev`);
 	},
 });

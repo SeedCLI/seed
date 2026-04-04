@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { getCommands } from "../src/commands.js";
 import { detect } from "../src/detect.js";
 import { create } from "../src/manager.js";
@@ -44,36 +44,36 @@ describe("package-manager", () => {
 		});
 
 		test("detects from packageManager field", async () => {
-			await Bun.write(join(dir, "package.json"), JSON.stringify({ packageManager: "yarn@4.0.0" }));
+			await writeFile(join(dir, "package.json"), JSON.stringify({ packageManager: "yarn@4.0.0" }));
 			expect(await detect(dir)).toBe("yarn");
 		});
 
 		test("detects pnpm from packageManager field", async () => {
-			await Bun.write(join(dir, "package.json"), JSON.stringify({ packageManager: "pnpm@9.1.0" }));
+			await writeFile(join(dir, "package.json"), JSON.stringify({ packageManager: "pnpm@9.1.0" }));
 			expect(await detect(dir)).toBe("pnpm");
 		});
 
-		test("defaults to bun when no lockfile or packageManager field", async () => {
-			expect(await detect(dir)).toBe("bun");
+		test("defaults to npm when no lockfile or packageManager field", async () => {
+			expect(await detect(dir)).toBe("npm");
 		});
 
 		test("lockfile takes priority over packageManager field", async () => {
 			await writeFile(join(dir, "package-lock.json"), "");
-			await Bun.write(join(dir, "package.json"), JSON.stringify({ packageManager: "yarn@4.0.0" }));
+			await writeFile(join(dir, "package.json"), JSON.stringify({ packageManager: "yarn@4.0.0" }));
 			expect(await detect(dir)).toBe("npm");
 		});
 
-		test("defaults to bun when package.json has no packageManager field", async () => {
-			await Bun.write(join(dir, "package.json"), JSON.stringify({ name: "test" }));
-			expect(await detect(dir)).toBe("bun");
+		test("defaults to npm when package.json has no packageManager field", async () => {
+			await writeFile(join(dir, "package.json"), JSON.stringify({ name: "test" }));
+			expect(await detect(dir)).toBe("npm");
 		});
 
-		test("defaults to bun when package.json has invalid packageManager", async () => {
-			await Bun.write(
+		test("defaults to npm when package.json has invalid packageManager", async () => {
+			await writeFile(
 				join(dir, "package.json"),
 				JSON.stringify({ packageManager: "unknown@1.0.0" }),
 			);
-			expect(await detect(dir)).toBe("bun");
+			expect(await detect(dir)).toBe("npm");
 		});
 	});
 
@@ -129,7 +129,7 @@ describe("package-manager", () => {
 		});
 
 		test("creates manager and gets version", async () => {
-			const pm = await create("bun");
+			const pm = await create("pnpm");
 			const version = await pm.version();
 			expect(version).toMatch(/\d+\.\d+/);
 		});
@@ -146,9 +146,9 @@ describe("package-manager", () => {
 			expect(pm.name).toBe("npm");
 		});
 
-		test("defaults to bun when no indicators present", async () => {
+		test("defaults to npm when no indicators present", async () => {
 			const pm = await create(undefined, dir);
-			expect(pm.name).toBe("bun");
+			expect(pm.name).toBe("npm");
 		});
 	});
 });

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { Builder, build } from "../src/runtime/builder.js";
 
 // ─── Builder defaults ───

@@ -1,14 +1,23 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node --import tsx
 
 /**
  * Build all packages in the monorepo.
- * Compiles TypeScript → JavaScript + .d.ts + source maps into dist/ folders.
+ * Compiles TypeScript -> JavaScript + .d.ts + source maps into dist/ folders.
  */
 
+import { execFile } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
-const ROOT = join(import.meta.dir, "..");
+const execFileAsync = promisify(execFile);
+const require = createRequire(import.meta.url);
+const tscBin = require.resolve("typescript/lib/tsc.js");
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(__dirname, "..");
 
 // Build order respects dependency graph (leaf packages first)
 const packages = [
@@ -30,6 +39,9 @@ const packages = [
 
 	// Tier 1.5 — depends on tier 1 (ui depends on print)
 	"ui",
+	"tui-core",
+	"tui",
+	"tui-vue",
 
 	// Tier 2 — depends on tier 1
 	"core",
@@ -41,57 +53,58 @@ const packages = [
 	"create-seedcli",
 ];
 
-const args = process.argv.slice(2);
-const cleanOnly = args.includes("--clean");
+async function main() {
+	const args = process.argv.slice(2);
+	const cleanOnly = args.includes("--clean");
 
-// Clean dist/ folders
-console.log("Cleaning dist/ folders...");
-for (const pkg of packages) {
-	const distDir = join(ROOT, "packages", pkg, "dist");
-	if (existsSync(distDir)) {
-		rmSync(distDir, { recursive: true });
-	}
-}
-
-if (cleanOnly) {
-	console.log("Done.");
-	process.exit(0);
-}
-
-// Build each package
-for (const pkg of packages) {
-	const pkgDir = join(ROOT, "packages", pkg);
-	const buildConfig = join(pkgDir, "tsconfig.build.json");
-
-	if (!existsSync(buildConfig)) {
-		console.log(`⏭  ${pkg} — no tsconfig.build.json, skipping`);
-		continue;
+	// Clean dist/ folders
+	console.log("Cleaning dist/ folders...");
+	for (const pkg of packages) {
+		const distDir = join(ROOT, "packages", pkg, "dist");
+		if (existsSync(distDir)) {
+			rmSync(distDir, { recursive: true });
+		}
 	}
 
-	process.stdout.write(`Building @seedcli/${pkg}...`);
-
-	const proc = Bun.spawn(["bunx", "tsc", "--project", buildConfig], {
-		cwd: ROOT,
-		stdout: "pipe",
-		stderr: "pipe",
-	});
-
-	// Read streams before waiting for exit to avoid deadlocks
-	const [stdout, stderr, exitCode] = await Promise.all([
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-		proc.exited,
-	]);
-
-	if (exitCode !== 0) {
-		console.log(` FAIL`);
-		if (stdout.trim()) console.error(stdout);
-		if (stderr.trim()) console.error(stderr);
-		console.error(`\nBuild failed at @seedcli/${pkg}.`);
-		process.exit(1);
-	} else {
-		console.log(` OK`);
+	if (cleanOnly) {
+		console.log("Done.");
+		process.exit(0);
 	}
+
+	// Build each package
+	for (const pkg of packages) {
+		const pkgDir = join(ROOT, "packages", pkg);
+		const buildConfig = join(pkgDir, "tsconfig.build.json");
+
+		if (!existsSync(buildConfig)) {
+			console.log(`⏭  ${pkg} — no tsconfig.build.json, skipping`);
+			continue;
+		}
+
+		process.stdout.write(`Building @seedcli/${pkg}...`);
+
+		try {
+			await execFileAsync(process.execPath, [tscBin, "--project", buildConfig], {
+				cwd: ROOT,
+			});
+			console.log(` OK`);
+		} catch (err: unknown) {
+			console.log(` FAIL`);
+			const error = err as { stdout?: string; stderr?: string; message?: string };
+			if (error.stdout?.trim()) console.error(error.stdout);
+			if (error.stderr?.trim()) console.error(error.stderr);
+			if (!error.stdout?.trim() && !error.stderr?.trim() && error.message) {
+				console.error(error.message);
+			}
+			console.error(`\nBuild failed at @seedcli/${pkg}.`);
+			process.exit(1);
+		}
+	}
+
+	console.log("\nAll packages built successfully.");
 }
 
-console.log("\nAll packages built successfully.");
+main().catch((err) => {
+	console.error(err);
+	process.exit(1);
+});

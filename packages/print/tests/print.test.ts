@@ -1,13 +1,13 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { print, setDebugMode } from "../src/log.js";
 
 describe("print module", () => {
-	let logSpy: ReturnType<typeof mock>;
-	let errorSpy: ReturnType<typeof mock>;
+	let logSpy: ReturnType<typeof vi.fn>;
+	let errorSpy: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
-		logSpy = mock();
-		errorSpy = mock();
+		logSpy = vi.fn();
+		errorSpy = vi.fn();
 		console.log = logSpy;
 		console.error = errorSpy;
 	});

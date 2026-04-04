@@ -4,7 +4,7 @@
 
 **Package**: `@seedcli/core`
 **Phase**: 1 (Foundation)
-**Dependencies**: None (Bun-native)
+**Dependencies**: None (Node.js-native)
 
 ---
 
@@ -129,7 +129,7 @@ const cli = build("mycli");
 Set the source directory for auto-discovering commands and extensions.
 
 ```ts
-.src(import.meta.dir)
+.src(import.meta.dirname)
 ```
 
 When set, the runtime will scan for:
@@ -181,7 +181,7 @@ Load one or more plugins by name. Accepts a single string or an array. Each plug
 
 **Resolution order per plugin:**
 
-1. Try `import(name)` (npm package via Bun module resolution)
+1. Try `import(name)` (npm package via Node.js module resolution)
 2. Try resolving as relative path
 3. Throw if not found
 
@@ -329,7 +329,7 @@ await runtime.run(["deploy", "staging", "--force"]);
 
 ### Base Layer: `node:util parseArgs`
 
-We use Node.js (Bun-compatible) `parseArgs` as the low-level parser, then add our type-safe layer on top.
+We use Node.js `parseArgs` as the low-level parser, then add our type-safe layer on top.
 
 ### `arg(definition)` — Positional Arguments
 
@@ -563,8 +563,8 @@ export default defineConfig({
   // Build settings
   build: {
     compile: {
-      targets: ["bun-darwin-arm64", "bun-linux-x64"],
-      embed: ["./templates/**", "./vendor/**"],
+      targets: ["node24-macos-arm64", "node24-linux-x64"],
+      sourcemap: true,
     },
   },
 
@@ -700,7 +700,7 @@ ERROR: Command "deploy" failed
 ## Testing the Core
 
 ```ts
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { build, command, arg, flag } from "@seedcli/core";
 
 test("parser infers string arg", async () => {

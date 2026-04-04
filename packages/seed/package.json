@@ -18,17 +18,17 @@
 		"framework"
 	],
 	"engines": {
-		"bun": ">=1.3.0"
+		"node": ">=24.0.0"
 	},
 	"publishConfig": {
 		"access": "public"
 	},
-	"main": "./src/index.ts",
-	"types": "./src/index.ts",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./src/index.ts",
-			"types": "./src/index.ts"
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
 		}
 	},
 	"files": [
@@ -50,6 +50,7 @@
 		"@seedcli/system": "workspace:*",
 		"@seedcli/template": "workspace:*",
 		"@seedcli/testing": "workspace:*",
+		"@seedcli/tui": "workspace:*",
 		"@seedcli/ui": "workspace:*"
 	}
 }

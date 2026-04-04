@@ -15,7 +15,7 @@ export async function createOpenAPIClient<Paths extends Record<string, unknown>>
 			("code" in err ? (err as { code: string }).code === "ERR_MODULE_NOT_FOUND" : false);
 		if (isModuleNotFound) {
 			throw new Error(
-				"openapi-fetch is required for createOpenAPIClient. Install it with: bun add openapi-fetch",
+				"openapi-fetch is required for createOpenAPIClient. Install it with: npm install openapi-fetch",
 				{ cause: err },
 			);
 		}

@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
 import { build, command } from "@seedcli/core";
+import { describe, expect, test } from "vitest";
 import { createInterceptor } from "../src/interceptor.js";
 import { applyEnvMocks } from "../src/mocks.js";
 import { createTestCli } from "../src/test-cli.js";

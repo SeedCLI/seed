@@ -1,16 +1,16 @@
 # @seedcli/testing — Test Utilities
 
-> CLI test runner, mocking, and snapshot testing utilities for Bun's test runner.
+> CLI test runner, mocking, and snapshot testing utilities for vitest.
 
 **Package**: `@seedcli/testing`
 **Phase**: 4 (Advanced Features)
-**Dependencies**: `bun:test` (Bun built-in)
+**Dependencies**: `vitest`
 
 ---
 
 ## Overview
 
-Provides a testing toolkit for CLI applications built with Seed CLI. Designed to work with `bun:test`. Key features:
+Provides a testing toolkit for CLI applications built with Seed CLI. Designed to work with `vitest`. Key features:
 
 - **`createTestCli()`** — Run CLI commands in isolation, capture output
 - **Prompt mocking** — Simulate user input without interactive prompts
@@ -55,7 +55,7 @@ export { mockSeed, type MockSeedOptions } from "./mock-seed";
 Creates an isolated test environment for running CLI commands.
 
 ```ts
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createTestCli } from "@seedcli/testing";
 import { cli } from "../src";
 
@@ -293,7 +293,7 @@ All seed modules (`print`, `prompt`, `filesystem`, etc.) are stubbed with no-op 
 ### Output Snapshots
 
 ```ts
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 
 test("help output", async () => {
   const result = await createTestCli(cli).run("--help");
@@ -306,14 +306,14 @@ test("error output", async () => {
 });
 ```
 
-Bun's built-in `toMatchSnapshot()` handles snapshot creation and comparison.
+Vitest's built-in `toMatchSnapshot()` handles snapshot creation and comparison.
 
 ---
 
 ## Full Example
 
 ```ts
-import { test, expect, describe, beforeAll } from "bun:test";
+import { test, expect, describe, beforeAll } from "vitest";
 import { createTestCli } from "@seedcli/testing";
 import { build, command, arg, flag } from "@seedcli/core";
 

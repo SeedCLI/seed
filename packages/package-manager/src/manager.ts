@@ -1,25 +1,29 @@
+import { execaCommand } from "execa";
 import { getCommands } from "./commands.js";
 import { detect } from "./detect.js";
 import type { InstallOptions, PackageManager, PackageManagerName, RunOptions } from "./types.js";
 
 async function exec(args: string[], options?: { cwd?: string; silent?: boolean }): Promise<string> {
-	const proc = Bun.spawn(args, {
-		cwd: options?.cwd,
-		stdout: options?.silent ? "pipe" : "inherit",
-		stderr: options?.silent ? "pipe" : "inherit",
-	});
+	const command = args.join(" ");
 
-	const exitCode = await proc.exited;
+	try {
+		const result = await execaCommand(command, {
+			cwd: options?.cwd,
+			stdout: options?.silent ? "pipe" : "inherit",
+			stderr: options?.silent ? "pipe" : "inherit",
+		});
 
-	if (exitCode !== 0) {
-		const stderr = options?.silent ? await new Response(proc.stderr).text() : "";
-		throw new Error(`Command failed: ${args.join(" ")}${stderr ? `\n${stderr}` : ""}`);
+		if (options?.silent) {
+			return result.stdout ?? "";
+		}
+		return "";
+	} catch (error: unknown) {
+		const stderr =
+			options?.silent && error && typeof error === "object" && "stderr" in error
+				? String((error as { stderr: unknown }).stderr)
+				: "";
+		throw new Error(`Command failed: ${command}${stderr ? `\n${stderr}` : ""}`);
 	}
-
-	if (options?.silent && proc.stdout) {
-		return await new Response(proc.stdout).text();
-	}
-	return "";
 }
 
 function createManager(pmName: PackageManagerName, cwd?: string): PackageManager {

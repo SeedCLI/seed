@@ -1,14 +1,17 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
+import { execFile } from "node:child_process";
 import { join } from "node:path";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 describe("<%= it.name %>", () => {
 	test("hello command prints greeting", async () => {
-		const proc = Bun.spawn(["bun", "run", join(import.meta.dir, "..", "src", "index.ts"), "hello"], {
-			stdout: "pipe",
-			stderr: "pipe",
-		});
-		const stdout = await new Response(proc.stdout).text();
-		await proc.exited;
+		const { stdout } = await execFileAsync("node", [
+			"--import", "tsx",
+			join(import.meta.dirname, "..", "src", "index.ts"),
+			"hello",
+		]);
 
 		expect(stdout).toContain("Hello from <%= it.name %>!");
 	});

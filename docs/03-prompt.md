@@ -158,7 +158,7 @@ const color = await prompt.select("Color?", ["red", "green", "blue"] as const);
 
 // Object array — infers from value
 const pm = await prompt.select("Package manager?", [
-  { label: "Bun (recommended)", value: "bun" },
+  { label: "Bun", value: "bun" },
   { label: "npm", value: "npm" },
   { label: "yarn", value: "yarn" },
   { label: "pnpm", value: "pnpm" },

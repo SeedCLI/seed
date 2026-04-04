@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { arg, command, defineConfig, defineExtension, definePlugin, flag } from "../src/index.js";
 
 describe("arg()", () => {
@@ -125,20 +125,10 @@ describe("defineConfig()", () => {
 		const config = defineConfig({
 			build: {
 				compile: {
-					targets: ["bun-darwin-arm64", "bun-linux-x64", "bun-windows-x64"],
-					bytecode: true,
+					targets: ["node24-macos-arm64", "node24-linux-x64", "node24-win-x64"],
 					sourcemap: true,
 					splitting: false,
 					define: { "process.env.NODE_ENV": '"production"' },
-					windows: {
-						icon: "icon.ico",
-						hideConsole: true,
-						title: "My CLI",
-						publisher: "Acme",
-						version: "1.0.0",
-						description: "A CLI tool",
-						copyright: "2026 Acme",
-					},
 				},
 				bundle: {
 					outdir: "dist",
@@ -148,17 +138,25 @@ describe("defineConfig()", () => {
 			dev: { entry: "src/index.ts" },
 		});
 		expect(config.build?.compile?.targets).toEqual([
-			"bun-darwin-arm64",
-			"bun-linux-x64",
-			"bun-windows-x64",
+			"node24-macos-arm64",
+			"node24-linux-x64",
+			"node24-win-x64",
 		]);
-		expect(config.build?.compile?.bytecode).toBe(true);
 		expect(config.build?.compile?.sourcemap).toBe(true);
 		expect(config.build?.compile?.splitting).toBe(false);
 		expect(config.build?.compile?.define).toEqual({ "process.env.NODE_ENV": '"production"' });
-		expect(config.build?.compile?.windows?.icon).toBe("icon.ico");
-		expect(config.build?.compile?.windows?.hideConsole).toBe(true);
 		expect(config.build?.bundle?.sourcemap).toBe(true);
 		expect(config.dev?.entry).toBe("src/index.ts");
+	});
+
+	test("accepts 'all' as a compile target", () => {
+		const config = defineConfig({
+			build: {
+				compile: {
+					targets: ["all"],
+				},
+			},
+		});
+		expect(config.build?.compile?.targets).toEqual(["all"]);
 	});
 });

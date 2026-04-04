@@ -1,4 +1,4 @@
-import { mkdir, readdir } from "node:fs/promises";
+import { access, copyFile, mkdir, readdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { renderFile } from "./engine.js";
 import type { DirectoryOptions } from "./types.js";
@@ -18,12 +18,22 @@ function replaceDynamicSegments(filePath: string, props: Record<string, unknown>
 
 function shouldIgnore(filePath: string, ignore: string[]): boolean {
 	for (const pattern of ignore) {
-		const glob = new Bun.Glob(pattern);
-		if (glob.match(filePath)) {
+		if (isGlobMatch(filePath, pattern)) {
 			return true;
 		}
 	}
 	return false;
+}
+
+function isGlobMatch(filePath: string, pattern: string): boolean {
+	// Convert glob pattern to regex for matching
+	const regexStr = pattern
+		.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+		.replace(/\*\*/g, "\0")
+		.replace(/\*/g, "[^/]*")
+		.replace(/\0/g, ".*")
+		.replace(/\?/g, ".");
+	return new RegExp(`^${regexStr}$`).test(filePath);
 }
 
 async function walkDirectory(dir: string): Promise<string[]> {
@@ -81,9 +91,11 @@ export async function directory(options: DirectoryOptions): Promise<string[]> {
 		}
 
 		if (!options.overwrite) {
-			const file = Bun.file(targetPath);
-			if (await file.exists()) {
+			try {
+				await access(targetPath);
 				continue;
+			} catch {
+				// File does not exist, proceed
 			}
 		}
 
@@ -91,10 +103,9 @@ export async function directory(options: DirectoryOptions): Promise<string[]> {
 
 		if (isTemplate) {
 			const content = await renderFile(filePath, props);
-			await Bun.write(targetPath, content);
+			await writeFile(targetPath, content);
 		} else {
-			const content = await Bun.file(filePath).arrayBuffer();
-			await Bun.write(targetPath, content);
+			await copyFile(filePath, targetPath);
 		}
 
 		created.push(targetPath);

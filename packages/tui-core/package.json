@@ -1,0 +1,41 @@
+{
+	"name": "@seedcli/tui-core",
+	"version": "1.0.0",
+	"description": "Core TUI engine: terminal session, retained tree, layout, input, and renderer",
+	"type": "module",
+	"license": "MIT",
+	"author": "Rully Ardiansyah <rully@dreamshive.io>",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/SeedCLI/seed",
+		"directory": "packages/tui-core"
+	},
+	"homepage": "https://seedcli.dev",
+	"keywords": [
+		"cli",
+		"tui",
+		"terminal",
+		"ui",
+		"engine",
+		"layout",
+		"renderer"
+	],
+	"engines": {
+		"node": ">=24.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": [
+		"dist",
+		"LICENSE"
+	]
+}

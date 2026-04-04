@@ -265,7 +265,7 @@ Priority order:
 3. `yarn.lock` → `yarn`
 4. `package-lock.json` → `npm`
 5. Check `packageManager` field in `package.json`
-6. Default: `bun` (since we're a Bun framework)
+6. Default: `npm` (most common fallback)
 
 ### Command Mapping
 
@@ -338,7 +338,7 @@ Two levels of config (see [01-core-runtime.md](./01-core-runtime.md#configuratio
 import { defineConfig } from "@seedcli/core";
 
 export default defineConfig({
-  build: { compile: { targets: ["bun-darwin-arm64"] } },
+  build: { compile: { targets: ["node24-macos-arm64"] } },
   dev: { entry: "src/index.ts" },
 });
 ```

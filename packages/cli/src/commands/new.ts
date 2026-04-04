@@ -8,8 +8,8 @@ import { kebabCase } from "@seedcli/strings";
 import { exec } from "@seedcli/system";
 import { directory } from "@seedcli/template";
 
-const TEMPLATES_DIR = join(import.meta.dir, "..", "..", "templates", "new");
-const PKG_PATH = join(import.meta.dir, "..", "..", "package.json");
+const TEMPLATES_DIR = join(import.meta.dirname, "..", "..", "templates", "new");
+const PKG_PATH = join(import.meta.dirname, "..", "..", "package.json");
 
 export const newCommand = command({
 	name: "new",
@@ -138,7 +138,7 @@ export const newCommand = command({
 				installSpinner.succeed("Dependencies installed");
 			} catch {
 				installSpinner.fail("Failed to install dependencies");
-				warning("Run `bun install` manually in the project directory");
+				warning("Run `npm install` manually in the project directory");
 			}
 		}
 
@@ -150,7 +150,7 @@ export const newCommand = command({
 		info(`  cd ${name}`);
 
 		if (template === "plugin") {
-			info("  bun test");
+			info("  npm test");
 			muted(`\n  To use this plugin in a CLI:\n`);
 			info(`  import plugin from "${name}";`);
 			info("");
@@ -158,10 +158,10 @@ export const newCommand = command({
 			info("    .plugin(plugin)");
 			info("    .create();");
 		} else {
-			info("  bun run dev");
-			info("  bun run src/index.ts --help");
+			info("  npm run dev");
+			info("  npx tsx src/index.ts --help");
 			muted(`\n  To use "${name}" as a global command:\n`);
-			info("  bun link");
+			info("  npm link");
 		}
 		newline();
 	},

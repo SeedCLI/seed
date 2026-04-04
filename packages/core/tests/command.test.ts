@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { command } from "../src/types/command.js";
 
 // ─── command() name validation ───

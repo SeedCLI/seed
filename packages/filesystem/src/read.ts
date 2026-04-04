@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { parse as parseToml } from "smol-toml";
 import { FileNotFoundError, PermissionError } from "./errors.js";
 
 function handleError(err: unknown, filePath: string): never {
@@ -14,12 +16,11 @@ function handleError(err: unknown, filePath: string): never {
 
 export async function read(filePath: string, encoding?: BufferEncoding): Promise<string> {
 	try {
-		const file = Bun.file(filePath);
 		if (encoding && encoding !== "utf-8" && encoding !== "utf8") {
-			const buf = await file.arrayBuffer();
+			const buf = await readFile(filePath);
 			return new TextDecoder(encoding).decode(buf);
 		}
-		return await file.text();
+		return await readFile(filePath, "utf-8");
 	} catch (err) {
 		return handleError(err, filePath);
 	}
@@ -39,9 +40,7 @@ export async function readJson<T = unknown>(filePath: string): Promise<T> {
 
 export async function readBuffer(filePath: string): Promise<Buffer> {
 	try {
-		const file = Bun.file(filePath);
-		const arrayBuffer = await file.arrayBuffer();
-		return Buffer.from(arrayBuffer);
+		return await readFile(filePath);
 	} catch (err) {
 		return handleError(err, filePath);
 	}
@@ -50,7 +49,7 @@ export async function readBuffer(filePath: string): Promise<Buffer> {
 export async function readToml<T = unknown>(filePath: string): Promise<T> {
 	const content = await read(filePath);
 	try {
-		return Bun.TOML.parse(content) as T;
+		return parseToml(content) as T;
 	} catch (err) {
 		throw new Error(
 			`Failed to parse TOML in "${filePath}": ${err instanceof Error ? err.message : String(err)}`,

@@ -16,14 +16,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          bun-version: "1.3"
-      - run: bun install --frozen-lockfile
-      - run: bun run lint
-      - run: bun run typecheck
-      - run: bun test
-      - run: bun run build
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm test
+      - run: pnpm run build
 
   publish:
     name: Publish to npm
@@ -35,22 +37,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "1.3"
+      - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          registry-url: "https://registry.npmjs.org"
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
 
-      - run: bun install --frozen-lockfile
+      - run: pnpm install
 
       - name: Build
-        run: bun run build
+        run: pnpm run build
 
       - name: Publish packages
-        run: bun scripts/publish.ts --provenance --tag "${{ github.ref_name }}"
+        run: node --import tsx scripts/publish.ts --provenance --tag "${{ github.ref_name }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -58,3 +59,33 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+
+  release-binaries:
+    needs: [ci]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: node24-linux-x64
+          - os: ubuntu-24.04-arm
+            target: node24-linux-arm64
+          - os: macos-latest
+            target: node24-macos-arm64
+          - os: windows-latest
+            target: node24-win-x64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install
+      - run: pnpm run build
+      - name: Build standalone executable
+        run: npx @hakobu/hakobu ./packages/cli --bundle --entry dist/index.js --target ${{ matrix.target }} --output ./dist/seed
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seed-${{ matrix.target }}
+          path: ./dist/seed*

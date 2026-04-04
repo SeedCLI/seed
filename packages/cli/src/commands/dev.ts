@@ -52,7 +52,8 @@ export const devCommand = command({
 
 		info(`${colors.cyan(projectName)} dev watching ${colors.dim(entry)}`);
 
-		const proc = Bun.spawn(["bun", "--watch", entryPath, ...devArgs], {
+		const { execa } = await import("execa");
+		await execa("node", ["--watch", entryPath, ...devArgs], {
 			cwd,
 			stdout: "inherit",
 			stderr: "inherit",
@@ -62,7 +63,5 @@ export const devCommand = command({
 				SEED_DEV: "1",
 			},
 		});
-
-		await proc.exited;
 	},
 });

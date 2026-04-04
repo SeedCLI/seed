@@ -5,7 +5,7 @@
 <h1 align="center">Seed CLI</h1>
 
 <p align="center">
-  <strong>Batteries-included, modular, TypeScript-first CLI framework powered by Bun.</strong><br/>
+  <strong>Batteries-included, modular, TypeScript-first CLI framework powered by Node.js.</strong><br/>
   Build beautiful, type-safe command-line tools with zero boilerplate.
 </p>
 
@@ -37,8 +37,18 @@
 - **HTTP client** — Fetch-based client with retry, interceptors, file download, and OpenAPI typed client.
 - **Template engine** — Eta-powered file generation, string rendering, and full directory scaffolding.
 - **Shell completions** — Auto-generated completions for bash, zsh, fish, and PowerShell from your command definitions.
-- **Testing utilities** — `createTestCli` with mock prompts, config, system calls, and output capture using `bun:test`.
-- **Build & compile** — Bundle to `dist/` or compile to standalone binaries for macOS, Linux, and Windows.
+- **Testing utilities** — `createTestCli` with mock prompts, config, system calls, and output capture using Vitest.
+- **Build & distribute** — Compile to standalone cross-platform binaries via [Hakobu](https://github.com/hakobujs/hakobu) for macOS, Linux, and Windows.
+
+## Quick Start
+
+```bash
+# Requires Node.js 24+ and pnpm
+pnpm install
+pnpm run build        # Compile all packages (tsc)
+pnpm test             # Run tests (Vitest)
+pnpm run build:dist   # Produce standalone executables (Hakobu)
+```
 
 ## Documentation
 

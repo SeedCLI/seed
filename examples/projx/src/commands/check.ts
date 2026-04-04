@@ -47,13 +47,7 @@ export const checkCommand = command({
 			}
 
 			// Check: no lockfile
-			const lockfiles = [
-				"bun.lockb",
-				"bun.lock",
-				"package-lock.json",
-				"yarn.lock",
-				"pnpm-lock.yaml",
-			];
+			const lockfiles = ["pnpm-lock.yaml", "package-lock.json", "yarn.lock"];
 			let hasLockfile = false;
 			for (const lf of lockfiles) {
 				if (await filesystem.exists(filesystem.path.join(project.path, lf))) {
@@ -75,7 +69,7 @@ export const checkCommand = command({
 				if (flags.fix) {
 					const spinner = print.spin(`Installing deps for ${project.name}...`);
 					try {
-						await system.exec("bun install", { cwd: project.path });
+						await system.exec("pnpm install", { cwd: project.path });
 						spinner.succeed(`Installed deps for ${project.name}`);
 						checks[checks.length - 1].status = "fixed";
 					} catch {

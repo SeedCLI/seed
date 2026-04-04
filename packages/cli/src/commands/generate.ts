@@ -5,7 +5,7 @@ import { error, success } from "@seedcli/print";
 import { camelCase, kebabCase, pascalCase } from "@seedcli/strings";
 import { directory, generate } from "@seedcli/template";
 
-const TEMPLATES_DIR = join(import.meta.dir, "..", "..", "templates");
+const TEMPLATES_DIR = join(import.meta.dirname, "..", "..", "templates");
 
 export const generateCommand = command({
 	name: "generate",

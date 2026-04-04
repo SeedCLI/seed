@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
 import { createInterceptor } from "@seedcli/testing";
+import { describe, expect, test } from "vitest";
 import {
 	arg,
 	build,
@@ -570,5 +570,129 @@ describe("Alias conflict detection", () => {
 				commands: [command({ name: "test", alias: ["t"] })],
 			}),
 		).not.toThrow();
+	});
+});
+
+// ─── 8. Built-in module availability (framework contract) ───
+
+describe("Built-in module availability", () => {
+	test("seed.print is available without registerModule or direct @seedcli/print install", async () => {
+		let capturedPrint: unknown;
+		const runtime = build("testcli")
+			.command(
+				command({
+					name: "check",
+					run: async (seed) => {
+						capturedPrint = seed.print;
+					},
+				}),
+			)
+			.create();
+
+		const interceptor = createInterceptor();
+		interceptor.start();
+		try {
+			await runtime.run(["check"]);
+		} finally {
+			interceptor.stop();
+		}
+
+		expect(capturedPrint).toBeDefined();
+		expect(typeof (capturedPrint as Record<string, unknown>).info).toBe("function");
+	});
+
+	test("all 14 built-in modules are present on seed context", async () => {
+		const moduleNames = [
+			"print",
+			"prompt",
+			"filesystem",
+			"system",
+			"http",
+			"template",
+			"strings",
+			"semver",
+			"packageManager",
+			"config",
+			"patching",
+			"ui",
+			"tui",
+			"completions",
+		];
+
+		const captured: Record<string, unknown> = {};
+		const runtime = build("testcli")
+			.command(
+				command({
+					name: "check-all",
+					run: async (seed) => {
+						for (const name of moduleNames) {
+							captured[name] = (seed as unknown as Record<string, unknown>)[name];
+						}
+					},
+				}),
+			)
+			.create();
+
+		const interceptor = createInterceptor();
+		interceptor.start();
+		try {
+			await runtime.run(["check-all"]);
+		} finally {
+			interceptor.stop();
+		}
+
+		for (const name of moduleNames) {
+			expect(captured[name]).toBeDefined();
+		}
+	});
+
+	test("registerModule(name, undefined) restores built-in, not undefined", async () => {
+		// Override with custom
+		registerModule("@seedcli/strings", { custom: true });
+
+		let firstCapture: unknown;
+		let secondCapture: unknown;
+
+		const cmd1 = command({
+			name: "c1",
+			run: async (seed) => {
+				firstCapture = seed.strings;
+			},
+		});
+		const cmd2 = command({
+			name: "c2",
+			run: async (seed) => {
+				secondCapture = seed.strings;
+			},
+		});
+
+		const interceptor = createInterceptor();
+
+		// Run with override
+		const r1 = build("testcli").command(cmd1).create();
+		interceptor.start();
+		try {
+			await r1.run(["c1"]);
+		} finally {
+			interceptor.stop();
+		}
+
+		expect((firstCapture as Record<string, unknown>).custom).toBe(true);
+
+		// Clear override — should restore built-in
+		registerModule("@seedcli/strings", undefined);
+
+		const r2 = build("testcli").command(cmd2).create();
+		interceptor.start();
+		try {
+			await r2.run(["c2"]);
+		} finally {
+			interceptor.stop();
+		}
+
+		expect(secondCapture).toBeDefined();
+		expect((secondCapture as Record<string, unknown>).custom).toBeUndefined();
+		// Should have real strings module functions
+		expect(typeof (secondCapture as Record<string, unknown>).camelCase).toBe("function");
 	});
 });

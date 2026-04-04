@@ -1,11 +1,10 @@
-import { mkdir } from "node:fs/promises";
+import { readFile as fsReadFile, writeFile as fsWriteFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { PatchOptions, PatchResult } from "./types.js";
 
 async function readFile(filePath: string): Promise<string> {
 	try {
-		const file = Bun.file(filePath);
-		return await file.text();
+		return await fsReadFile(filePath, "utf-8");
 	} catch (err) {
 		throw new Error(
 			`Failed to read "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
@@ -16,7 +15,7 @@ async function readFile(filePath: string): Promise<string> {
 
 async function writeFile(filePath: string, content: string): Promise<void> {
 	await mkdir(dirname(filePath), { recursive: true });
-	await Bun.write(filePath, content);
+	await fsWriteFile(filePath, content);
 }
 
 function findPattern(content: string, pattern: string | RegExp): number {

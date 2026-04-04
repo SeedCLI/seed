@@ -17,12 +17,15 @@
 	],
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
-		"prepublishOnly": "bun run build",
-		"test": "bun test",
+		"prepublishOnly": "pnpm run build",
+		"test": "vitest run",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"typecheck": "tsc --noEmit"
+	},
+	"engines": {
+		"node": ">=24.0.0"
 	},
 	"dependencies": {
 		"@seedcli/core": "^<%= it.seedcliVersion %>"
@@ -33,7 +36,8 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.4",
 		"@seedcli/testing": "^<%= it.seedcliVersion %>",
-		"@types/bun": "latest",
+		"@types/node": "^24.0.0",
+		"vitest": "^3.2.0",
 		"typescript": "^5.9.0"
 	},
 	"publishConfig": {

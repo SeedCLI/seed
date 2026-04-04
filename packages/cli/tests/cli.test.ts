@@ -1,13 +1,35 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, normalize } from "node:path";
+import { pathToFileURL } from "node:url";
+import { execa } from "execa";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import {
+	compileOutputPath,
+	hostPlatformName,
+	parseCompileTarget,
+	resolveAppId,
+	resolveCompileOutput,
+	resolveHakobuBin,
+	resolveNodeRuntime,
+	VALID_COMPILE_TARGETS,
+	validateCompileFlags,
+} from "../src/commands/build.js";
 import { generateBuildEntry } from "../src/utils/generate-build-entry.js";
 import { resolveEntry } from "../src/utils/resolve-entry.js";
 
-const PKG_VERSION = JSON.parse(readFileSync(join(import.meta.dir, "..", "package.json"), "utf-8"))
-	.version as string;
+const PKG_VERSION = JSON.parse(
+	readFileSync(join(import.meta.dirname, "..", "package.json"), "utf-8"),
+).version as string;
+
+// Resolve tsx to an absolute path so it works from temp cwd directories
+// Node --import requires file:// URLs on Windows
+const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
+const TSX_PATH = pathToFileURL(
+	join(REPO_ROOT, "node_modules", "tsx", "dist", "esm", "index.mjs"),
+).href;
+const CLI_ENTRY = join(import.meta.dirname, "..", "src", "index.ts");
 
 describe("resolveEntry", () => {
 	let dir: string;
@@ -21,14 +43,14 @@ describe("resolveEntry", () => {
 	});
 
 	test("finds entry from package.json bin string", async () => {
-		await Bun.write(join(dir, "package.json"), JSON.stringify({ bin: "./src/cli.ts" }));
+		await writeFile(join(dir, "package.json"), JSON.stringify({ bin: "./src/cli.ts" }));
 
 		const entry = await resolveEntry(dir);
 		expect(entry).toBe("./src/cli.ts");
 	});
 
 	test("finds entry from package.json bin object", async () => {
-		await Bun.write(
+		await writeFile(
 			join(dir, "package.json"),
 			JSON.stringify({ bin: { mycli: "./src/index.ts" } }),
 		);
@@ -38,14 +60,15 @@ describe("resolveEntry", () => {
 	});
 
 	test("falls back to src/index.ts", async () => {
-		await Bun.write(join(dir, "src/index.ts"), "// entry");
+		await mkdir(join(dir, "src"), { recursive: true });
+		await writeFile(join(dir, "src/index.ts"), "// entry");
 
 		const entry = await resolveEntry(dir);
 		expect(entry).toBe("src/index.ts");
 	});
 
 	test("falls back to index.ts", async () => {
-		await Bun.write(join(dir, "index.ts"), "// entry");
+		await writeFile(join(dir, "index.ts"), "// entry");
 
 		const entry = await resolveEntry(dir);
 		expect(entry).toBe("index.ts");
@@ -57,45 +80,98 @@ describe("resolveEntry", () => {
 	});
 
 	test("prefers package.json bin over defaults", async () => {
-		await Bun.write(join(dir, "package.json"), JSON.stringify({ bin: "./custom-entry.ts" }));
-		await Bun.write(join(dir, "src/index.ts"), "// entry");
+		await writeFile(join(dir, "package.json"), JSON.stringify({ bin: "./custom-entry.ts" }));
+		await mkdir(join(dir, "src"), { recursive: true });
+		await writeFile(join(dir, "src/index.ts"), "// entry");
 
 		const entry = await resolveEntry(dir);
 		expect(entry).toBe("./custom-entry.ts");
 	});
 });
 
+describe("Hakobu build backend resolution", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "seedcli-hakobu-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	test("prefers the project's Hakobu CLI entry", async () => {
+		const hakobuBin = join(dir, "node_modules", "@hakobu", "hakobu", "lib-es5", "bin.js");
+		await mkdir(join(dir, "node_modules", "@hakobu", "hakobu", "lib-es5"), { recursive: true });
+		await writeFile(hakobuBin, "#!/usr/bin/env node\n");
+
+		expect(await resolveHakobuBin(dir)).toBe(hakobuBin);
+	});
+
+	test("resolves Hakobu through the project's local @seedcli/cli install", async () => {
+		const cliPkg = join(dir, "node_modules", "@seedcli", "cli", "package.json");
+		const hakobuBin = join(
+			dir,
+			"node_modules",
+			"@seedcli",
+			"cli",
+			"node_modules",
+			"@hakobu",
+			"hakobu",
+			"lib-es5",
+			"bin.js",
+		);
+		await mkdir(join(dir, "node_modules", "@seedcli", "cli"), { recursive: true });
+		await mkdir(
+			join(dir, "node_modules", "@seedcli", "cli", "node_modules", "@hakobu", "hakobu", "lib-es5"),
+			{ recursive: true },
+		);
+		await writeFile(join(dir, "package.json"), '{ "name": "test-project" }');
+		await writeFile(cliPkg, '{ "name": "@seedcli/cli" }');
+		await writeFile(hakobuBin, "#!/usr/bin/env node\n");
+
+		const resolved = normalize(await resolveHakobuBin(dir));
+		expect(resolved).toMatch(
+			/node_modules[\\/]@seedcli[\\/]cli[\\/]node_modules[\\/]@hakobu[\\/]hakobu[\\/]lib-es5[\\/]bin\.js$/,
+		);
+	});
+
+	test("falls back to the bundled @seedcli/cli Hakobu install", async () => {
+		const resolved = normalize(await resolveHakobuBin(dir));
+		expect(resolved).toContain(join("node_modules", "@hakobu", "hakobu", "lib-es5", "bin.js"));
+	});
+
+	test("uses PATH node when running from a packaged binary", () => {
+		expect(resolveNodeRuntime("/tmp/dist/seed-macos-arm64")).toBe("node");
+	});
+
+	test("uses process.execPath when already running under node", () => {
+		expect(resolveNodeRuntime("/usr/local/bin/node")).toBe("/usr/local/bin/node");
+		expect(resolveNodeRuntime("C:\\Program Files\\nodejs\\node.exe")).toBe(
+			"C:\\Program Files\\nodejs\\node.exe",
+		);
+	});
+});
+
 describe("seed CLI", () => {
 	test("shows help with --help", async () => {
-		const proc = Bun.spawn(
-			["bun", "run", join(import.meta.dir, "..", "src", "index.ts"), "--help"],
-			{
-				stdout: "pipe",
-				stderr: "pipe",
-			},
-		);
+		const result = await execa("node", ["--import", TSX_PATH, CLI_ENTRY, "--help"], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
 
-		const output = await new Response(proc.stdout).text();
-		await proc.exited;
-
-		expect(output).toContain("new");
-		expect(output).toContain("generate");
-		expect(output).toContain("dev");
+		expect(result.stdout).toContain("new");
+		expect(result.stdout).toContain("generate");
+		expect(result.stdout).toContain("dev");
 	});
 
 	test("shows version with --version", async () => {
-		const proc = Bun.spawn(
-			["bun", "run", join(import.meta.dir, "..", "src", "index.ts"), "--version"],
-			{
-				stdout: "pipe",
-				stderr: "pipe",
-			},
-		);
+		const result = await execa("node", ["--import", TSX_PATH, CLI_ENTRY, "--version"], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
 
-		const output = await new Response(proc.stdout).text();
-		await proc.exited;
-
-		expect(output).toContain(`seed v${PKG_VERSION}`);
+		expect(result.stdout).toContain(`seed v${PKG_VERSION}`);
 	});
 });
 
@@ -111,11 +187,12 @@ describe("seed new", () => {
 	});
 
 	test("scaffolds a new project", async () => {
-		const proc = Bun.spawn(
+		const result = await execa(
+			"node",
 			[
-				"bun",
-				"run",
-				join(import.meta.dir, "..", "src", "index.ts"),
+				"--import",
+				TSX_PATH,
+				CLI_ENTRY,
 				"new",
 				"test-app",
 				"--skipPrompts",
@@ -129,23 +206,21 @@ describe("seed new", () => {
 			},
 		);
 
-		const stdout = await new Response(proc.stdout).text();
-		await proc.exited;
-
-		expect(stdout).toContain("test-app");
+		expect(result.stdout).toContain("test-app");
 
 		// Check key files exist
-		const pkgFile = Bun.file(join(dir, "test-app", "package.json"));
-		expect(await pkgFile.exists()).toBe(true);
-
-		const pkg = await pkgFile.json();
+		const pkgContent = readFileSync(join(dir, "test-app", "package.json"), "utf-8");
+		const pkg = JSON.parse(pkgContent);
 		expect(pkg.name).toBe("test-app");
 
-		const indexFile = Bun.file(join(dir, "test-app", "src", "index.ts"));
-		expect(await indexFile.exists()).toBe(true);
+		const indexContent = readFileSync(join(dir, "test-app", "src", "index.ts"), "utf-8");
+		expect(indexContent).toBeTruthy();
 
-		const helloFile = Bun.file(join(dir, "test-app", "src", "commands", "hello.ts"));
-		expect(await helloFile.exists()).toBe(true);
+		const helloContent = readFileSync(
+			join(dir, "test-app", "src", "commands", "hello.ts"),
+			"utf-8",
+		);
+		expect(helloContent).toBeTruthy();
 	});
 });
 
@@ -164,13 +239,13 @@ describe("generateBuildEntry - plugin string references", () => {
 		// Create a fake package in node_modules
 		const pkgDir = join(dir, "node_modules", "my-plugin");
 		await mkdir(pkgDir, { recursive: true });
-		await Bun.write(join(pkgDir, "index.ts"), 'export default { name: "test" };');
-		await Bun.write(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
+		await writeFile(join(pkgDir, "index.ts"), 'export default { name: "test" };');
+		await writeFile(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
 
 		// Create entry file with .plugin("my-plugin")
 		const entryPath = join(dir, "src", "index.ts");
 		await mkdir(join(dir, "src"), { recursive: true });
-		await Bun.write(
+		await writeFile(
 			entryPath,
 			`import { build } from "@seedcli/core";
 const cli = build("mycli")
@@ -180,7 +255,7 @@ const cli = build("mycli")
 		);
 
 		// Create package.json
-		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+		await writeFile(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
@@ -194,7 +269,7 @@ const cli = build("mycli")
 		// Create entry file with .plugin("missing-plugin") — no node_modules
 		const entryPath = join(dir, "src", "index.ts");
 		await mkdir(join(dir, "src"), { recursive: true });
-		await Bun.write(
+		await writeFile(
 			entryPath,
 			`import { build } from "@seedcli/core";
 const cli = build("mycli")
@@ -203,7 +278,7 @@ const cli = build("mycli")
 `,
 		);
 
-		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+		await writeFile(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
 
 		const result = await generateBuildEntry(entryPath, dir);
 		// Should still generate a result (for @seedcli/* module handling),
@@ -218,12 +293,12 @@ const cli = build("mycli")
 		// Create a scoped package in node_modules
 		const pkgDir = join(dir, "node_modules", "@myorg", "plugin-auth");
 		await mkdir(pkgDir, { recursive: true });
-		await Bun.write(join(pkgDir, "index.ts"), 'export default { name: "auth" };');
-		await Bun.write(join(pkgDir, "package.json"), '{ "name": "@myorg/plugin-auth" }');
+		await writeFile(join(pkgDir, "index.ts"), 'export default { name: "auth" };');
+		await writeFile(join(pkgDir, "package.json"), '{ "name": "@myorg/plugin-auth" }');
 
 		const entryPath = join(dir, "src", "index.ts");
 		await mkdir(join(dir, "src"), { recursive: true });
-		await Bun.write(
+		await writeFile(
 			entryPath,
 			`import { build } from "@seedcli/core";
 const cli = build("mycli")
@@ -232,7 +307,7 @@ const cli = build("mycli")
 `,
 		);
 
-		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+		await writeFile(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
@@ -246,13 +321,13 @@ const cli = build("mycli")
 		for (const name of ["plugin-a", "plugin-b"]) {
 			const pkgDir = join(dir, "node_modules", name);
 			await mkdir(pkgDir, { recursive: true });
-			await Bun.write(join(pkgDir, "index.ts"), `export default { name: "${name}" };`);
-			await Bun.write(join(pkgDir, "package.json"), `{ "name": "${name}" }`);
+			await writeFile(join(pkgDir, "index.ts"), `export default { name: "${name}" };`);
+			await writeFile(join(pkgDir, "package.json"), `{ "name": "${name}" }`);
 		}
 
 		const entryPath = join(dir, "src", "index.ts");
 		await mkdir(join(dir, "src"), { recursive: true });
-		await Bun.write(
+		await writeFile(
 			entryPath,
 			`import { build } from "@seedcli/core";
 const cli = build("mycli")
@@ -262,7 +337,7 @@ const cli = build("mycli")
 `,
 		);
 
-		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+		await writeFile(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
@@ -288,32 +363,32 @@ describe("generateBuildEntry - .src() comment safety", () => {
 	test("skips .src() in single-line comments and replaces the real call", async () => {
 		const entryPath = join(dir, "src", "index.ts");
 		await mkdir(join(dir, "src", "commands"), { recursive: true });
-		await Bun.write(
+		await writeFile(
 			join(dir, "src", "commands", "hello.ts"),
 			'export default { name: "hello", run: () => {} };',
 		);
 
 		// Entry file with .src() in a comment BEFORE the real .src() call
-		await Bun.write(
+		await writeFile(
 			entryPath,
 			`import { build } from "@seedcli/core";
-// Use .src(import.meta.dir) to discover commands
+// Use .src(import.meta.dirname) to discover commands
 const cli = build("mycli")
-	.src(import.meta.dir)
+	.src(import.meta.dirname)
 	.create();
 `,
 		);
 
-		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+		await writeFile(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
 
 		// The comment should still be intact
-		expect(result?.content).toContain("// Use .src(import.meta.dir) to discover commands");
+		expect(result?.content).toContain("// Use .src(import.meta.dirname) to discover commands");
 
 		// The real .src() should have been replaced with .command() calls
-		expect(result?.content).not.toContain("\t.src(import.meta.dir)");
+		expect(result?.content).not.toContain("\t.src(import.meta.dirname)");
 		expect(result?.content).toContain(".command(");
 		expect(result?.commandCount).toBe(1);
 	});
@@ -321,25 +396,25 @@ const cli = build("mycli")
 	test("skips .src() in block comment lines", async () => {
 		const entryPath = join(dir, "src", "index.ts");
 		await mkdir(join(dir, "src", "commands"), { recursive: true });
-		await Bun.write(
+		await writeFile(
 			join(dir, "src", "commands", "deploy.ts"),
 			'export default { name: "deploy", run: () => {} };',
 		);
 
 		// Entry file with .src() in a block comment BEFORE the real call
-		await Bun.write(
+		await writeFile(
 			entryPath,
 			`import { build } from "@seedcli/core";
 /*
  * Call .src(dir) to scan for commands
  */
 const cli = build("mycli")
-	.src(import.meta.dir)
+	.src(import.meta.dirname)
 	.create();
 `,
 		);
 
-		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+		await writeFile(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
@@ -348,7 +423,7 @@ const cli = build("mycli")
 		expect(result?.content).toContain("* Call .src(dir) to scan for commands");
 
 		// The real .src() should have been replaced
-		expect(result?.content).not.toContain("\t.src(import.meta.dir)");
+		expect(result?.content).not.toContain("\t.src(import.meta.dirname)");
 		expect(result?.content).toContain(".command(");
 		expect(result?.commandCount).toBe(1);
 	});
@@ -369,14 +444,14 @@ describe("generateBuildEntry - side-effect import handling", () => {
 		// Create a fake package in node_modules
 		const pkgDir = join(dir, "node_modules", "my-plugin");
 		await mkdir(pkgDir, { recursive: true });
-		await Bun.write(join(pkgDir, "index.ts"), 'export default { name: "test" };');
-		await Bun.write(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
+		await writeFile(join(pkgDir, "index.ts"), 'export default { name: "test" };');
+		await writeFile(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
 
 		const entryPath = join(dir, "src", "index.ts");
 		await mkdir(join(dir, "src"), { recursive: true });
 
 		// Entry file with a side-effect import followed by executable code
-		await Bun.write(
+		await writeFile(
 			entryPath,
 			`import { build } from "@seedcli/core";
 import "./polyfill";
@@ -387,7 +462,7 @@ const cli = build("mycli")
 `,
 		);
 
-		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+		await writeFile(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
@@ -395,9 +470,9 @@ const cli = build("mycli")
 		const lines = result?.content.split("\n");
 
 		// Find where the injected import appears
-		const injectedImportIdx = lines.findIndex((l) => l.includes("import plugin_my_plugin"));
+		const injectedImportIdx = lines?.findIndex((l) => l.includes("import plugin_my_plugin"));
 		// Find where "const cli" appears
-		const constCliIdx = lines.findIndex((l) => l.includes("const cli"));
+		const constCliIdx = lines?.findIndex((l) => l.includes("const cli"));
 
 		// The injected import MUST appear before the executable code
 		expect(injectedImportIdx).toBeGreaterThan(-1);
@@ -408,14 +483,14 @@ const cli = build("mycli")
 	test("side-effect imports with double quotes are handled correctly", async () => {
 		const pkgDir = join(dir, "node_modules", "my-plugin");
 		await mkdir(pkgDir, { recursive: true });
-		await Bun.write(join(pkgDir, "index.ts"), 'export default { name: "test" };');
-		await Bun.write(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
+		await writeFile(join(pkgDir, "index.ts"), 'export default { name: "test" };');
+		await writeFile(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
 
 		const entryPath = join(dir, "src", "index.ts");
 		await mkdir(join(dir, "src"), { recursive: true });
 
 		// Side-effect import with double quotes
-		await Bun.write(
+		await writeFile(
 			entryPath,
 			`import { build } from "@seedcli/core";
 import "reflect-metadata";
@@ -426,7 +501,7 @@ const cli = build("mycli")
 `,
 		);
 
-		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+		await writeFile(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
@@ -434,11 +509,11 @@ const cli = build("mycli")
 		const lines = result?.content.split("\n");
 
 		// Find the side-effect import
-		const sideEffectIdx = lines.findIndex((l) => l.includes('import "reflect-metadata"'));
+		const sideEffectIdx = lines?.findIndex((l) => l.includes('import "reflect-metadata"'));
 		// Find the injected import
-		const injectedIdx = lines.findIndex((l) => l.includes("import plugin_my_plugin"));
+		const injectedIdx = lines?.findIndex((l) => l.includes("import plugin_my_plugin"));
 		// Find the executable code
-		const constIdx = lines.findIndex((l) => l.includes("const cli"));
+		const constIdx = lines?.findIndex((l) => l.includes("const cli"));
 
 		// Side-effect import should be present
 		expect(sideEffectIdx).toBeGreaterThan(-1);
@@ -450,14 +525,14 @@ const cli = build("mycli")
 	test("multi-line imports still work correctly alongside side-effect imports", async () => {
 		const pkgDir = join(dir, "node_modules", "my-plugin");
 		await mkdir(pkgDir, { recursive: true });
-		await Bun.write(join(pkgDir, "index.ts"), 'export default { name: "test" };');
-		await Bun.write(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
+		await writeFile(join(pkgDir, "index.ts"), 'export default { name: "test" };');
+		await writeFile(join(pkgDir, "package.json"), '{ "name": "my-plugin" }');
 
 		const entryPath = join(dir, "src", "index.ts");
 		await mkdir(join(dir, "src"), { recursive: true });
 
 		// Mix of multi-line import, side-effect import, and normal import
-		await Bun.write(
+		await writeFile(
 			entryPath,
 			`import {
 	build,
@@ -472,7 +547,7 @@ const cli = build("mycli")
 `,
 		);
 
-		await Bun.write(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
+		await writeFile(join(dir, "package.json"), '{ "name": "test", "dependencies": {} }');
 
 		const result = await generateBuildEntry(entryPath, dir);
 		expect(result).not.toBeNull();
@@ -480,11 +555,11 @@ const cli = build("mycli")
 		const lines = result?.content.split("\n");
 
 		// Find the last original import (node:path)
-		const pathImportIdx = lines.findIndex((l) => l.includes('from "node:path"'));
+		const pathImportIdx = lines?.findIndex((l) => l.includes('from "node:path"'));
 		// Find the injected import
-		const injectedIdx = lines.findIndex((l) => l.includes("import plugin_my_plugin"));
+		const injectedIdx = lines?.findIndex((l) => l.includes("import plugin_my_plugin"));
 		// Find the executable code
-		const constIdx = lines.findIndex((l) => l.includes("const cli"));
+		const constIdx = lines?.findIndex((l) => l.includes("const cli"));
 
 		// Injected import should come after the last original import
 		expect(injectedIdx).toBeGreaterThan(pathImportIdx);
@@ -499,8 +574,9 @@ describe("seed generate", () => {
 	beforeEach(async () => {
 		dir = await mkdtemp(join(tmpdir(), "seedcli-gen-"));
 		// Create minimal project structure
-		await Bun.write(join(dir, "package.json"), JSON.stringify({ name: "test" }));
-		await Bun.write(join(dir, "src/index.ts"), "// entry");
+		await writeFile(join(dir, "package.json"), JSON.stringify({ name: "test" }));
+		await mkdir(join(dir, "src"), { recursive: true });
+		await writeFile(join(dir, "src/index.ts"), "// entry");
 	});
 
 	afterEach(async () => {
@@ -508,15 +584,9 @@ describe("seed generate", () => {
 	});
 
 	test("generates a command file", async () => {
-		const proc = Bun.spawn(
-			[
-				"bun",
-				"run",
-				join(import.meta.dir, "..", "src", "index.ts"),
-				"generate",
-				"command",
-				"deploy",
-			],
+		const result = await execa(
+			"node",
+			["--import", TSX_PATH, CLI_ENTRY, "generate", "command", "deploy"],
 			{
 				stdout: "pipe",
 				stderr: "pipe",
@@ -524,29 +594,17 @@ describe("seed generate", () => {
 			},
 		);
 
-		const stdout = await new Response(proc.stdout).text();
-		await proc.exited;
+		expect(result.stdout).toContain("deploy");
 
-		expect(stdout).toContain("deploy");
-
-		const cmdFile = Bun.file(join(dir, "src", "commands", "deploy.ts"));
-		expect(await cmdFile.exists()).toBe(true);
-
-		const content = await cmdFile.text();
+		const content = readFileSync(join(dir, "src", "commands", "deploy.ts"), "utf-8");
 		expect(content).toContain("deploy");
 		expect(content).toContain("command");
 	});
 
 	test("generates an extension file", async () => {
-		const proc = Bun.spawn(
-			[
-				"bun",
-				"run",
-				join(import.meta.dir, "..", "src", "index.ts"),
-				"generate",
-				"extension",
-				"auth",
-			],
+		const result = await execa(
+			"node",
+			["--import", TSX_PATH, CLI_ENTRY, "generate", "extension", "auth"],
 			{
 				stdout: "pipe",
 				stderr: "pipe",
@@ -554,29 +612,17 @@ describe("seed generate", () => {
 			},
 		);
 
-		const stdout = await new Response(proc.stdout).text();
-		await proc.exited;
+		expect(result.stdout).toContain("auth");
 
-		expect(stdout).toContain("auth");
-
-		const extFile = Bun.file(join(dir, "src", "extensions", "auth.ts"));
-		expect(await extFile.exists()).toBe(true);
-
-		const content = await extFile.text();
+		const content = readFileSync(join(dir, "src", "extensions", "auth.ts"), "utf-8");
 		expect(content).toContain("auth");
 		expect(content).toContain("defineExtension");
 	});
 
 	test("generates a plugin scaffold", async () => {
-		const proc = Bun.spawn(
-			[
-				"bun",
-				"run",
-				join(import.meta.dir, "..", "src", "index.ts"),
-				"generate",
-				"plugin",
-				"my-plugin",
-			],
+		const result = await execa(
+			"node",
+			["--import", TSX_PATH, CLI_ENTRY, "generate", "plugin", "my-plugin"],
 			{
 				stdout: "pipe",
 				stderr: "pipe",
@@ -584,21 +630,222 @@ describe("seed generate", () => {
 			},
 		);
 
-		const stdout = await new Response(proc.stdout).text();
-		await proc.exited;
+		expect(result.stdout).toContain("my-plugin");
 
-		expect(stdout).toContain("my-plugin");
-
-		const pkgFile = Bun.file(join(dir, "my-plugin", "package.json"));
-		expect(await pkgFile.exists()).toBe(true);
-
-		const pkg = await pkgFile.json();
+		const pkgContent = readFileSync(join(dir, "my-plugin", "package.json"), "utf-8");
+		const pkg = JSON.parse(pkgContent);
 		expect(pkg.name).toBe("my-plugin");
 
-		const indexFile = Bun.file(join(dir, "my-plugin", "src", "index.ts"));
-		expect(await indexFile.exists()).toBe(true);
-
-		const content = await indexFile.text();
+		const content = readFileSync(join(dir, "my-plugin", "src", "index.ts"), "utf-8");
 		expect(content).toContain("definePlugin");
+	});
+});
+
+describe("compile output path", () => {
+	describe("parseCompileTarget", () => {
+		test("parses standard targets", () => {
+			expect(parseCompileTarget("node24-win-x64")).toEqual({ platform: "win", arch: "x64" });
+			expect(parseCompileTarget("node24-linux-arm64")).toEqual({
+				platform: "linux",
+				arch: "arm64",
+			});
+			expect(parseCompileTarget("node24-macos-x64")).toEqual({ platform: "macos", arch: "x64" });
+			expect(parseCompileTarget("node24-macos-arm64")).toEqual({
+				platform: "macos",
+				arch: "arm64",
+			});
+		});
+
+		test("parses linuxstatic target", () => {
+			expect(parseCompileTarget("node24-linuxstatic-x64")).toEqual({
+				platform: "linuxstatic",
+				arch: "x64",
+			});
+		});
+	});
+
+	describe("resolveAppId", () => {
+		let dir: string;
+
+		beforeEach(async () => {
+			dir = await mkdtemp(join(tmpdir(), "seedcli-appid-"));
+		});
+
+		afterEach(async () => {
+			await rm(dir, { recursive: true, force: true });
+		});
+
+		test("reads name from package.json", async () => {
+			await writeFile(join(dir, "package.json"), JSON.stringify({ name: "my-app" }));
+			expect(await resolveAppId(dir)).toBe("my-app");
+		});
+
+		test("strips scope from package name", async () => {
+			await writeFile(join(dir, "package.json"), JSON.stringify({ name: "@myorg/my-app" }));
+			expect(await resolveAppId(dir)).toBe("my-app");
+		});
+
+		test("falls back to 'app' when no package.json", async () => {
+			expect(await resolveAppId(dir)).toBe("app");
+		});
+
+		test("falls back to 'app' when name is missing", async () => {
+			await writeFile(join(dir, "package.json"), JSON.stringify({ version: "1.0.0" }));
+			expect(await resolveAppId(dir)).toBe("app");
+		});
+	});
+
+	describe("compileOutputPath", () => {
+		test("single Windows target produces .exe inside outdir", () => {
+			const result = compileOutputPath("/out/win", ["node24-win-x64"], "myapp");
+			expect(result).toBe(join("/out/win", "myapp-win-x64.exe"));
+		});
+
+		test("single Linux target produces file without .exe inside outdir", () => {
+			const result = compileOutputPath("/out/linux", ["node24-linux-x64"], "myapp");
+			expect(result).toBe(join("/out/linux", "myapp-linux-x64"));
+		});
+
+		test("single macOS target produces file without .exe inside outdir", () => {
+			const result = compileOutputPath("/out/mac", ["node24-macos-arm64"], "myapp");
+			expect(result).toBe(join("/out/mac", "myapp-macos-arm64"));
+		});
+
+		test("single linuxstatic target produces file without .exe", () => {
+			const result = compileOutputPath("/out", ["node24-linuxstatic-x64"], "myapp");
+			expect(result).toBe(join("/out", "myapp-linuxstatic-x64"));
+		});
+
+		test("multiple targets return outdir as-is (Hakobu directory mode)", () => {
+			const result = compileOutputPath("/out", ["node24-linux-x64", "node24-win-x64"], "myapp");
+			expect(result).toBe("/out");
+		});
+
+		test("Windows arm64 target also gets .exe", () => {
+			const result = compileOutputPath("/out", ["node24-win-arm64"], "myapp");
+			expect(result).toBe(join("/out", "myapp-win-arm64.exe"));
+		});
+
+		test("scoped appId is used as-is (scope already stripped by resolveAppId)", () => {
+			const result = compileOutputPath("/out", ["node24-linux-x64"], "my-app");
+			expect(result).toBe(join("/out", "my-app-linux-x64"));
+		});
+	});
+
+	describe("resolveCompileOutput", () => {
+		test("--outfile takes literal precedence over auto-naming", () => {
+			const result = resolveCompileOutput({
+				outfile: "dist/my-custom-binary.exe",
+				outdir: "/should-be-ignored",
+				targets: ["node24-win-x64"],
+				appId: "myapp",
+			});
+			expect(result).toBe("dist/my-custom-binary.exe");
+		});
+
+		test("without --outfile, auto-names via compileOutputPath", () => {
+			const result = resolveCompileOutput({
+				outdir: "/out",
+				targets: ["node24-win-x64"],
+				appId: "myapp",
+			});
+			expect(result).toBe(join("/out", "myapp-win-x64.exe"));
+		});
+
+		test("target all uses directory mode", () => {
+			const result = resolveCompileOutput({
+				outdir: "/out",
+				targets: ["all"],
+				appId: "myapp",
+			});
+			expect(result).toBe("/out");
+		});
+	});
+
+	describe("validateCompileFlags", () => {
+		test("rejects --outfile + explicit --outdir", () => {
+			const err = validateCompileFlags({
+				outfile: "mybin",
+				outdirExplicit: true,
+				targets: ["node24-win-x64"],
+			});
+			expect(err).toContain("Cannot use both");
+		});
+
+		test("allows --outfile with config-derived outdir (not explicit)", () => {
+			const err = validateCompileFlags({
+				outfile: "mybin",
+				outdirExplicit: false,
+				targets: ["node24-win-x64"],
+			});
+			expect(err).toBeNull();
+		});
+
+		test("rejects --outfile + multiple targets", () => {
+			const err = validateCompileFlags({
+				outfile: "mybin",
+				targets: ["node24-win-x64", "node24-linux-x64"],
+			});
+			expect(err).toContain("Cannot use --outfile with multiple");
+		});
+
+		test("rejects --outfile + target all", () => {
+			const err = validateCompileFlags({
+				outfile: "mybin",
+				targets: ["all"],
+			});
+			expect(err).toContain("Cannot use --outfile with multiple");
+		});
+
+		test("allows --outfile with single target", () => {
+			const err = validateCompileFlags({
+				outfile: "mybin",
+				targets: ["node24-win-x64"],
+			});
+			expect(err).toBeNull();
+		});
+
+		test("allows no --outfile at all", () => {
+			const err = validateCompileFlags({
+				targets: ["node24-win-x64"],
+			});
+			expect(err).toBeNull();
+		});
+	});
+
+	describe("target validation", () => {
+		test("VALID_COMPILE_TARGETS matches Hakobu-supported set", () => {
+			expect(VALID_COMPILE_TARGETS).toContain("node24-linux-x64");
+			expect(VALID_COMPILE_TARGETS).toContain("node24-linux-arm64");
+			expect(VALID_COMPILE_TARGETS).toContain("node24-macos-x64");
+			expect(VALID_COMPILE_TARGETS).toContain("node24-macos-arm64");
+			expect(VALID_COMPILE_TARGETS).toContain("node24-win-x64");
+			expect(VALID_COMPILE_TARGETS).toContain("node24-win-arm64");
+			expect(VALID_COMPILE_TARGETS).toContain("node24-linuxstatic-x64");
+		});
+
+		test("does not contain outdated darwin or musl targets", () => {
+			for (const t of VALID_COMPILE_TARGETS) {
+				expect(t).not.toContain("darwin");
+				expect(t).not.toContain("musl");
+			}
+		});
+
+		test("has exactly 7 targets", () => {
+			expect(VALID_COMPILE_TARGETS).toHaveLength(7);
+		});
+	});
+
+	describe("hostPlatformName", () => {
+		test("returns macos on this machine (darwin)", () => {
+			// This test runs on macOS CI / local dev
+			if (process.platform === "darwin") {
+				expect(hostPlatformName()).toBe("macos");
+			}
+		});
+
+		test("returns the platform as a non-empty string", () => {
+			expect(hostPlatformName().length).toBeGreaterThan(0);
+		});
 	});
 });

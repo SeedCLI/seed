@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { env } from "../src/env.js";
 import { ExecError, ExecTimeoutError } from "../src/errors.js";
 import { exec } from "../src/exec.js";
@@ -223,9 +223,9 @@ describe("ExecTimeoutError", () => {
 
 describe("which()", () => {
 	test("finds known executable", async () => {
-		const result = await which("bun");
+		const result = await which("node");
 		expect(result).toBeDefined();
-		expect(result).toContain("bun");
+		expect(result).toContain("node");
 	});
 
 	test("returns undefined for unknown", async () => {
@@ -236,8 +236,8 @@ describe("which()", () => {
 
 describe("whichOrThrow()", () => {
 	test("returns path for known executable", async () => {
-		const result = await whichOrThrow("bun");
-		expect(result).toContain("bun");
+		const result = await whichOrThrow("node");
+		expect(result).toContain("node");
 	});
 
 	test("throws for unknown executable", async () => {

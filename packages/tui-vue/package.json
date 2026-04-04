@@ -1,0 +1,49 @@
+{
+	"name": "@seedcli/tui-vue",
+	"version": "1.0.0",
+	"description": "Vue custom renderer for Seed CLI TUI apps",
+	"type": "module",
+	"license": "MIT",
+	"author": "Rully Ardiansyah <rully@dreamshive.io>",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/SeedCLI/seed",
+		"directory": "packages/tui-vue"
+	},
+	"homepage": "https://seedcli.dev",
+	"keywords": [
+		"cli",
+		"tui",
+		"terminal",
+		"vue",
+		"renderer",
+		"reconciler"
+	],
+	"engines": {
+		"node": ">=24.0.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": [
+		"dist",
+		"LICENSE"
+	],
+	"dependencies": {
+		"@seedcli/tui-core": "workspace:*",
+		"@seedcli/tui": "workspace:*",
+		"@vue/runtime-core": "^3.5.29",
+		"vue": "^3.5.29"
+	},
+	"peerDependencies": {
+		"vue": ">=3.4.0"
+	}
+}

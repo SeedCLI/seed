@@ -12,6 +12,6 @@
 		"isolatedModules": true,
 		"verbatimModuleSyntax": true,
 		"resolveJsonModule": true,
-		"types": ["bun-types"]
+		"types": ["node"]
 	}
 }
