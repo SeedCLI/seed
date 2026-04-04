@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { directory } from "@seedcli/template";
 import { execa } from "execa";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
@@ -11,8 +12,11 @@ const PKG_VERSION = JSON.parse(
 ).version as string;
 
 // Resolve tsx to absolute path so it works from temp cwd
+// Node --import requires file:// URLs on Windows
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
-const TSX_PATH = join(REPO_ROOT, "node_modules", "tsx", "dist", "esm", "index.mjs");
+const TSX_PATH = pathToFileURL(
+	join(REPO_ROOT, "node_modules", "tsx", "dist", "esm", "index.mjs"),
+).href;
 
 let tempDir: string;
 

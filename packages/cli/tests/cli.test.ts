@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, normalize } from "node:path";
+import { pathToFileURL } from "node:url";
 import { execa } from "execa";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import {
@@ -23,8 +24,11 @@ const PKG_VERSION = JSON.parse(
 ).version as string;
 
 // Resolve tsx to an absolute path so it works from temp cwd directories
+// Node --import requires file:// URLs on Windows
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
-const TSX_PATH = join(REPO_ROOT, "node_modules", "tsx", "dist", "esm", "index.mjs");
+const TSX_PATH = pathToFileURL(
+	join(REPO_ROOT, "node_modules", "tsx", "dist", "esm", "index.mjs"),
+).href;
 const CLI_ENTRY = join(import.meta.dirname, "..", "src", "index.ts");
 
 describe("resolveEntry", () => {
@@ -126,14 +130,15 @@ describe("Hakobu build backend resolution", () => {
 		await writeFile(cliPkg, '{ "name": "@seedcli/cli" }');
 		await writeFile(hakobuBin, "#!/usr/bin/env node\n");
 
-		expect(await resolveHakobuBin(dir)).toMatch(
-			/node_modules\/@seedcli\/cli\/node_modules\/@hakobu\/hakobu\/lib-es5\/bin\.js$/,
+		const resolved = normalize(await resolveHakobuBin(dir));
+		expect(resolved).toMatch(
+			/node_modules[\\/]@seedcli[\\/]cli[\\/]node_modules[\\/]@hakobu[\\/]hakobu[\\/]lib-es5[\\/]bin\.js$/,
 		);
 	});
 
 	test("falls back to the bundled @seedcli/cli Hakobu install", async () => {
-		const resolved = await resolveHakobuBin(dir);
-		expect(resolved).toContain("node_modules/@hakobu/hakobu/lib-es5/bin.js");
+		const resolved = normalize(await resolveHakobuBin(dir));
+		expect(resolved).toContain(join("node_modules", "@hakobu", "hakobu", "lib-es5", "bin.js"));
 	});
 
 	test("uses PATH node when running from a packaged binary", () => {
