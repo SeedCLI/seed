@@ -17,7 +17,7 @@
 	],
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
-		"prepublishOnly": "pnpm run build",
+		"prepublishOnly": "<%= it.pmRun %> build",
 		"test": "vitest run",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",

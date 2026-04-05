@@ -193,9 +193,6 @@ importers:
       '@seedcli/template':
         specifier: workspace:*
         version: link:../template
-      '@seedcli/tui':
-        specifier: workspace:*
-        version: link:../tui
       '@seedcli/ui':
         specifier: workspace:*
         version: link:../ui
@@ -330,9 +327,6 @@ importers:
       '@seedcli/testing':
         specifier: workspace:*
         version: link:../testing
-      '@seedcli/tui':
-        specifier: workspace:*
-        version: link:../tui
       '@seedcli/ui':
         specifier: workspace:*
         version: link:../ui

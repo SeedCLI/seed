@@ -601,7 +601,7 @@ describe("Built-in module availability", () => {
 		expect(typeof (capturedPrint as Record<string, unknown>).info).toBe("function");
 	});
 
-	test("all 14 built-in modules are present on seed context", async () => {
+	test("all 13 built-in modules are present on seed context", async () => {
 		const moduleNames = [
 			"print",
 			"prompt",
@@ -615,7 +615,6 @@ describe("Built-in module availability", () => {
 			"config",
 			"patching",
 			"ui",
-			"tui",
 			"completions",
 		];
 

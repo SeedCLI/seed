@@ -42,3 +42,31 @@ const COMMANDS: Record<PackageManagerName, CommandMap> = {
 export function getCommands(name: PackageManagerName): CommandMap {
 	return COMMANDS[name];
 }
+
+/**
+ * Returns the script-run prefix for a package manager.
+ * e.g. "npm run", "pnpm run", "bun run", "yarn"
+ */
+export function pmRunPrefix(name: PackageManagerName): string {
+	return name === "yarn" ? "yarn" : `${name} run`;
+}
+
+/**
+ * Infer the invoking package manager from `npm_config_user_agent`.
+ * Returns undefined if the environment variable is absent or unrecognized.
+ *
+ * Example values:
+ *   "npm/10.5.0 node/v22.0.0 darwin arm64"
+ *   "pnpm/9.15.0 node/v22.0.0"
+ *   "yarn/4.1.0 node/v22.0.0"
+ *   "bun/1.2.0"
+ */
+export function detectFromUserAgent(): PackageManagerName | undefined {
+	const ua = process.env.npm_config_user_agent;
+	if (!ua) return undefined;
+	const name = ua.split("/")[0];
+	if (name === "npm" || name === "pnpm" || name === "yarn" || name === "bun") {
+		return name;
+	}
+	return undefined;
+}

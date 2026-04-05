@@ -7,7 +7,7 @@
 		"<%= it.name %>": "./src/index.ts"
 	},
 	"scripts": {
-		"dev": "node --import tsx --watch src/index.ts",
+		"dev": "seed dev",
 		"build": "seed build",
 		"compile": "seed build --compile --outfile <%= it.name %>",
 		"test": "vitest run",

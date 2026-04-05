@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/seed",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "Umbrella re-export of all Seed CLI modules",
 	"type": "module",
 	"license": "MIT",
@@ -50,7 +50,6 @@
 		"@seedcli/system": "workspace:*",
 		"@seedcli/template": "workspace:*",
 		"@seedcli/testing": "workspace:*",
-		"@seedcli/tui": "workspace:*",
 		"@seedcli/ui": "workspace:*"
 	}
 }

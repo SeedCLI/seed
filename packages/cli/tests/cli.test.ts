@@ -221,6 +221,42 @@ describe("seed new", () => {
 			"utf-8",
 		);
 		expect(helloContent).toBeTruthy();
+
+		// Verify migrated script surface
+		expect(pkg.scripts.dev).toBe("seed dev");
+		expect(pkg.scripts.build).toBe("seed build");
+		expect(pkg.scripts.test).toBe("vitest run");
+		expect(pkg.scripts.compile).toContain("seed build --compile");
+	});
+
+	test("scaffolds with inferred PM from npm_config_user_agent", async () => {
+		const result = await execa(
+			"node",
+			[
+				"--import",
+				TSX_PATH,
+				CLI_ENTRY,
+				"new",
+				"pm-test",
+				"--skipPrompts",
+				"--skipInstall",
+				"--skipGit",
+			],
+			{
+				stdout: "pipe",
+				stderr: "pipe",
+				cwd: dir,
+				env: {
+					...process.env,
+					npm_config_user_agent: "pnpm/9.15.0 node/v24.0.0",
+				},
+			},
+		);
+
+		expect(result.stdout).toContain("pm-test");
+		// Next-steps output should reflect pnpm
+		expect(result.stdout).toContain("pnpm run dev");
+		expect(result.stdout).toContain("pnpm link");
 	});
 });
 

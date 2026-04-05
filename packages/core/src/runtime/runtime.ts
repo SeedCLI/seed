@@ -15,7 +15,6 @@ import * as semverModule from "@seedcli/semver";
 import * as stringsModule from "@seedcli/strings";
 import * as systemModule from "@seedcli/system";
 import * as templateModule from "@seedcli/template";
-import * as tuiModule from "@seedcli/tui";
 import * as uiModule from "@seedcli/ui";
 import { renderCommandHelp, renderGlobalHelp } from "../command/help.js";
 import { ParseError, parse } from "../command/parser.js";
@@ -91,7 +90,6 @@ const builtinModuleRegistry = new Map<string, unknown>([
 	["@seedcli/strings", stringsModule],
 	["@seedcli/system", systemModule],
 	["@seedcli/template", templateModule],
-	["@seedcli/tui", tuiModule],
 	["@seedcli/ui", uiModule],
 ]);
 
@@ -582,7 +580,6 @@ export class Runtime {
 			["config", "@seedcli/config"],
 			["patching", "@seedcli/patching"],
 			["ui", "@seedcli/ui"],
-			["tui", "@seedcli/tui"],
 			["completions", "@seedcli/completions"],
 		];
 

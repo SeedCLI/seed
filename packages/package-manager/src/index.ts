@@ -1,4 +1,4 @@
-export { getCommands } from "./commands.js";
+export { detectFromUserAgent, getCommands, pmRunPrefix } from "./commands.js";
 export { detect } from "./detect.js";
 export { create } from "./manager.js";
 export type {

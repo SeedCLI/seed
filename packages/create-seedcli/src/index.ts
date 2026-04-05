@@ -2,7 +2,13 @@
 
 import { join } from "node:path";
 import { exists } from "@seedcli/filesystem";
-import { create, detect } from "@seedcli/package-manager";
+import {
+	create,
+	detect,
+	detectFromUserAgent,
+	getCommands,
+	pmRunPrefix,
+} from "@seedcli/package-manager";
 import { error, info, muted, newline, spin, success, warning } from "@seedcli/print";
 import { input, select } from "@seedcli/prompt";
 import { kebabCase } from "@seedcli/strings";
@@ -41,10 +47,13 @@ async function getVersions(): Promise<{ version: string; frameworkVersion: strin
 
 const { version: VERSION, frameworkVersion: FRAMEWORK_VERSION } = await getVersions();
 
+import type { PackageManagerName } from "@seedcli/package-manager";
+
 interface CreateOptions {
 	name: string;
 	template: "minimal" | "full" | "plugin";
 	description: string;
+	packageManager: PackageManagerName;
 	skipInstall: boolean;
 	skipGit: boolean;
 }
@@ -78,11 +87,16 @@ async function parseArgs(): Promise<CreateOptions> {
 	}
 	name = kebabCase(name);
 
+	// Infer PM from invocation context, then lockfile, then fallback to npm
+	const inferredPm =
+		detectFromUserAgent() ?? (await detect(process.cwd()).catch(() => "npm" as const));
+
 	if (useDefaults) {
 		return {
 			name,
 			template: "full",
 			description: `A CLI built with Seed CLI`,
+			packageManager: inferredPm,
 			skipInstall,
 			skipGit,
 		};
@@ -102,7 +116,18 @@ async function parseArgs(): Promise<CreateOptions> {
 		default: `A CLI built with Seed CLI`,
 	});
 
-	return { name, template, description, skipInstall, skipGit };
+	const packageManager = await select<PackageManagerName>({
+		message: "Package manager:",
+		choices: [
+			{ name: "npm", value: "npm" },
+			{ name: "pnpm", value: "pnpm" },
+			{ name: "yarn", value: "yarn" },
+			{ name: "bun", value: "bun" },
+		],
+		default: inferredPm,
+	});
+
+	return { name, template, description, packageManager, skipInstall, skipGit };
 }
 
 function printUsage() {
@@ -110,8 +135,10 @@ function printUsage() {
   create-seedcli v${VERSION}
 
   Usage:
-    npx create-seedcli <project-name> [options]
-    npx create-seedcli <project-name> [options]
+    npm create seedcli <project-name> [options]
+    pnpm create seedcli <project-name> [options]
+    yarn create seedcli <project-name> [options]
+    bun create seedcli <project-name> [options]
 
   Options:
     -y, --yes         Use defaults (skip prompts)
@@ -158,6 +185,7 @@ async function main() {
 				version: "0.1.0",
 				seedcliVersion: FRAMEWORK_VERSION,
 				includeExamples: options.template === "full",
+				pmRun: pmRunPrefix(options.packageManager),
 			},
 			// npm strips .gitignore from published tarballs, so templates store it as "gitignore"
 			rename: { gitignore: ".gitignore" },
@@ -190,15 +218,16 @@ async function main() {
 
 	// Install dependencies
 	if (!options.skipInstall) {
-		const pm = await detect(targetDir);
-		const manager = await create(pm, targetDir);
+		const manager = await create(options.packageManager, targetDir);
 		const installSpinner = spin("Installing dependencies...");
 		try {
 			await manager.install();
 			installSpinner.succeed("Dependencies installed");
 		} catch {
 			installSpinner.fail("Failed to install dependencies");
-			warning("Run `npm install` manually in the project directory");
+			warning(
+				`Run \`${getCommands(options.packageManager).install}\` manually in the project directory`,
+			);
 		}
 	}
 
@@ -209,8 +238,9 @@ async function main() {
 	muted("  Next steps:\n");
 	info(`  cd ${options.name}`);
 
+	const run = pmRunPrefix(options.packageManager);
 	if (options.template === "plugin") {
-		info("  npm test");
+		info(`  ${run} test`);
 		muted(`\n  To use this plugin in a CLI:\n`);
 		info(`  import plugin from "${options.name}";`);
 		info("");
@@ -218,10 +248,9 @@ async function main() {
 		info(`    .plugin(plugin)`);
 		info(`    .create();`);
 	} else {
-		info("  npm run dev");
-		info(`  npx tsx src/index.ts --help`);
+		info(`  ${run} dev`);
 		muted(`\n  To use "${options.name}" as a global command:\n`);
-		info("  npm link");
+		info(`  ${options.packageManager} link`);
 	}
 	newline();
 }

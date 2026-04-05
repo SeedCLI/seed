@@ -1,7 +1,14 @@
 import { join } from "node:path";
 import { arg, command, flag } from "@seedcli/core";
 import { exists, readJson } from "@seedcli/filesystem";
-import { create, detect } from "@seedcli/package-manager";
+import type { PackageManagerName } from "@seedcli/package-manager";
+import {
+	create,
+	detect,
+	detectFromUserAgent,
+	getCommands,
+	pmRunPrefix,
+} from "@seedcli/package-manager";
 import { error, info, muted, newline, spin, success, warning } from "@seedcli/print";
 import { input, select } from "@seedcli/prompt";
 import { kebabCase } from "@seedcli/strings";
@@ -49,6 +56,11 @@ export const newCommand = command({
 		let template: "full" | "minimal" | "plugin" = "full";
 		let description = "A CLI built with Seed CLI";
 
+		// Infer PM from invocation context, then lockfile, then fallback to npm
+		const inferredPm: PackageManagerName =
+			detectFromUserAgent() ?? (await detect(process.cwd()).catch(() => "npm" as const));
+		let packageManager = inferredPm;
+
 		if (!flags.skipPrompts) {
 			template = await select<"full" | "minimal" | "plugin">({
 				message: "Template:",
@@ -62,6 +74,17 @@ export const newCommand = command({
 			description = await input({
 				message: "Description:",
 				default: description,
+			});
+
+			packageManager = await select<PackageManagerName>({
+				message: "Package manager:",
+				choices: [
+					{ name: "npm", value: "npm" },
+					{ name: "pnpm", value: "pnpm" },
+					{ name: "yarn", value: "yarn" },
+					{ name: "bun", value: "bun" },
+				],
+				default: inferredPm,
 			});
 		}
 
@@ -99,6 +122,7 @@ export const newCommand = command({
 					includeExamples: template === "full",
 					version: "0.1.0",
 					seedcliVersion,
+					pmRun: pmRunPrefix(packageManager),
 				},
 				rename: { gitignore: ".gitignore" },
 			});
@@ -130,19 +154,19 @@ export const newCommand = command({
 
 		// Install dependencies
 		if (!flags.skipInstall) {
-			const pm = await detect(targetDir);
-			const manager = await create(pm, targetDir);
+			const manager = await create(packageManager, targetDir);
 			const installSpinner = spin("Installing dependencies...");
 			try {
 				await manager.install();
 				installSpinner.succeed("Dependencies installed");
 			} catch {
 				installSpinner.fail("Failed to install dependencies");
-				warning("Run `npm install` manually in the project directory");
+				warning(`Run \`${getCommands(packageManager).install}\` manually in the project directory`);
 			}
 		}
 
 		// Done
+		const run = pmRunPrefix(packageManager);
 		newline();
 		success(`Project "${name}" created!`);
 		newline();
@@ -150,7 +174,7 @@ export const newCommand = command({
 		info(`  cd ${name}`);
 
 		if (template === "plugin") {
-			info("  npm test");
+			info(`  ${run} test`);
 			muted(`\n  To use this plugin in a CLI:\n`);
 			info(`  import plugin from "${name}";`);
 			info("");
@@ -158,10 +182,9 @@ export const newCommand = command({
 			info("    .plugin(plugin)");
 			info("    .create();");
 		} else {
-			info("  npm run dev");
-			info("  npx tsx src/index.ts --help");
+			info(`  ${run} dev`);
 			muted(`\n  To use "${name}" as a global command:\n`);
-			info("  npm link");
+			info(`  ${packageManager} link`);
 		}
 		newline();
 	},

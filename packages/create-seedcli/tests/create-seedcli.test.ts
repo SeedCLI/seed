@@ -126,6 +126,7 @@ describe("create-seedcli templates", () => {
 				description: "Test plugin",
 				version: "0.0.1",
 				seedcliVersion: PKG_VERSION,
+				pmRun: "pnpm run",
 			},
 			rename: { gitignore: ".gitignore" },
 		});
@@ -191,6 +192,34 @@ describe("create-seedcli templates", () => {
 			expect(content).not.toContain("<%=");
 			expect(content).not.toContain("<%~");
 			expect(content).not.toContain("<% ");
+		}
+	});
+
+	test("plugin template uses selected package manager for prepublishOnly", async () => {
+		for (const [pm, expected] of [
+			["npm run", "npm run build"],
+			["pnpm run", "pnpm run build"],
+			["yarn", "yarn build"],
+			["bun run", "bun run build"],
+		] as const) {
+			const targetDir = join(tempDir, `plugin-${pm.split(" ")[0]}`);
+			mkdirSync(targetDir, { recursive: true });
+
+			await directory({
+				source: join(TEMPLATES_DIR, "plugin"),
+				target: targetDir,
+				props: {
+					name: "test-plugin",
+					description: "Test",
+					version: "0.0.1",
+					seedcliVersion: PKG_VERSION,
+					pmRun: pm,
+				},
+				rename: { gitignore: ".gitignore" },
+			});
+
+			const pkg = JSON.parse(readFileSync(join(targetDir, "package.json"), "utf-8"));
+			expect(pkg.scripts.prepublishOnly).toBe(expected);
 		}
 	});
 

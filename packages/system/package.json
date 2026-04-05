@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/system",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "System utilities: exec, shell, which, OS info, open, environment variables",
 	"type": "module",
 	"license": "MIT",

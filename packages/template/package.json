@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/template",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "Template engine (Eta): string rendering, file generation, directory scaffolding",
 	"type": "module",
 	"license": "MIT",

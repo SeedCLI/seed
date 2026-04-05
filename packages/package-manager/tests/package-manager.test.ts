@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { getCommands } from "../src/commands.js";
+import { detectFromUserAgent, getCommands, pmRunPrefix } from "../src/commands.js";
 import { detect } from "../src/detect.js";
 import { create } from "../src/manager.js";
 
@@ -149,6 +149,84 @@ describe("package-manager", () => {
 		test("defaults to npm when no indicators present", async () => {
 			const pm = await create(undefined, dir);
 			expect(pm.name).toBe("npm");
+		});
+	});
+
+	describe("pmRunPrefix", () => {
+		test("returns 'npm run' for npm", () => {
+			expect(pmRunPrefix("npm")).toBe("npm run");
+		});
+
+		test("returns 'pnpm run' for pnpm", () => {
+			expect(pmRunPrefix("pnpm")).toBe("pnpm run");
+		});
+
+		test("returns 'yarn' for yarn (no run needed)", () => {
+			expect(pmRunPrefix("yarn")).toBe("yarn");
+		});
+
+		test("returns 'bun run' for bun", () => {
+			expect(pmRunPrefix("bun")).toBe("bun run");
+		});
+	});
+
+	describe("detectFromUserAgent", () => {
+		const originalEnv = process.env.npm_config_user_agent;
+
+		afterEach(() => {
+			if (originalEnv === undefined) {
+				delete process.env.npm_config_user_agent;
+			} else {
+				process.env.npm_config_user_agent = originalEnv;
+			}
+		});
+
+		test("detects npm", () => {
+			process.env.npm_config_user_agent = "npm/10.5.0 node/v22.0.0 darwin arm64";
+			expect(detectFromUserAgent()).toBe("npm");
+		});
+
+		test("detects pnpm", () => {
+			process.env.npm_config_user_agent = "pnpm/9.15.0 node/v22.0.0";
+			expect(detectFromUserAgent()).toBe("pnpm");
+		});
+
+		test("detects yarn", () => {
+			process.env.npm_config_user_agent = "yarn/4.1.0 node/v22.0.0";
+			expect(detectFromUserAgent()).toBe("yarn");
+		});
+
+		test("detects bun", () => {
+			process.env.npm_config_user_agent = "bun/1.2.0";
+			expect(detectFromUserAgent()).toBe("bun");
+		});
+
+		test("returns undefined when env var is absent", () => {
+			delete process.env.npm_config_user_agent;
+			expect(detectFromUserAgent()).toBeUndefined();
+		});
+
+		test("returns undefined for unrecognized agent", () => {
+			process.env.npm_config_user_agent = "unknown/1.0.0";
+			expect(detectFromUserAgent()).toBeUndefined();
+		});
+	});
+
+	describe("getCommands install", () => {
+		test("npm install command is 'npm install'", () => {
+			expect(getCommands("npm").install).toBe("npm install");
+		});
+
+		test("pnpm install command is 'pnpm install'", () => {
+			expect(getCommands("pnpm").install).toBe("pnpm install");
+		});
+
+		test("yarn install command is 'yarn install'", () => {
+			expect(getCommands("yarn").install).toBe("yarn install");
+		});
+
+		test("bun install command is 'bun install'", () => {
+			expect(getCommands("bun").install).toBe("bun install");
 		});
 	});
 });

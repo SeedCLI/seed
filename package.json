@@ -1,6 +1,6 @@
 {
 	"name": "seedcli",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "Batteries-included, modular, TypeScript-first CLI framework powered by Node.js",
 	"license": "MIT",
 	"author": "Rully Ardiansyah <rully@dreamshive.io>",

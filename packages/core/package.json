@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/core",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "Core runtime, builder API, command system, and arg parser for Seed CLI",
 	"type": "module",
 	"license": "MIT",
@@ -55,7 +55,6 @@
 		"@seedcli/strings": "workspace:*",
 		"@seedcli/system": "workspace:*",
 		"@seedcli/template": "workspace:*",
-		"@seedcli/tui": "workspace:*",
 		"@seedcli/ui": "workspace:*",
 		"tinyglobby": "^0.2.13"
 	},
