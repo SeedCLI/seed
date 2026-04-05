@@ -96,8 +96,8 @@ jobs:
       - run: pnpm install
       - run: pnpm run build
       - name: Build standalone executable
-        run: npx @hakobu/hakobu ./packages/cli --bundle --entry dist/index.js --target ${{ matrix.target }} --output ./dist/seed
+        run: node --import tsx scripts/build-dist.ts --target ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
           name: seed-${{ matrix.target }}
-          path: ./dist/seed*
+          path: dist/seed-*

@@ -24,7 +24,12 @@ const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
-const TARGETS = ["node24-linux-x64", "node24-linux-arm64", "node24-macos-arm64", "node24-win-x64"];
+const ALL_TARGETS = [
+	"node24-linux-x64",
+	"node24-linux-arm64",
+	"node24-macos-arm64",
+	"node24-win-x64",
+];
 
 // Resolve the hakobu CLI JS entry from node_modules
 function resolveHakobuBin(): string {
@@ -34,6 +39,18 @@ function resolveHakobuBin(): string {
 }
 
 async function main() {
+	const args = process.argv.slice(2);
+	const targetIdx = args.indexOf("--target");
+	const requestedTarget = targetIdx !== -1 ? args[targetIdx + 1] : undefined;
+
+	if (requestedTarget && !ALL_TARGETS.includes(requestedTarget)) {
+		console.error(`Unknown target: ${requestedTarget}`);
+		console.error(`Valid targets: ${ALL_TARGETS.join(", ")}`);
+		process.exit(1);
+	}
+
+	const targets = requestedTarget ? [requestedTarget] : ALL_TARGETS;
+
 	const hakobuBin = resolveHakobuBin();
 	const cliEntry = path.join(ROOT, "packages/cli/dist/index.js");
 	const stageDir = path.join(ROOT, "dist/.stage");
@@ -120,7 +137,7 @@ const require = __esbuild_createRequire(import.meta.url);`,
 	// ── Step 2: Hakobu packages the bundled output ──
 	console.log("\nStep 2: Packaging with Hakobu...\n");
 
-	for (const target of TARGETS) {
+	for (const target of targets) {
 		const suffix = target.replace("node24-", "");
 		const ext = target.includes("win") ? ".exe" : "";
 		const outputPath = path.join(ROOT, "dist", `seed-${suffix}${ext}`);
@@ -158,7 +175,7 @@ const require = __esbuild_createRequire(import.meta.url);`,
 
 	// ── Post-build: verify macOS signature ──
 	if (process.platform === "darwin") {
-		for (const target of TARGETS) {
+		for (const target of targets) {
 			if (!target.includes("macos")) continue;
 			const suffix = target.replace("node24-", "");
 			const binaryPath = path.join(ROOT, "dist", `seed-${suffix}`);
@@ -185,7 +202,7 @@ const require = __esbuild_createRequire(import.meta.url);`,
 
 	// ── Summary ──
 	console.log("\nDone! Executables:");
-	for (const target of TARGETS) {
+	for (const target of targets) {
 		const suffix = target.replace("node24-", "");
 		const ext = target.includes("win") ? ".exe" : "";
 		const file = path.join(ROOT, "dist", `seed-${suffix}${ext}`);
