@@ -41,6 +41,12 @@ export interface Seed<TArgs = Record<string, never>, TFlags = Record<string, nev
 		raw: string[];
 		argv: string[];
 		command: string | undefined;
+		/**
+		 * Tokens captured after a literal `--` separator when the command opts
+		 * into passthrough mode (`command({ passthrough: true })`). Forwarded
+		 * verbatim, not parsed.
+		 */
+		passthrough: string[];
 	};
 
 	// Core modules (always loaded; throws at runtime if explicitly excluded)

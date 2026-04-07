@@ -414,7 +414,14 @@ export class Runtime {
 		const parsed = parse(argv, cmd);
 
 		// Assemble seed
-		const seed = await this.assembleSeed(parsed.args, parsed.flags, cmd.name, rawArgv, parsed.argv);
+		const seed = await this.assembleSeed(
+			parsed.args,
+			parsed.flags,
+			cmd.name,
+			rawArgv,
+			parsed.argv,
+			parsed.passthrough,
+		);
 
 		// Run onReady
 		if (this.config.onReady) {
@@ -537,6 +544,7 @@ export class Runtime {
 		commandName: string,
 		rawArgv?: string[],
 		positionals?: string[],
+		passthrough?: string[],
 	): Promise<Seed<Record<string, unknown>, Record<string, unknown>>> {
 		const excluded = new Set(this.config.excludeModules ?? []);
 
@@ -552,6 +560,7 @@ export class Runtime {
 				raw,
 				argv: positionals ?? [],
 				command: commandName,
+				passthrough: passthrough ?? [],
 			},
 			meta: {
 				version: this.config.version ?? "0.0.0",

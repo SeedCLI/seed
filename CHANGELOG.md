@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`seed dev` arg passthrough** — Forward arbitrary args to your entry script by placing them after a literal `--`. Example: `seed dev -- setup --from /tmp --dryRun`. The spawned entry script's `process.argv` will receive `["setup", "--from", "/tmp", "--dryRun"]`. Hot reload preserves the forwarded args on every restart.
+- **Command-level passthrough mode** — Commands can opt into `--` passthrough by setting `passthrough: true` in `command({ ... })`. When enabled, tokens after `--` are captured as `seed.parameters.passthrough` (string[]) instead of being parsed.
+
+### Changed
+
+- **Better unknown-flag error messages** — When a passthrough-enabled command receives an unknown flag, the error now points users to the `--` forwarding pattern instead of Node's misleading `'-- "--from"'` hint.
+
 ## v1.1.0
 
 ### Overview

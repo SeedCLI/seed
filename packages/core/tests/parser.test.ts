@@ -544,3 +544,76 @@ describe("parse() — extra positional args warning", () => {
 		}
 	});
 });
+
+// ─── passthrough mode ───
+
+function makePassthroughCmd(flags?: Record<string, ReturnType<typeof flag>>) {
+	return command({
+		name: "test",
+		passthrough: true,
+		flags,
+		run: async () => {},
+	});
+}
+
+describe("parse() — passthrough mode", () => {
+	test("captures everything after `--` as passthrough", () => {
+		const cmd = makePassthroughCmd();
+		const result = parse(["--", "setup", "--from", "/tmp", "--dryRun", "--reset"], cmd);
+		expect(result.passthrough).toEqual(["setup", "--from", "/tmp", "--dryRun", "--reset"]);
+		expect(result.argv).toEqual([]);
+	});
+
+	test("parses own flags before `--` and captures everything after", () => {
+		const cmd = makePassthroughCmd({
+			entry: flag({ type: "string" }),
+		});
+		const result = parse(["--entry", "src/main.ts", "--", "subcommand", "--from", "/tmp"], cmd);
+		expect(result.flags.entry).toBe("src/main.ts");
+		expect(result.passthrough).toEqual(["subcommand", "--from", "/tmp"]);
+	});
+
+	test("returns empty passthrough when `--` is absent", () => {
+		const cmd = makePassthroughCmd({ entry: flag({ type: "string" }) });
+		const result = parse(["--entry", "src/main.ts"], cmd);
+		expect(result.passthrough).toEqual([]);
+	});
+
+	test("non-passthrough commands still error on unknown flags", () => {
+		const cmd = makeCmd({ flags: { entry: flag({ type: "string" }) } });
+		expect(() => parse(["setup", "--from", "/tmp"], cmd)).toThrow(ParseError);
+	});
+
+	test("unknown-flag error on a passthrough command suggests using `--`", () => {
+		const cmd = makePassthroughCmd({ entry: flag({ type: "string" }) });
+		try {
+			parse(["setup", "--from", "/tmp"], cmd);
+			throw new Error("expected ParseError to be thrown");
+		} catch (err) {
+			expect(err).toBeInstanceOf(ParseError);
+			const msg = (err as ParseError).message;
+			expect(msg).toContain("Unknown option '--from'");
+			expect(msg).toContain("place -- between");
+			expect(msg).toContain("seed test -- --from <value>");
+		}
+	});
+
+	test("unknown-flag error suggests `--` and a similar flag at the same time", () => {
+		const cmd = makePassthroughCmd({ entry: flag({ type: "string" }) });
+		try {
+			parse(["--entryy", "src/main.ts"], cmd);
+			throw new Error("expected ParseError to be thrown");
+		} catch (err) {
+			expect(err).toBeInstanceOf(ParseError);
+			const msg = (err as ParseError).message;
+			expect(msg).toContain("Did you mean --entry?");
+			expect(msg).toContain("place -- between");
+		}
+	});
+
+	test("non-passthrough commands return empty passthrough field", () => {
+		const cmd = makeCmd({ flags: { verbose: flag({ type: "boolean" }) } });
+		const result = parse(["--verbose"], cmd);
+		expect(result.passthrough).toEqual([]);
+	});
+});

@@ -8,11 +8,13 @@ import { resolveEntry } from "../utils/resolve-entry.js";
 
 export const devCommand = command({
 	name: "dev",
-	description: "Start dev mode with watch",
+	description:
+		"Start dev mode with watch. Forward args to your entry script after `--`, e.g. `seed dev -- subcommand --flag value`.",
 	flags: {
 		entry: flag({ type: "string", description: "Entry point override" }),
 	},
-	run: async ({ flags }) => {
+	passthrough: true,
+	run: async ({ flags, parameters }) => {
 		const cwd = process.cwd();
 
 		let config: SeedConfig = {};
@@ -48,9 +50,16 @@ export const devCommand = command({
 			return;
 		}
 
-		const devArgs = devConfig.args ?? [];
+		// Args forwarded to the spawned entry script:
+		//   1. devConfig.args from seed.config.ts (`dev.args`)
+		//   2. anything after `--` on the command line (passthrough)
+		const devArgs = [...(devConfig.args ?? []), ...parameters.passthrough];
 
-		info(`${colors.cyan(projectName)} dev watching ${colors.dim(entry)}`);
+		const passthroughInfo =
+			parameters.passthrough.length > 0
+				? ` ${colors.dim(`-- ${parameters.passthrough.join(" ")}`)}`
+				: "";
+		info(`${colors.cyan(projectName)} dev watching ${colors.dim(entry)}${passthroughInfo}`);
 
 		const { execa } = await import("execa");
 		await execa("node", ["--watch", entryPath, ...devArgs], {
