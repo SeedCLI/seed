@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## v1.1.3
+
+### Fixed
+
+- **`seed dev` resolves TypeScript imports correctly.** When the entry script is a `.ts/.tsx/.mts/.cts` file, `seed dev` now spawns `node --watch --import tsx ...` instead of plain `node --watch`. This fixes:
+  - **`.js` → `.ts` fallback** — `import "./foo.js"` resolves to `foo.ts` when only the TS source exists. This is the official TypeScript ESM convention and is now consistent with `bun src/index.ts`, `tsx watch`, `vite-node`, and `vitest`.
+  - **No-extension imports** — `import "./foo"` resolves to `foo.ts`, `foo.tsx`, etc. via the standard fallback chain.
+  - Plain `.mjs/.js` entries still spawn without the loader, preserving existing behavior.
+  - If `tsx` is not installed in the project (or reachable from `@seedcli/cli`), `seed dev` prints a hint instead of silently misbehaving.
+
+## v1.1.2
 
 ### Added
 
