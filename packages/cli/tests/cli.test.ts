@@ -260,6 +260,94 @@ describe("seed new", () => {
 	});
 });
 
+describe("seed dev", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "seedcli-dev-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	test("forwards args after `--` to the spawned entry script", async () => {
+		// Minimal entry that prints its argv. `node --watch` keeps the parent
+		// alive after the entry exits, so we kill the spawned `seed dev` once
+		// we see the sentinel line.
+		const entrySource = `console.log("ARGV:" + JSON.stringify(process.argv.slice(2)));\n`;
+		await writeFile(join(dir, "entry.mjs"), entrySource);
+		await writeFile(join(dir, "package.json"), JSON.stringify({ name: "dev-passthrough-test" }));
+
+		const child = execa(
+			"node",
+			[
+				"--import",
+				TSX_PATH,
+				CLI_ENTRY,
+				"dev",
+				"--entry",
+				"entry.mjs",
+				"--",
+				"setup",
+				"--from",
+				"/tmp",
+				"--dryRun",
+				"--reset",
+			],
+			{
+				stdout: "pipe",
+				stderr: "pipe",
+				cwd: dir,
+				reject: false,
+			},
+		);
+
+		const expected = 'ARGV:["setup","--from","/tmp","--dryRun","--reset"]';
+		const seen = await new Promise<boolean>((resolve) => {
+			let buf = "";
+			const timer = setTimeout(() => resolve(false), 15_000);
+			child.stdout?.on("data", (chunk: Buffer) => {
+				buf += chunk.toString();
+				if (buf.includes(expected)) {
+					clearTimeout(timer);
+					resolve(true);
+				}
+			});
+			child.on("exit", () => {
+				clearTimeout(timer);
+				resolve(buf.includes(expected));
+			});
+		});
+
+		child.kill("SIGTERM");
+		await child.catch(() => {});
+
+		expect(seen).toBe(true);
+	}, 20_000);
+
+	test("unknown flag without `--` prints a passthrough hint", async () => {
+		await writeFile(join(dir, "entry.mjs"), "process.exit(0);\n");
+		await writeFile(join(dir, "package.json"), JSON.stringify({ name: "dev-hint-test" }));
+
+		const result = await execa(
+			"node",
+			["--import", TSX_PATH, CLI_ENTRY, "dev", "--entry", "entry.mjs", "--from", "/tmp"],
+			{
+				stdout: "pipe",
+				stderr: "pipe",
+				cwd: dir,
+				reject: false,
+			},
+		);
+
+		const output = `${result.stdout}\n${result.stderr}`;
+		expect(output).toContain("Unknown option '--from'");
+		expect(output).toContain("place -- between");
+		expect(output).toContain("seed dev -- --from <value>");
+	}, 30_000);
+});
+
 describe("generateBuildEntry - plugin string references", () => {
 	let dir: string;
 

@@ -19,6 +19,8 @@ export interface ParseResult {
 	command: string | undefined;
 	argv: string[];
 	raw: string[];
+	/** Tokens after `--` when the command opts into passthrough mode. */
+	passthrough: string[];
 }
 
 // ─── Parser ───
@@ -36,6 +38,19 @@ export interface ParseResult {
 export function parse(argv: string[], cmd: Command): ParseResult {
 	const argDefs = cmd.args ?? {};
 	const flagDefs = cmd.flags ?? {};
+
+	// ─── Passthrough mode: split off everything after the first `--` ───
+	// When the command opts into passthrough, tokens after `--` are forwarded
+	// verbatim instead of being parsed (or warned about as extra positionals).
+	let passthrough: string[] = [];
+	let argvForParse = argv;
+	if (cmd.passthrough) {
+		const sepIdx = argv.indexOf("--");
+		if (sepIdx !== -1) {
+			passthrough = argv.slice(sepIdx + 1);
+			argvForParse = argv.slice(0, sepIdx);
+		}
+	}
 
 	// Build parseArgs options from flag definitions
 	const options: Record<
@@ -75,11 +90,11 @@ export function parse(argv: string[], cmd: Command): ParseResult {
 	const preprocessedArgv: string[] = [];
 
 	// Find the -- separator position; tokens after it are literal positional args
-	const dashDashIdx = argv.indexOf("--");
-	const scanEnd = dashDashIdx === -1 ? argv.length : dashDashIdx;
+	const dashDashIdx = argvForParse.indexOf("--");
+	const scanEnd = dashDashIdx === -1 ? argvForParse.length : dashDashIdx;
 
-	for (let i = 0; i < argv.length; i++) {
-		const token = argv[i];
+	for (let i = 0; i < argvForParse.length; i++) {
+		const token = argvForParse[i];
 		if (i < scanEnd && token.startsWith("--no-")) {
 			const flagName = token.slice(5); // strip "--no-"
 			if (booleanFlags.has(flagName)) {
@@ -105,15 +120,24 @@ export function parse(argv: string[], cmd: Command): ParseResult {
 		});
 	} catch (err) {
 		if (err instanceof Error) {
-			// Enhance unknown option errors with "did you mean?" suggestions
+			// Enhance unknown option errors with better wording.
+			// Strip Node's misleading "place positional arg after --" hint and
+			// (when applicable) suggest using `--` to forward args to a
+			// passthrough-enabled command.
 			const unknownMatch = err.message.match(/Unknown option '(--.+?)'/);
 			if (unknownMatch) {
-				const unknownFlag = unknownMatch[1].replace(/^--/, "");
+				const unknownFlagToken = unknownMatch[1];
+				const unknownFlag = unknownFlagToken.replace(/^--/, "");
 				const definedFlags = Object.keys(flagDefs);
 				const suggestion = findClosest(unknownFlag, definedFlags);
-				let msg = err.message;
+
+				let msg = `Unknown option '${unknownFlagToken}'`;
 				if (suggestion) {
 					msg += `\n\n  Did you mean --${suggestion}?`;
+				}
+				if (cmd.passthrough) {
+					msg += `\n\n  If you meant to forward this to the spawned process, place -- between ${cmd.name}'s flags and your forwarded args:`;
+					msg += `\n    seed ${cmd.name} -- ${unknownFlagToken} <value>`;
 				}
 				throw new ParseError(msg);
 			}
@@ -191,6 +215,7 @@ export function parse(argv: string[], cmd: Command): ParseResult {
 		command: cmd.name,
 		argv: parsed.positionals,
 		raw: argv,
+		passthrough,
 	};
 }
 

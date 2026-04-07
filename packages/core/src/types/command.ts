@@ -38,6 +38,15 @@ export interface CommandConfig<
 	/** Per-command middleware */
 	middleware?: Middleware[];
 
+	/**
+	 * Forward everything after a literal `--` separator to the command's `run`
+	 * function via `seed.parameters.passthrough` instead of parsing it.
+	 *
+	 * Useful for commands that spawn another process (e.g. `seed dev`) and
+	 * want to forward unknown args to the spawned program.
+	 */
+	passthrough?: boolean;
+
 	/** The command handler */
 	run?: (seed: Seed<InferArgs<TArgs>, InferFlags<TFlags>>) => Promise<void> | void;
 }
@@ -54,6 +63,7 @@ export interface Command {
 	flags?: Record<string, FlagDef>;
 	subcommands?: Command[];
 	middleware?: Middleware[];
+	passthrough?: boolean;
 	run?: (seed: Seed<Record<string, unknown>, Record<string, unknown>>) => Promise<void> | void;
 }
 
