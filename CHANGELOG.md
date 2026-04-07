@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.1.5
+
+### Fixed
+
+- **`.version()` auto-detect now works in bundled output.** In v1.1.4 (which introduced the JS-bundle build mode), calling `.version()` with no arguments silently returned `0.0.0` from the bundled `dist/index.js`, even though it worked correctly in dev mode. Root cause: version auto-detect was gated on `this.config.srcDir`, which is only set when `.src(...)` is called — but `seed build`'s static rewriter strips `.src(...)` and replaces it with explicit `.command()` / `.extension()` calls, leaving `srcDir` undefined at runtime.
+
+  `Runtime.detectVersion()` now walks up from `process.argv[1]` (the entry script as resolved by Node) in addition to `srcDir`, so the same code path resolves the project's `package.json` whether it's running raw source (`bun src/index.ts`), the bundled output (`node dist/index.js`), or the globally-installed CLI (`npm install -g <pkg>` then `<pkg> --version`). Compiled standalone binaries still fall back to `"0.0.0"` when no `package.json` is reachable on disk, which is the expected behavior. The framework's own `@seedcli/core/package.json` is filtered out so the framework version cannot accidentally be reported as the user CLI's version.
+
+  After this fix, the recommended pattern in your CLI entry is just:
+
+  ```ts
+  build("my-cli")
+    .src(import.meta.dirname)
+    .help()
+    .version() // ← auto-detected from package.json in both modes
+    .create()
+  ```
+
+  Users no longer need to import their own `package.json` as a workaround.
+
 ## v1.1.4
 
 ### Fixed

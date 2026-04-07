@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/ui",
-	"version": "1.1.4",
+	"version": "1.1.5",
 	"description": "Terminal UI components: header, status indicators, list formatting",
 	"type": "module",
 	"license": "MIT",
