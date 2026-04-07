@@ -1,6 +1,6 @@
 {
 	"name": "@seedcli/cli",
-	"version": "1.1.4",
+	"version": "1.1.5",
 	"description": "Scaffolding CLI for creating and managing Seed CLI projects",
 	"type": "module",
 	"license": "MIT",

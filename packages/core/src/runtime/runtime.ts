@@ -151,8 +151,12 @@ export class Runtime {
 
 		try {
 			// ─── Auto-detect version from package.json if not explicitly set ───
-			if (!this.config.version && this.config.srcDir) {
-				this.config.version = await this.detectVersion(this.config.srcDir);
+			// Works in both raw-source mode (where srcDir is set via .src())
+			// and in bundled mode (where the build step strips .src() so
+			// srcDir is undefined — we then walk up from the entry script's
+			// path on disk to find the project's package.json).
+			if (!this.config.version) {
+				this.config.version = await this.detectVersion();
 			}
 
 			// ─── Handle --version ───
@@ -761,20 +765,70 @@ export class Runtime {
 		return "0.0.0";
 	}
 
-	private async detectVersion(srcDir: string): Promise<string | undefined> {
-		// Walk up from srcDir looking for package.json (srcDir is typically ./src)
-		let dir = srcDir;
-		for (let i = 0; i < 3; i++) {
+	/**
+	 * Auto-detect the CLI's version from the nearest `package.json`.
+	 *
+	 * This is intentionally decoupled from `srcDir` so that `.version()` (no
+	 * args) works in both execution modes:
+	 *
+	 *  1. **Raw-source / dev mode** — `.src(import.meta.dirname)` was called
+	 *     by the user, so `this.config.srcDir` is set. Walk up from there.
+	 *  2. **Bundled mode** — `seed build`'s `generateBuildEntry` strips
+	 *     `.src(...)` and replaces it with explicit `.command()` /
+	 *     `.extension()` calls, leaving `srcDir` undefined. In this case
+	 *     we walk up from `process.argv[1]` (the entry script as resolved
+	 *     by Node), which points at the bundled `dist/index.js` (or the
+	 *     globally-installed equivalent).
+	 *
+	 * Returns `undefined` if no `package.json` with a `version` field is
+	 * reachable from any candidate root. The caller falls back to `"0.0.0"`.
+	 */
+	private async detectVersion(): Promise<string | undefined> {
+		const candidates: string[] = [];
+
+		// 1. The directory of the entry script — works for bundled output
+		//    (`node dist/index.js`), globally-installed CLIs, and raw
+		//    `node src/index.ts` runs alike. We resolve relative to cwd
+		//    because `process.argv[1]` may be a relative path.
+		const entryArg = process.argv[1];
+		if (entryArg) {
 			try {
-				const pkgPath = join(dir, "package.json");
-				const data = JSON.parse(readFileSync(pkgPath, "utf-8"));
-				if (data.version) return data.version;
+				candidates.push(dirname(resolve(process.cwd(), entryArg)));
 			} catch {
-				// Not found, try parent
+				// Ignore — fall through to other candidates.
 			}
-			const parent = dirname(dir);
-			if (parent === dir) break;
-			dir = parent;
+		}
+
+		// 2. srcDir from the builder — covers cases where argv[1] is not
+		//    set or where the user has called .src() with a non-cwd path.
+		if (this.config.srcDir) {
+			candidates.push(this.config.srcDir);
+		}
+
+		// De-dupe candidates and walk up from each looking for package.json.
+		// Skip @seedcli/core's own package.json so we don't confuse the
+		// framework's version with the user CLI's version (this matters when
+		// running tests inside the seedcli monorepo, where argv[1] points at
+		// vitest's entry and walking up could find a transitive dep).
+		const seen = new Set<string>();
+		for (const start of candidates) {
+			if (seen.has(start)) continue;
+			seen.add(start);
+			let dir = start;
+			for (let i = 0; i < 5; i++) {
+				try {
+					const pkgPath = join(dir, "package.json");
+					const data = JSON.parse(readFileSync(pkgPath, "utf-8"));
+					if (data.version && typeof data.version === "string" && data.name !== "@seedcli/core") {
+						return data.version;
+					}
+				} catch {
+					// Not found, try parent
+				}
+				const parent = dirname(dir);
+				if (parent === dir) break;
+				dir = parent;
+			}
 		}
 		return undefined;
 	}

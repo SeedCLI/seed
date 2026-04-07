@@ -364,3 +364,129 @@ describe("Runtime.run() — --debug/--verbose stripping respects -- separator", 
 		expect(capturedRaw).toEqual(["test", "--", "--debug"]);
 	});
 });
+
+// Regression coverage for the v1.1.5 fix:
+//
+//   `.version()` (no args) auto-detects the CLI's version from the nearest
+//   package.json. Before the fix this only worked when `.src(...)` had been
+//   called (because auto-detect was gated on `srcDir`). After the bundle-mode
+//   fix in 1.1.4, `seed build`'s static rewriter strips `.src(...)`, leaving
+//   `srcDir` undefined and silently breaking auto-detect in shipped CLIs.
+//
+//   The fix walks up from `process.argv[1]` (the entry script as resolved by
+//   Node) as well as from `srcDir`, so auto-detect now works in both modes.
+//
+// These tests stub `process.argv[1]` to point at a fixture entry inside a
+// temp directory containing a known package.json — that's the cleanest way
+// to exercise the bundled-mode path without spawning a child process.
+describe("version auto-detect", () => {
+	let logSpy: ReturnType<typeof vi.fn>;
+	let origLog: typeof console.log;
+	let origArgv1: string | undefined;
+	let tempDir: string | undefined;
+
+	beforeEach(() => {
+		origLog = console.log;
+		logSpy = vi.fn();
+		console.log = logSpy;
+		origArgv1 = process.argv[1];
+	});
+
+	afterEach(async () => {
+		console.log = origLog;
+		if (origArgv1 !== undefined) {
+			process.argv[1] = origArgv1;
+		}
+		if (tempDir) {
+			const { rm } = await import("node:fs/promises");
+			await rm(tempDir, { recursive: true, force: true });
+			tempDir = undefined;
+		}
+		process.exitCode = 0;
+	});
+
+	test("auto-detects version from package.json walking up from argv[1] (bundled mode)", async () => {
+		// Simulate the bundled-mode layout: a `dist/index.js` sitting next to
+		// a `package.json` in the project root. No .src() is called, so
+		// `srcDir` is undefined — exactly the case that broke in 1.1.4.
+		const { mkdtemp, mkdir, writeFile } = await import("node:fs/promises");
+		const { tmpdir } = await import("node:os");
+		const { join } = await import("node:path");
+		tempDir = await mkdtemp(join(tmpdir(), "seedcli-version-detect-"));
+		await mkdir(join(tempDir, "dist"), { recursive: true });
+		await writeFile(
+			join(tempDir, "package.json"),
+			JSON.stringify({ name: "fixture-cli", version: "9.9.9" }),
+			"utf-8",
+		);
+		const fixtureEntry = join(tempDir, "dist", "index.js");
+		await writeFile(fixtureEntry, "// fixture entry\n", "utf-8");
+
+		process.argv[1] = fixtureEntry;
+
+		const runtime = build("mycli").version().create();
+		await runtime.run(["--version"]);
+
+		expect(logSpy.mock.calls[0]?.[0]).toBe("mycli v9.9.9");
+	});
+
+	test("auto-detects version from package.json walking up from srcDir (raw-source mode)", async () => {
+		// Simulate the dev-mode layout: `src/index.ts` next to a package.json,
+		// with `.src(srcDir)` called. argv[1] is stubbed to a non-existent path
+		// so the test isolates the srcDir branch.
+		const { mkdtemp, mkdir, writeFile } = await import("node:fs/promises");
+		const { tmpdir } = await import("node:os");
+		const { join } = await import("node:path");
+		tempDir = await mkdtemp(join(tmpdir(), "seedcli-version-srcdir-"));
+		const srcDir = join(tempDir, "src");
+		await mkdir(srcDir, { recursive: true });
+		await writeFile(
+			join(tempDir, "package.json"),
+			JSON.stringify({ name: "fixture-cli", version: "8.8.8" }),
+			"utf-8",
+		);
+
+		process.argv[1] = join(tempDir, "no-such-entry-script.js");
+
+		const runtime = build("mycli").src(srcDir).version().create();
+		await runtime.run(["--version"]);
+
+		expect(logSpy.mock.calls[0]?.[0]).toBe("mycli v8.8.8");
+	});
+
+	test("explicit .version(value) takes precedence over auto-detect", async () => {
+		const { mkdtemp, writeFile } = await import("node:fs/promises");
+		const { tmpdir } = await import("node:os");
+		const { join } = await import("node:path");
+		tempDir = await mkdtemp(join(tmpdir(), "seedcli-version-explicit-"));
+		await writeFile(
+			join(tempDir, "package.json"),
+			JSON.stringify({ name: "fixture-cli", version: "9.9.9" }),
+			"utf-8",
+		);
+		process.argv[1] = join(tempDir, "index.js");
+
+		const runtime = build("mycli").version("1.2.3").create();
+		await runtime.run(["--version"]);
+
+		expect(logSpy.mock.calls[0]?.[0]).toBe("mycli v1.2.3");
+	});
+
+	test("falls back to v0.0.0 when no package.json is reachable", async () => {
+		// Stub argv[1] to a deep tmp path with no package.json on the way up.
+		const { mkdtemp } = await import("node:fs/promises");
+		const { tmpdir } = await import("node:os");
+		const { join } = await import("node:path");
+		tempDir = await mkdtemp(join(tmpdir(), "seedcli-version-nopkg-"));
+		process.argv[1] = join(tempDir, "nonexistent.js");
+
+		const runtime = build("mycli").version().create();
+		await runtime.run(["--version"]);
+
+		// The walk will find /tmp or / before giving up; on systems where
+		// /tmp has no package.json (i.e. essentially everywhere), the
+		// fallback "0.0.0" line is what gets printed.
+		const printed = logSpy.mock.calls[0]?.[0] as string;
+		expect(printed).toBe("mycli v0.0.0");
+	});
+});
