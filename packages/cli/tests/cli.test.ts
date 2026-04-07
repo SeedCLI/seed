@@ -346,6 +346,102 @@ describe("seed dev", () => {
 		expect(output).toContain("place -- between");
 		expect(output).toContain("seed dev -- --from <value>");
 	}, 30_000);
+
+	test("resolves `./foo.js` import to `foo.ts` (TypeScript ESM convention)", async () => {
+		// Symlink the repo's node_modules so the temp project can find tsx.
+		const { symlink } = await import("node:fs/promises");
+		await symlink(join(REPO_ROOT, "node_modules"), join(dir, "node_modules"));
+
+		await mkdir(join(dir, "src"), { recursive: true });
+		await writeFile(join(dir, "src", "foo.ts"), `export const greeting = "hello-from-foo-ts";\n`);
+		await writeFile(
+			join(dir, "src", "entry.ts"),
+			`import { greeting } from "./foo.js";\nconsole.log("RESULT:" + greeting);\n`,
+		);
+		await writeFile(
+			join(dir, "package.json"),
+			JSON.stringify({ name: "js-fallback-test", type: "module" }),
+		);
+
+		const child = execa(
+			"node",
+			["--import", TSX_PATH, CLI_ENTRY, "dev", "--entry", "src/entry.ts"],
+			{ stdout: "pipe", stderr: "pipe", cwd: dir, reject: false },
+		);
+
+		const expected = "RESULT:hello-from-foo-ts";
+		const seen = await new Promise<boolean>((resolve) => {
+			let buf = "";
+			const timer = setTimeout(() => resolve(false), 15_000);
+			const onData = (chunk: Buffer) => {
+				buf += chunk.toString();
+				if (buf.includes(expected)) {
+					clearTimeout(timer);
+					resolve(true);
+				}
+			};
+			child.stdout?.on("data", onData);
+			child.stderr?.on("data", onData);
+			child.on("exit", () => {
+				clearTimeout(timer);
+				resolve(buf.includes(expected));
+			});
+		});
+
+		child.kill("SIGTERM");
+		await child.catch(() => {});
+
+		expect(seen).toBe(true);
+	}, 25_000);
+
+	test("resolves no-extension `./foo` import to `foo.ts`", async () => {
+		const { symlink } = await import("node:fs/promises");
+		await symlink(join(REPO_ROOT, "node_modules"), join(dir, "node_modules"));
+
+		await mkdir(join(dir, "src"), { recursive: true });
+		await writeFile(
+			join(dir, "src", "foo.ts"),
+			`export const greeting = "hello-from-foo-ts-noext";\n`,
+		);
+		await writeFile(
+			join(dir, "src", "entry.ts"),
+			`import { greeting } from "./foo";\nconsole.log("RESULT:" + greeting);\n`,
+		);
+		await writeFile(
+			join(dir, "package.json"),
+			JSON.stringify({ name: "noext-fallback-test", type: "module" }),
+		);
+
+		const child = execa(
+			"node",
+			["--import", TSX_PATH, CLI_ENTRY, "dev", "--entry", "src/entry.ts"],
+			{ stdout: "pipe", stderr: "pipe", cwd: dir, reject: false },
+		);
+
+		const expected = "RESULT:hello-from-foo-ts-noext";
+		const seen = await new Promise<boolean>((resolve) => {
+			let buf = "";
+			const timer = setTimeout(() => resolve(false), 15_000);
+			const onData = (chunk: Buffer) => {
+				buf += chunk.toString();
+				if (buf.includes(expected)) {
+					clearTimeout(timer);
+					resolve(true);
+				}
+			};
+			child.stdout?.on("data", onData);
+			child.stderr?.on("data", onData);
+			child.on("exit", () => {
+				clearTimeout(timer);
+				resolve(buf.includes(expected));
+			});
+		});
+
+		child.kill("SIGTERM");
+		await child.catch(() => {});
+
+		expect(seen).toBe(true);
+	}, 25_000);
 });
 
 describe("generateBuildEntry - plugin string references", () => {
