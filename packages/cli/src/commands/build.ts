@@ -80,7 +80,8 @@ async function runHakobu(cwd: string, args: string[]): Promise<void> {
 
 export const buildCommand = command({
 	name: "build",
-	description: "Build your CLI with Hakobu",
+	description:
+		"Bundle your CLI to a JS file (default) or compile it to a standalone binary with `--compile`",
 	flags: {
 		compile: flag({ type: "boolean", description: "Compile to standalone binary" }),
 		outfile: flag({ type: "string", alias: "o", description: "Output file path" }),
@@ -180,6 +181,111 @@ export const buildCommand = command({
 	},
 });
 
+/**
+ * Resolve and import rolldown via the same require chain as Hakobu.
+ *
+ * Rolldown is shipped as a transitive dependency of `@hakobu/hakobu`, so it
+ * is reliably reachable from any project that has `@seedcli/cli` installed
+ * (since `@seedcli/cli` depends on `@hakobu/hakobu`). We deliberately do
+ * NOT add rolldown as a direct dep of `@seedcli/cli`: that would ship a
+ * second copy of an rc-stage native bundler in the install tree, and we
+ * already have one via Hakobu.
+ *
+ * Resolution order:
+ *   1. The downstream project's own `rolldown` (if it has one)
+ *   2. `rolldown` reachable from `@hakobu/hakobu` (the normal path)
+ *   3. `rolldown` reachable from `@seedcli/cli`'s own require chain
+ */
+async function resolveRolldown(cwd: string): Promise<typeof import("rolldown")> {
+	const tryImport = async (req: NodeJS.Require): Promise<typeof import("rolldown") | null> => {
+		try {
+			const rolldownPath = req.resolve("rolldown");
+			return (await import(rolldownPath)) as typeof import("rolldown");
+		} catch {
+			return null;
+		}
+	};
+
+	// 1. Project-local rolldown
+	const projectRequire = createRequire(join(cwd, "package.json"));
+	const projectRolldown = await tryImport(projectRequire);
+	if (projectRolldown) return projectRolldown;
+
+	// 2. rolldown reachable from @hakobu/hakobu (the normal path)
+	try {
+		const hakobuPkg = projectRequire.resolve("@hakobu/hakobu/package.json");
+		const hakobuRequire = createRequire(hakobuPkg);
+		const hakobuRolldown = await tryImport(hakobuRequire);
+		if (hakobuRolldown) return hakobuRolldown;
+	} catch {
+		// fall through
+	}
+
+	// 3. rolldown reachable from @seedcli/cli's own require chain
+	try {
+		const cliPkg = projectRequire.resolve("@seedcli/cli/package.json");
+		const cliRequire = createRequire(cliPkg);
+		const cliHakobuPkg = cliRequire.resolve("@hakobu/hakobu/package.json");
+		const cliHakobuRequire = createRequire(cliHakobuPkg);
+		const cliRolldown = await tryImport(cliHakobuRequire);
+		if (cliRolldown) return cliRolldown;
+	} catch {
+		// fall through
+	}
+
+	// 4. Last resort: this file's own require chain (covers monorepo dev)
+	const ownHakobuPkg = require.resolve("@hakobu/hakobu/package.json");
+	const ownHakobuRequire = createRequire(ownHakobuPkg);
+	const ownRolldown = await tryImport(ownHakobuRequire);
+	if (ownRolldown) return ownRolldown;
+
+	throw new Error(
+		"Could not locate rolldown. Make sure `@seedcli/cli` (which depends on `@hakobu/hakobu`) is installed in your project.",
+	);
+}
+
+/**
+ * Read package.json and return the union of dependencies, peerDependencies,
+ * and optionalDependencies. These are kept external during JS bundling so
+ * the published tarball stays small and uses npm's normal install graph.
+ */
+async function readExternalDependencies(cwd: string): Promise<string[]> {
+	try {
+		const raw = await readFile(join(cwd, "package.json"), "utf-8");
+		const pkg = JSON.parse(raw) as {
+			dependencies?: Record<string, string>;
+			peerDependencies?: Record<string, string>;
+			optionalDependencies?: Record<string, string>;
+		};
+		const set = new Set<string>();
+		for (const field of ["dependencies", "peerDependencies", "optionalDependencies"] as const) {
+			const deps = pkg[field];
+			if (!deps) continue;
+			for (const name of Object.keys(deps)) set.add(name);
+		}
+		return [...set];
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * JS bundle mode (default `seed build`).
+ *
+ * Uses rolldown — already shipped transitively via `@hakobu/hakobu`, so we
+ * don't add a second bundler to the install tree — to produce a plain
+ * JavaScript bundle suitable for npm publishing. Output is `dist/index.js`
+ * with a `#!/usr/bin/env node` shebang, external dependencies preserved
+ * as runtime imports, and an optional sourcemap. The output is a real JS
+ * file (not a Mach-O / PE / ELF binary).
+ *
+ * For standalone binaries, use `seed build --compile` (which routes to
+ * `compileMode` and runs Hakobu's binary packager — also rolldown-backed).
+ *
+ * Why rolldown and not esbuild: Hakobu already pulls in rolldown, so
+ * reusing it keeps `@seedcli/cli`'s install footprint smaller and ensures
+ * `seed build` and `seed build --compile` use the same bundler version.
+ */
 async function bundleMode(
 	entryPath: string,
 	cwd: string,
@@ -199,30 +305,68 @@ async function bundleMode(
 
 	info(`${colors.cyan("seed build")} bundling...`);
 
-	const args: string[] = [
-		cwd,
-		"--bundle",
-		"--entry",
-		entryPath,
-		"--output",
-		outputPath,
-		"--target",
-		"host",
-	];
+	// Auto-externalize package.json dependencies so the published tarball
+	// stays small. Users can still inline a specific dep by removing it
+	// from `dependencies`, or add more externals via `build.external` in
+	// seed.config.ts / `--external` on the CLI.
+	const pkgExternals = await readExternalDependencies(cwd);
+	const userExternals = flags.external ?? [];
+	const externalNames = [...new Set([...pkgExternals, ...userExternals])];
 
-	if (flags.minify) {
-		args.push("--minify");
+	// Match an external name OR a subpath of it (e.g. "react" matches both
+	// "react" and "react/jsx-runtime"). Always pass through node:* builtins.
+	const externalSet = new Set(externalNames);
+	const externalMatcher = (id: string): boolean => {
+		if (id.startsWith("node:")) return true;
+		if (externalSet.has(id)) return true;
+		const slash = id.indexOf("/");
+		if (slash !== -1 && externalSet.has(id.slice(0, slash))) return true;
+		// Scoped package: "@scope/name/subpath"
+		if (id.startsWith("@")) {
+			const second = id.indexOf("/", id.indexOf("/") + 1);
+			if (second !== -1 && externalSet.has(id.slice(0, second))) return true;
+		}
+		return false;
+	};
+
+	// Only add a `#!/usr/bin/env node` banner if the entry source doesn't
+	// already have a shebang (rolldown preserves the source's shebang, so
+	// without this check we'd get a double-shebang in the output).
+	let needsShebang = true;
+	try {
+		const entrySource = await readFile(entryPath, "utf-8");
+		needsShebang = !entrySource.startsWith("#!");
+	} catch {
+		// If we can't read the entry, fall through and add our banner.
 	}
 
-	if (flags.sourcemap) {
-		args.push("--sourcemap");
+	const rolldown = await resolveRolldown(cwd);
+
+	try {
+		await rolldown.build({
+			input: entryPath,
+			external: externalMatcher,
+			platform: "node",
+			output: {
+				file: outputPath,
+				format: "esm",
+				sourcemap: flags.sourcemap ?? false,
+				minify: flags.minify ? true : false,
+				banner: needsShebang ? "#!/usr/bin/env node" : undefined,
+			},
+		});
+	} catch (err) {
+		error("Bundle failed");
+		throw err;
 	}
 
-	for (const ext of flags.external ?? []) {
-		args.push("--external", ext);
+	// Make the bundle executable so it can be used directly as a `bin`.
+	try {
+		const { chmod } = await import("node:fs/promises");
+		await chmod(outputPath, 0o755);
+	} catch {
+		// Non-fatal: chmod may fail on some filesystems (e.g. Windows).
 	}
-
-	await runHakobu(cwd, args);
 
 	// Report output sizes
 	try {
@@ -230,10 +374,24 @@ async function bundleMode(
 		const size = formatSize(st.size);
 		info(`  ${colors.green("\u2714")} ${colors.dim(outputPath)} ${colors.cyan(size)}`);
 
+		if (flags.sourcemap) {
+			try {
+				const mapSt = await stat(`${outputPath}.map`);
+				info(
+					`  ${colors.green("\u2714")} ${colors.dim(`${outputPath}.map`)} ${colors.cyan(formatSize(mapSt.size))}`,
+				);
+			} catch {
+				// Sourcemap missing — non-fatal.
+			}
+		}
+
 		if (flags.analyze) {
 			info("");
 			info(colors.bold("Bundle Analysis:"));
 			info(`  ${basename(outputPath)} \u2014 ${formatSize(st.size)}`);
+			if (externalNames.length > 0) {
+				info(`  External (${externalNames.length}): ${colors.dim(externalNames.join(", "))}`);
+			}
 			info(`  ${colors.bold("Total:")} ${formatSize(st.size)}`);
 		}
 	} catch {

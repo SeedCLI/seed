@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, normalize } from "node:path";
@@ -442,6 +442,127 @@ describe("seed dev", () => {
 
 		expect(seen).toBe(true);
 	}, 25_000);
+});
+
+// These tests symlink the repo's pnpm-strict node_modules into a temp
+// project so the temp project can resolve `@seedcli/core` and find rolldown
+// (which lives transitively under `@hakobu/hakobu`'s install graph). On
+// Windows, Node's resolution through symlinked pnpm-strict trees does not
+// preserve the transitive dep graph the same way it does on POSIX, so
+// rolldown fails to resolve via `createRequire`. The runtime path itself
+// works fine on Windows for real users (where `@hakobu/hakobu` is a real
+// dep produced by `npm install`); this is purely a test-setup fragility,
+// not a runtime regression. The bundle logic itself is exercised by the
+// macOS and Linux CI lanes.
+describe.skipIf(process.platform === "win32")("seed build (JS bundle mode)", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "seedcli-bundle-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	test("produces a plain JS bundle (not a native binary)", async () => {
+		// Symlink the repo's node_modules so the temp project can find
+		// @seedcli/core, rolldown (via Hakobu), and tsx via Node's normal
+		// resolution.
+		const { symlink } = await import("node:fs/promises");
+		await symlink(join(REPO_ROOT, "node_modules"), join(dir, "node_modules"));
+
+		await mkdir(join(dir, "src"), { recursive: true });
+		await writeFile(
+			join(dir, "src", "index.ts"),
+			`#!/usr/bin/env node
+import { build, command } from "@seedcli/core";
+
+const hello = command({
+  name: "hello",
+  run: async ({ print }) => {
+    print.info("hello from bundled cli");
+  },
+});
+
+const cli = build("bundle-test").commands([hello]).help().create();
+await cli.run();
+`,
+		);
+		await writeFile(
+			join(dir, "package.json"),
+			JSON.stringify({
+				name: "bundle-test",
+				type: "module",
+				bin: { "bundle-test": "./src/index.ts" },
+				dependencies: { "@seedcli/core": "^1.0.0" },
+			}),
+		);
+
+		await execa("node", ["--import", TSX_PATH, CLI_ENTRY, "build"], {
+			stdout: "pipe",
+			stderr: "pipe",
+			cwd: dir,
+		});
+
+		const outputPath = join(dir, "dist", "index.js");
+
+		// 1. Output is a real file
+		const st = statSync(outputPath);
+		expect(st.isFile()).toBe(true);
+
+		// 2. It's a JS file, not a Mach-O / PE / ELF binary. esbuild bundles
+		//    are typically tens of KB, never tens of MB.
+		expect(st.size).toBeLessThan(5 * 1024 * 1024); // < 5 MB
+
+		// 3. The first byte is a printable ASCII character (real text), not
+		//    a binary header (0x7f for ELF, 0xcf for Mach-O, "MZ" for PE).
+		const head = readFileSync(outputPath, "utf-8").slice(0, 200);
+		expect(head.startsWith("#!/usr/bin/env node")).toBe(true);
+
+		// 4. It declares the seedcli core import as external (not inlined),
+		//    because @seedcli/core is in package.json#dependencies.
+		const fullSource = readFileSync(outputPath, "utf-8");
+		expect(fullSource).toMatch(/from\s*["']@seedcli\/core["']/);
+
+		// 5. The output is executable (chmod +x). The whole describe is
+		//    skipped on Windows above, so this is always reached on POSIX.
+		expect((st.mode & 0o111) !== 0).toBe(true);
+	}, 30_000);
+
+	test("does not double-shebang when entry source already has one", async () => {
+		const { symlink } = await import("node:fs/promises");
+		await symlink(join(REPO_ROOT, "node_modules"), join(dir, "node_modules"));
+
+		await mkdir(join(dir, "src"), { recursive: true });
+		await writeFile(
+			join(dir, "src", "index.ts"),
+			`#!/usr/bin/env node
+import { build } from "@seedcli/core";
+const cli = build("shebang-test").help().create();
+await cli.run();
+`,
+		);
+		await writeFile(
+			join(dir, "package.json"),
+			JSON.stringify({
+				name: "shebang-test",
+				type: "module",
+				bin: { "shebang-test": "./src/index.ts" },
+				dependencies: { "@seedcli/core": "^1.0.0" },
+			}),
+		);
+
+		await execa("node", ["--import", TSX_PATH, CLI_ENTRY, "build"], {
+			stdout: "pipe",
+			stderr: "pipe",
+			cwd: dir,
+		});
+
+		const source = readFileSync(join(dir, "dist", "index.js"), "utf-8");
+		const shebangCount = (source.match(/^#!/gm) ?? []).length;
+		expect(shebangCount).toBe(1);
+	}, 30_000);
 });
 
 describe("generateBuildEntry - plugin string references", () => {

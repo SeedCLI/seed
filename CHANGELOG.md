@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.1.4
+
+### Fixed
+
+- **`seed build` now produces a real JS bundle, not a native binary.** Previously, `seed build` (without `--compile`) called Hakobu with `--target host`, which always produces a Mach-O / PE / ELF binary with an embedded Node runtime (~tens of MB). The output was named `dist/index.js` but was not actually JavaScript, breaking `npm publish` workflows that expect a `bin: "./dist/index.js"` JS file.
+
+  `seed build` now uses **rolldown** directly (via Hakobu's existing transitive dependency, so no second bundler is added to the install tree) to produce a plain ES module JS bundle suitable for `npm publish`. The result is typically tens of KB, executable directly via `node dist/index.js`, and respects the `#!/usr/bin/env node` shebang.
+
+  - **Externals** — `dependencies`, `peerDependencies`, and `optionalDependencies` from `package.json` are kept as runtime imports, so the published tarball stays small and uses npm's normal install graph. Workspace packages and devDependencies are inlined. Users can add more externals via `build.external` in `seed.config.ts` or `--external` on the CLI. Subpaths (e.g. `react/jsx-runtime`) are matched against the package root.
+  - **Shebang** — A `#!/usr/bin/env node` banner is added unless the entry source already declares one (no double-shebang).
+  - **Sourcemap** — `dist/index.js.map` is emitted when `build.bundle.sourcemap` is true or `--sourcemap` is passed.
+  - **Executable** — The bundle is `chmod +x`'d so it works directly as a `bin` entry.
+
+- **`seed build --compile` is unchanged.** It still routes to Hakobu and produces standalone binaries (Mach-O / PE / ELF) for the configured targets. Use this for distribution via GitHub Releases when you want a runtime-free binary. Both modes now share the same rolldown version (whatever Hakobu pins), so JS bundles and standalone binaries stay in lockstep.
+
 ## v1.1.3
 
 ### Fixed
